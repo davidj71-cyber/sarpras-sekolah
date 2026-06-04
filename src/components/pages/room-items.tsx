@@ -21,6 +21,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -41,9 +48,11 @@ import {
   Filter,
   MapPin,
   Printer,
+  Camera,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
 import { PhotoThumbnail } from '@/components/photo-thumbnail'
+import { PhotoGallery } from '@/components/photo-gallery'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -86,6 +95,14 @@ export function RoomItemsPage() {
   const [filterRoom, setFilterRoom] = useState<string>('all')
   const [filterCondition, setFilterCondition] = useState<string>('all')
   const [filterKibType, setFilterKibType] = useState<string>('all')
+
+  // Photo edit dialog
+  const [photoItem, setPhotoItem] = useState<ItemData | null>(null)
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
+
+  function handleItemPhotosChange(itemId: string, newPhotos: string[]) {
+    setItems(prev => prev.map(item => item.id === itemId ? { ...item, photos: newPhotos } : item))
+  }
 
   // ─── Fetch data ──────────────────────────────────────────────────────────
 
@@ -490,6 +507,7 @@ export function RoomItemsPage() {
                     <TableHead className="text-right">Harga</TableHead>
                     <TableHead>Lokasi</TableHead>
                     <TableHead>Keterangan</TableHead>
+                    <TableHead className="w-[50px]">Foto</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -510,6 +528,22 @@ export function RoomItemsPage() {
                       <TableCell className="text-right">{item.price > 0 ? formatRupiah(item.price) : '-'}</TableCell>
                       <TableCell>{renderLocation(item)}</TableCell>
                       <TableCell className="max-w-[150px] truncate">{item.notes || '-'}</TableCell>
+                      <TableCell>
+                        <div className="relative">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`size-8 ${item.photos && item.photos.length > 0 ? 'text-primary' : 'text-muted-foreground'}`}
+                            onClick={() => { setPhotoItem(item); setPhotoDialogOpen(true) }}
+                            title={item.photos && item.photos.length > 0 ? `Kelola foto (${item.photos.length})` : 'Tambah foto'}
+                          >
+                            <Camera className="size-4" />
+                          </Button>
+                          {item.photos && item.photos.length > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] rounded-full size-3.5 flex items-center justify-center font-bold">{item.photos.length}</span>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -518,6 +552,28 @@ export function RoomItemsPage() {
           </CardContent>
         </Card>
       )}
+
+           {/* Photo Gallery Dialog */}
+      <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Foto Barang - {photoItem?.name}</DialogTitle>
+            <DialogDescription>
+              Kelola foto barang. Klik kamera atau upload untuk menambahkan foto.
+            </DialogDescription>
+          </DialogHeader>
+          {photoItem && (
+            <PhotoGallery
+              photos={photoItem.photos || []}
+              itemId={photoItem.id}
+              onPhotosChange={(newPhotos) => {
+                handleItemPhotosChange(photoItem.id, newPhotos)
+                setPhotoItem(prev => prev ? { ...prev, photos: newPhotos } : null)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

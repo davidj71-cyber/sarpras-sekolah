@@ -99,9 +99,6 @@ export async function GET() {
       },
       take: 10,
       orderBy: { createdAt: 'desc' },
-      include: {
-        room: { select: { name: true } },
-      },
       select: {
         id: true,
         name: true,

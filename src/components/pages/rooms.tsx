@@ -66,6 +66,7 @@ import {
   AlertTriangle,
   XCircle,
   Printer,
+  Camera,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
 import { PhotoThumbnail } from '@/components/photo-thumbnail'
@@ -1072,6 +1073,7 @@ export function RoomsPage() {
               <TableHead>Kondisi</TableHead>
               <TableHead className="text-right">Jumlah</TableHead>
               <TableHead>Keterangan</TableHead>
+              <TableHead className="w-[50px]">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1085,19 +1087,28 @@ export function RoomsPage() {
                     />
                   </div>
                 </TableCell>
-                <TableCell className="font-medium">
-                  <button
-                    className="hover:text-primary hover:underline transition-colors text-left"
-                    onClick={(e) => { e.stopPropagation(); setPhotoItem(item); setPhotoDialogOpen(true) }}
-                  >
-                    {item.name}
-                  </button>
-                </TableCell>
+                <TableCell className="font-medium">{item.name}</TableCell>
                 <TableCell>{item.registrationNumber || '-'}</TableCell>
                 <TableCell>{item.brand || '-'}</TableCell>
                 <TableCell>{conditionBadge(item.condition)}</TableCell>
                 <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{item.notes || '-'}</TableCell>
+                <TableCell>
+                  <div className="relative">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`size-8 ${item.photos && item.photos.length > 0 ? 'text-primary' : 'text-muted-foreground'}`}
+                      onClick={(e) => { e.stopPropagation(); setPhotoItem(item); setPhotoDialogOpen(true) }}
+                      title={item.photos && item.photos.length > 0 ? `Kelola foto (${item.photos.length})` : 'Tambah foto'}
+                    >
+                      <Camera className="size-4" />
+                    </Button>
+                    {item.photos && item.photos.length > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] rounded-full size-3.5 flex items-center justify-center font-bold">{item.photos.length}</span>
+                    )}
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
