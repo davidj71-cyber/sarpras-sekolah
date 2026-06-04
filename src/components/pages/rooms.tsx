@@ -1123,8 +1123,8 @@ export function RoomsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Ruang</h2>
-          <p className="text-muted-foreground">Manajemen ruangan dan lokasi barang</p>
+          <h2 className="text-2xl font-bold tracking-tight">Inventaris</h2>
+          <p className="text-muted-foreground">Manajemen ruangan dan inventaris barang</p>
         </div>
         {!selectedRoomId && (
           <div className="flex items-center gap-2">

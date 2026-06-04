@@ -39,6 +39,61 @@ export async function GET(
   }
 }
 
+// Helper: only include field if explicitly provided in body
+// This prevents accidental resets when partial updates are sent (e.g., photo upload)
+function buildUpdateData(body: Record<string, unknown>) {
+  const data: Record<string, unknown> = {};
+
+  // Simple string/number fields - only update if provided
+  const simpleFields = [
+    "name", "kibType", "registrationNumber", "brand", "model",
+    "serialNumber", "material", "size", "condition", "unit",
+    "origin", "notes", "landCertificate", "landStatus", "landUsage",
+    "buildingLevel", "buildingConcrete", "buildingLocation",
+    "roadLocation", "contractNumber",
+  ];
+
+  for (const field of simpleFields) {
+    if (body[field] !== undefined) {
+      data[field] = body[field];
+    }
+  }
+
+  // Number fields - only update if provided
+  const numberFields = [
+    "quantity", "price", "landArea", "buildingArea",
+    "roadLength", "roadWidth", "roadArea",
+  ];
+
+  for (const field of numberFields) {
+    if (body[field] !== undefined) {
+      data[field] = body[field];
+    }
+  }
+
+  // Nullable fields - allow explicit null (e.g., removing roomId)
+  // but don't set to null if not provided at all
+  const nullableFields = [
+    "yearMade", "acquisitionYear", "implementationYear",
+    "roomId", "bilikId", "lemariId",
+  ];
+
+  for (const field of nullableFields) {
+    if (body[field] !== undefined) {
+      // Explicitly provided (could be null to clear, or a value to set)
+      data[field] = body[field] ?? null;
+    }
+    // If not provided at all, don't include in data (Prisma will keep current value)
+  }
+
+  // Photos - special handling (JSON string)
+  if (body.photos !== undefined) {
+    data.photos = JSON.stringify(body.photos);
+  }
+
+  return data;
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -47,47 +102,20 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    const data = buildUpdateData(body);
+
     const item = await db.item.update({
       where: { id },
-      data: {
-        name: body.name,
-        kibType: body.kibType,
-        registrationNumber: body.registrationNumber,
-        brand: body.brand,
-        model: body.model,
-        serialNumber: body.serialNumber,
-        material: body.material,
-        yearMade: body.yearMade ?? null,
-        size: body.size,
-        condition: body.condition,
-        quantity: body.quantity,
-        unit: body.unit,
-        origin: body.origin,
-        price: body.price,
-        acquisitionYear: body.acquisitionYear ?? null,
-        notes: body.notes,
-        roomId: body.roomId ?? null,
-        bilikId: body.bilikId ?? null,
-        lemariId: body.lemariId ?? null,
-        landCertificate: body.landCertificate,
-        landArea: body.landArea,
-        landStatus: body.landStatus,
-        landUsage: body.landUsage,
-        buildingLevel: body.buildingLevel,
-        buildingConcrete: body.buildingConcrete,
-        buildingArea: body.buildingArea,
-        buildingLocation: body.buildingLocation,
-        roadLength: body.roadLength,
-        roadWidth: body.roadWidth,
-        roadArea: body.roadArea,
-        roadLocation: body.roadLocation,
-        contractNumber: body.contractNumber,
-        implementationYear: body.implementationYear ?? null,
-        photos: JSON.stringify(body.photos ?? []),
-      },
+      data,
     });
 
-    return NextResponse.json(item);
+    // Return item with parsed photos
+    const itemWithPhotos = {
+      ...item,
+      photos: JSON.parse(item.photos || "[]"),
+    };
+
+    return NextResponse.json(itemWithPhotos);
   } catch (error) {
     console.error("Error updating item:", error);
     return NextResponse.json(
@@ -103,6 +131,27 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    // Get item photos before deleting to clean up files
+    const item = await db.item.findUnique({ where: { id } });
+    if (item) {
+      try {
+        const photos: string[] = JSON.parse(item.photos || "[]");
+        const { unlink } = await import("fs/promises");
+        const path = await import("path");
+        const uploadDir = path.join(process.cwd(), "public", "uploads", "items");
+        for (const photo of photos) {
+          try {
+            await unlink(path.join(uploadDir, photo));
+          } catch {
+            // File might not exist, that's OK
+          }
+        }
+      } catch {
+        // Photo cleanup failed, but still delete the item
+      }
+    }
+
     await db.item.delete({
       where: { id },
     });

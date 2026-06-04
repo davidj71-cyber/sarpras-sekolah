@@ -1,69 +1,53 @@
 ---
 Task ID: 1
 Agent: main
-Task: Fix KIB photo upload - add missing API routes and clear error notifications
+Task: Rename "Ruang" to "Inventaris" in sidebar and navbar
 
 Work Log:
-- Investigated codebase and found that `/api/upload` (POST) and `/api/upload/[filename]` (DELETE) API routes were MISSING
-- The PhotoGallery component was calling these endpoints but they didn't exist, causing 404 errors on upload
-- Created `src/app/api/upload/route.ts` with POST handler including:
-  - File type validation (JPG, PNG, GIF, WebP, BMP, SVG)
-  - File size validation (max 10MB)
-  - Empty file validation
-  - FormData parsing with error handling
-  - Unique filename generation (item_{timestamp}_{uuid}.{ext})
-  - File storage to `public/uploads/items/`
-  - Detailed error messages in Indonesian with error codes
-- Created `src/app/api/upload/[filename]/route.ts` with DELETE handler including:
-  - Directory traversal prevention
-  - Filename prefix validation (must start with "item_")
-  - Graceful handling of already-deleted files
-- Enhanced `src/components/photo-gallery.tsx` with:
-  - `parseUploadError()` function for detailed error parsing
-  - Specific error messages for: FILE_TOO_LARGE, INVALID_TYPE, NO_FILE, EMPTY_FILE, NETWORK_ERROR, SERVER_ERROR
-  - Upload progress indicator (current/total)
-  - Per-file error collection with combined error toast
-  - Better delete error handling with warning when file deletion fails but DB update succeeds
-  - Error duration extended to 8 seconds for readability
+- Changed sidebar nav item label from "Ruang" to "Inventaris" with Archive icon in src/components/app-sidebar.tsx
+- Changed navbar sub-tab label from "Ruang" to "Inventaris" in src/app/page.tsx
+- Changed page title map entry from "Ruang" to "Inventaris" in src/app/page.tsx
+- Changed heading in rooms.tsx from "Ruang" to "Inventaris" with updated subtitle
 
 Stage Summary:
-- Photo upload now works end-to-end (tested via curl API test)
-- Error notifications clearly explain: file too large, wrong format, network error, server error, etc.
-- Both KIB and Ruang pages already had the PhotoGallery/PhotoThumbnail components integrated
-- The only issue was the missing backend API routes, now created
+- Sidebar now shows "Inventaris" with Archive icon
+- Navbar sub-tab shows "Inventaris" and "Barang di Ruang"
+- Page heading shows "Inventaris"
 
 ---
 Task ID: 2
 Agent: main
-Task: Add photo upload feature to Ruang/Bilik/Lemari items
+Task: Ensure Bilik & Lemari are addable/removable in room detail
 
 Work Log:
-- Investigated rooms.tsx and found it already has PhotoGallery and PhotoThumbnail components integrated
-- The Camera button is already visible on items in the rooms detail page
-- The photo dialog already works with upload/delete functionality
-- The issue was NOT missing UI - it was the missing backend API route that prevented uploads from working
-- After creating the `/api/upload` API route, photo upload now works in both KIB and Ruang pages
+- Verified Bilik and Lemari add/delete functionality already exists in rooms.tsx
+- Tested adding new Lemari via Agent Browser - dialog opens, form works, item saved successfully
+- Tested deleting Lemari via Agent Browser - confirmation dialog appears, deletion works
+- Both "Tambah Bilik" and "Tambah Lemari" buttons present
+- Each Bilik/Lemari card has edit (pencil) and delete (trash) icon buttons
 
 Stage Summary:
-- Ruang/Bilik/Lemari photo upload feature was already in the UI code
-- The only missing piece was the backend `/api/upload` API route (now created)
-- Photos can now be uploaded from both KIB and Ruang pages
+- Bilik & Lemari can be added and deleted from room detail page
+- Confirmation dialog shows before deletion
+- Toast notifications confirm success/failure
 
 ---
 Task ID: 3
 Agent: main
-Task: Verify features work with Agent Browser
+Task: Fix photo upload/camera in Inventaris page and fix PUT API bug
 
 Work Log:
-- Used agent-browser to navigate the application
-- Dashboard loads correctly
-- KIB page shows items with photo thumbnails and camera buttons
-- Photo dialog opens with Camera and Upload buttons
-- Items with existing photos show clickable thumbnails
-- Rooms page shows room details with Bilik and Lemari sections
-- No JavaScript errors detected
+- Discovered items had no roomId assigned, so they weren't showing in the Inventaris page
+- Assigned items to rooms via API to make them visible
+- Found critical bug in PUT /api/items/[id] endpoint: using `??` operator (e.g., `body.roomId ?? null`) caused fields not included in the request body to be reset to null/empty instead of being preserved
+- Rewrote PUT handler with `buildUpdateData()` helper that only includes fields explicitly provided in the request body
+- Added photo file cleanup when items are deleted
+- Verified photo upload now works end-to-end in both KIB and Inventaris pages
+- Photo dialog opens with Kamera and Upload buttons
+- Photo thumbnails render correctly with count badges
 
 Stage Summary:
-- Application verified working via agent-browser
-- Photo upload feature functional in KIB section
-- Rooms page functional but has no items to test photo upload on (rooms are empty)
+- Photo upload works in Inventaris page (both Camera and Upload buttons)
+- PUT API fixed to use partial updates (only updates provided fields)
+- Photo files cleaned up when items are deleted
+- Item photos properly preserved when other fields are updated

@@ -36,7 +36,7 @@ const storeItems: { key: StoreSubPage; label: string; icon: React.ElementType }[
 ]
 
 const roomItems: { key: RoomSubPage; label: string; icon: React.ElementType }[] = [
-  { key: 'rooms', label: 'Ruang', icon: DoorOpen },
+  { key: 'rooms', label: 'Inventaris', icon: DoorOpen },
   { key: 'allItems', label: 'Barang di Ruang', icon: Package },
 ]
 
@@ -118,7 +118,7 @@ const pageTitles: Record<string, string> = {
   stores: 'Toko',
   employees: 'Pegawai',
   kib: 'Kartu Inventaris Barang',
-  rooms: 'Ruang',
+  rooms: 'Inventaris',
 }
 
 export default function Home() {
