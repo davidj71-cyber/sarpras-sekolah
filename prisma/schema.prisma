@@ -23,6 +23,7 @@ model SchoolSettings {
   phone             String?
   email             String?
   npsn              String? // Nomor Pokok Sekolah Nasional
+  kopLines          String  @default("[]") // JSON array of strings for KOP identity lines
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

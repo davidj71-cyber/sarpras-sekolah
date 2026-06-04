@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Settings, Upload, Loader2, X, School } from 'lucide-react'
+import { Settings, Upload, Loader2, X, School, Plus, Trash2, GripVertical } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 interface SchoolSettingsData {
@@ -28,6 +28,7 @@ interface SchoolSettingsData {
   textTransform: string
   underlineThickness: number
   underlineWidth: number
+  kopLines: string[] // dynamic KOP identity lines
 }
 
 const defaultSettings: SchoolSettingsData = {
@@ -45,6 +46,7 @@ const defaultSettings: SchoolSettingsData = {
   textTransform: 'none',
   underlineThickness: 1.0,
   underlineWidth: 100.0,
+  kopLines: [],
 }
 
 const fontOptions = [
@@ -76,6 +78,16 @@ export function SettingsPage() {
         const res = await fetch('/api/settings')
         if (!res.ok) throw new Error('Gagal mengambil pengaturan')
         const data = await res.json()
+        // Parse kopLines from JSON string if needed
+        let parsedKopLines: string[] = []
+        if (data.kopLines) {
+          try {
+            const parsed = typeof data.kopLines === 'string' ? JSON.parse(data.kopLines) : data.kopLines
+            parsedKopLines = Array.isArray(parsed) ? parsed : []
+          } catch {
+            parsedKopLines = []
+          }
+        }
         setSettings({
           schoolName: data.schoolName ?? '',
           npsn: data.npsn ?? '',
@@ -91,6 +103,7 @@ export function SettingsPage() {
           textTransform: data.textTransform ?? 'none',
           underlineThickness: data.underlineThickness ?? 1.0,
           underlineWidth: data.underlineWidth ?? 100.0,
+          kopLines: parsedKopLines,
         })
       } catch {
         toast({
@@ -112,17 +125,52 @@ export function SettingsPage() {
     setSettings(prev => ({ ...prev, [key]: value }))
   }, [])
 
+  // ─── KOP Lines handlers ────────────────────────────────────────────────────
+
+  const addKopLine = useCallback(() => {
+    setSettings(prev => ({
+      ...prev,
+      kopLines: [...prev.kopLines, ''],
+    }))
+  }, [])
+
+  const removeKopLine = useCallback((index: number) => {
+    setSettings(prev => ({
+      ...prev,
+      kopLines: prev.kopLines.filter((_, i) => i !== index),
+    }))
+  }, [])
+
+  const updateKopLine = useCallback((index: number, value: string) => {
+    setSettings(prev => ({
+      ...prev,
+      kopLines: prev.kopLines.map((line, i) => (i === index ? value : line)),
+    }))
+  }, [])
+
+  const moveKopLine = useCallback((fromIndex: number, direction: 'up' | 'down') => {
+    setSettings(prev => {
+      const lines = [...prev.kopLines]
+      const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1
+      if (toIndex < 0 || toIndex >= lines.length) return prev
+      const temp = lines[fromIndex]
+      lines[fromIndex] = lines[toIndex]
+      lines[toIndex] = temp
+      return { ...prev, kopLines: lines }
+    })
+  }, [])
+
+  // ─── Logo handlers ────────────────────────────────────────────────────────
+
   const handleLogoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast({ title: 'Error', description: 'File harus berupa gambar', variant: 'destructive' })
       return
     }
 
-    // Validate file size (4MB)
     if (file.size > 4 * 1024 * 1024) {
       toast({ title: 'Error', description: 'Ukuran file maksimal 4MB', variant: 'destructive' })
       return
@@ -142,6 +190,8 @@ export function SettingsPage() {
       fileInputRef.current.value = ''
     }
   }, [updateSettings])
+
+  // ─── Save handler ────────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
     setIsSaving(true)
@@ -307,7 +357,7 @@ export function SettingsPage() {
               {settings.logo && (
                 <div className="relative">
                   <div className="flex size-20 items-center justify-center rounded-md border bg-muted p-1">
-                        <img
+                    <img
                       src={settings.logo}
                       alt="Logo sekolah"
                       className="max-h-full max-w-full object-contain"
@@ -362,6 +412,88 @@ export function SettingsPage() {
                 />
               </div>
             </div>
+          </div>
+
+          <Separator />
+
+          {/* Baris Identitas KOP (Dynamic) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Baris Identitas KOP</Label>
+                <p className="text-xs text-muted-foreground">
+                  Tambahkan baris-baris identitas sekolah yang akan tampil di bawah nama sekolah pada KOP surat
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addKopLine}
+              >
+                <Plus className="mr-1 size-4" />
+                Tambah Baris
+              </Button>
+            </div>
+
+            {settings.kopLines.length === 0 ? (
+              <div className="rounded-lg border-2 border-dashed p-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Belum ada baris identitas. Klik &quot;Tambah Baris&quot; untuk menambahkan.
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Contoh: Alamat sekolah, No. Telepon, Email, Website, NPSN, dll.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {settings.kopLines.map((line, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                        onClick={() => moveKopLine(index, 'up')}
+                        disabled={index === 0}
+                        title="Pindah ke atas"
+                      >
+                        <svg width="14" height="8" viewBox="0 0 14 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M7 0L13.5 8H0.5L7 0Z" fill="currentColor"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                        onClick={() => moveKopLine(index, 'down')}
+                        disabled={index === settings.kopLines.length - 1}
+                        title="Pindah ke bawah"
+                      >
+                        <svg width="14" height="8" viewBox="0 0 14 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M7 8L0.5 0H13.5L7 8Z" fill="currentColor"/>
+                        </svg>
+                      </button>
+                    </div>
+                    <GripVertical className="size-4 text-muted-foreground shrink-0" />
+                    <Input
+                      value={line}
+                      onChange={(e) => updateKopLine(index, e.target.value)}
+                      placeholder={`Baris ${index + 1} - misal: Jl. Pendidikan No. 1, Jakarta`}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-9 shrink-0 text-destructive hover:text-destructive"
+                      onClick={() => removeKopLine(index)}
+                      title="Hapus baris"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <Separator />
@@ -560,43 +692,32 @@ export function SettingsPage() {
                   >
                     {settings.schoolName || 'Nama Sekolah'}
                   </h3>
-                  {settings.address && (
-                    <p
-                      className="mt-1 text-black"
-                      style={{
-                        fontFamily: settings.fontFamily,
-                        fontSize: `${Math.max(settings.fontSize - 4, 8)}pt`,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {settings.address}
-                    </p>
+                  {/* Dynamic KOP Lines */}
+                  {settings.kopLines.filter(l => l.trim()).length > 0 && (
+                    settings.kopLines.filter(l => l.trim()).map((line, idx) => (
+                      <p
+                        key={idx}
+                        className="mt-0.5 text-black"
+                        style={{
+                          fontFamily: settings.fontFamily,
+                          fontSize: `${Math.max(settings.fontSize - 4, 8)}pt`,
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {line}
+                      </p>
+                    ))
                   )}
-                  <p
-                    className="mt-0.5 text-black"
-                    style={{
-                      fontFamily: settings.fontFamily,
-                      fontSize: `${Math.max(settings.fontSize - 4, 8)}pt`,
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {[
-                      settings.phone && `Telp: ${settings.phone}`,
-                      settings.email && `Email: ${settings.email}`,
-                    ]
-                      .filter(Boolean)
-                      .join(' | ')}
-                  </p>
-                  {settings.npsn && (
+                  {settings.kopLines.filter(l => l.trim()).length === 0 && (
                     <p
-                      className="mt-0.5 text-black"
+                      className="mt-1 text-gray-400 italic"
                       style={{
                         fontFamily: settings.fontFamily,
                         fontSize: `${Math.max(settings.fontSize - 4, 8)}pt`,
                         lineHeight: 1.4,
                       }}
                     >
-                      NPSN: {settings.npsn}
+                      Baris identitas akan tampil di sini
                     </p>
                   )}
                 </div>

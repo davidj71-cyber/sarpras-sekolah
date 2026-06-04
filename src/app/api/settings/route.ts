@@ -16,6 +16,7 @@ const defaultSettings = {
   phone: null,
   email: null,
   npsn: null,
+  kopLines: "[]",
 };
 
 export async function GET() {
@@ -42,6 +43,11 @@ export async function POST(request: NextRequest) {
 
     const existing = await db.schoolSettings.findFirst();
 
+    // Ensure kopLines is a valid JSON string
+    const kopLines = Array.isArray(body.kopLines)
+      ? JSON.stringify(body.kopLines)
+      : body.kopLines ?? "[]";
+
     let settings;
 
     if (existing) {
@@ -62,6 +68,7 @@ export async function POST(request: NextRequest) {
           phone: body.phone,
           email: body.email,
           npsn: body.npsn,
+          kopLines,
         },
       });
     } else {
@@ -81,6 +88,7 @@ export async function POST(request: NextRequest) {
           phone: body.phone,
           email: body.email,
           npsn: body.npsn,
+          kopLines,
         },
       });
     }

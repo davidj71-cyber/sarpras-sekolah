@@ -119,6 +119,7 @@ interface SettingsData {
   phone: string | null
   email: string | null
   npsn: string | null
+  kopLines: string | string[] // JSON string or array
 }
 
 interface OrderItemForm {
@@ -364,7 +365,7 @@ export function OrdersPage() {
     const settings: SettingsData = settingsRes.ok ? await settingsRes.json() : {
       schoolName: '', logo: null, logoWidth: 3, logoHeight: 3, fontFamily: 'Times New Roman',
       fontSize: 14, isBold: false, textTransform: 'none', underlineThickness: 1, underlineWidth: 100,
-      address: null, phone: null, email: null, npsn: null,
+      address: null, phone: null, email: null, npsn: null, kopLines: [],
     }
 
     const store = fullOrder.store || stores.find((s) => s.id === fullOrder.storeId)
@@ -391,17 +392,28 @@ export function OrdersPage() {
 
     const underlineWidthPx = (settings.underlineWidth / 100) * 100
 
+    // Parse kopLines
+    let parsedKopLines: string[] = []
+    if (settings.kopLines) {
+      try {
+        const parsed = typeof settings.kopLines === 'string' ? JSON.parse(settings.kopLines) : settings.kopLines
+        parsedKopLines = Array.isArray(parsed) ? parsed.filter((l: string) => l.trim()) : []
+      } catch {
+        parsedKopLines = []
+      }
+    }
+
+    // Build KOP identity lines HTML
+    const kopLinesHtml = parsedKopLines
+      .map((line) => `<div style="font-size: 10pt; margin-top: 2px;">${line}</div>`)
+      .join('\n')
+
     const kopHtml = `
       <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 4px;">
         ${settings.logo ? `<img src="${settings.logo}" style="width: ${logoWidthPx}px; height: ${logoHeightPx}px; object-fit: contain;" />` : ''}
         <div style="flex: 1; text-align: center;">
           <div style="${schoolNameStyle}">${settings.schoolName || 'NAMA SEKOLAH'}</div>
-          ${settings.address ? `<div style="font-size: 10pt; margin-top: 2px;">${settings.address}</div>` : ''}
-          <div style="font-size: 10pt;">
-            ${settings.phone ? `Telp: ${settings.phone}` : ''}
-            ${settings.email ? ` | Email: ${settings.email}` : ''}
-            ${settings.npsn ? ` | NPSN: ${settings.npsn}` : ''}
-          </div>
+          ${kopLinesHtml}
         </div>
         <div style="width: ${logoWidthPx}px;"></div>
       </div>
