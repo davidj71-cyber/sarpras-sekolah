@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
         quantity: body.quantity ?? 1,
         unit: body.unit ?? "Unit",
         origin: body.origin ?? "",
+        sumberDana: body.sumberDana ?? "",
         price: body.price ?? 0,
         acquisitionYear: body.acquisitionYear ?? null,
         notes: body.notes ?? "",

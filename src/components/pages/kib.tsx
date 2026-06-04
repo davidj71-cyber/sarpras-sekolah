@@ -102,6 +102,7 @@ interface Item {
   quantity: number
   unit: string
   origin: string
+  sumberDana: string
   price: number
   acquisitionYear: number | null
   notes: string
@@ -135,6 +136,7 @@ interface FormData {
   quantity: number
   unit: string
   origin: string
+  sumberDana: string
   price: number
   acquisitionYear: number | ''
   notes: string
@@ -168,6 +170,7 @@ const emptyFormData: FormData = {
   quantity: 1,
   unit: 'Unit',
   origin: '',
+  sumberDana: '',
   price: 0,
   acquisitionYear: '',
   notes: '',
@@ -432,6 +435,7 @@ export function KibPage() {
       quantity: item.quantity,
       unit: item.unit,
       origin: item.origin,
+      sumberDana: item.sumberDana || '',
       price: item.price,
       acquisitionYear: item.acquisitionYear ?? '',
       notes: item.notes,
@@ -697,6 +701,24 @@ export function KibPage() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="sumberDana">Sumber Dana</Label>
+            <Select value={formData.sumberDana || '_none_'} onValueChange={(val) => handleFieldChange('sumberDana', val === '_none_' ? '' : val)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Pilih sumber dana" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_none_">— Tidak Ditentukan —</SelectItem>
+                <SelectItem value="APBN">APBN</SelectItem>
+                <SelectItem value="APBD">APBD</SelectItem>
+                <SelectItem value="BOS">BOS</SelectItem>
+                <SelectItem value="Donasi">Donasi</SelectItem>
+                <SelectItem value="Hibah">Hibah</SelectItem>
+                <SelectItem value="Lainnya">Lainnya</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="price">Harga (Rp)</Label>
             <Input
               id="price"
@@ -709,7 +731,7 @@ export function KibPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="acquisitionYear">Tahun Perolehan</Label>
+            <Label htmlFor="acquisitionYear">Tahun Pengadaan</Label>
             <Input
               id="acquisitionYear"
               type="number"

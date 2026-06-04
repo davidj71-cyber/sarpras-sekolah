@@ -51,3 +51,27 @@ Stage Summary:
 - PUT API fixed to use partial updates (only updates provided fields)
 - Photo files cleaned up when items are deleted
 - Item photos properly preserved when other fields are updated
+
+---
+Task ID: 5
+Agent: main
+Task: Add "Sumber Dana" and "Tahun Pengadaan" columns to Inventaris item tables
+
+Work Log:
+- Added `sumberDana` (String) field to Item model in prisma/schema.prisma
+- Renamed `acquisitionYear` comment from "Tahun perolehan" to "Tahun pengadaan"
+- Ran `bun run db:push` to sync database
+- Updated POST handler in /api/items/route.ts to include sumberDana
+- Updated PUT handler in /api/items/[id]/route.ts to include sumberDana in simpleFields
+- Updated rooms.tsx: ItemData interface, itemForm state, openEditItem(), table headers/rows, edit dialog with Sumber Dana dropdown (APBN/APBD/BOS/Donasi/Hibah/Lainnya) and Tahun Pengadaan number input
+- Updated room-items.tsx: same changes as rooms.tsx
+- Updated kib.tsx: ItemData interfaces, formData state, edit loading, form UI with Sumber Dana dropdown, renamed "Tahun Perolehan" to "Tahun Pengadaan"
+- Fixed React controlled/uncontrolled Select warning by using '_none_' sentinel value for empty sumberDana
+- Verified with Agent Browser - both columns visible in tables, both fields present in edit dialogs
+
+Stage Summary:
+- "Sumber Dana" column added with dropdown (APBN, APBD, BOS, Donasi, Hibah, Lainnya, Tidak Ditentukan)
+- "Tahun Pengadaan" column added with number input (year format)
+- Both fields visible in Inventaris tables and KIB form
+- Edit dialog includes both new fields
+- Lint passes, no errors

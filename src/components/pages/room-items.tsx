@@ -88,6 +88,8 @@ interface ItemData {
   quantity: number
   unit: string
   price: number
+  sumberDana: string
+  acquisitionYear: number | null
   notes: string
   roomId: string | null
   bilikId: string | null
@@ -126,6 +128,8 @@ export function RoomItemsPage() {
     quantity: 1 as number,
     unit: 'Unit',
     price: 0 as number,
+    sumberDana: '',
+    acquisitionYear: null as number | null,
     notes: '',
   })
   const [itemSaving, setItemSaving] = useState(false)
@@ -150,6 +154,8 @@ export function RoomItemsPage() {
       quantity: item.quantity,
       unit: item.unit,
       price: item.price,
+      sumberDana: item.sumberDana || '',
+      acquisitionYear: item.acquisitionYear ?? null,
       notes: item.notes || '',
     })
     setItemDialogOpen(true)
@@ -595,6 +601,8 @@ export function RoomItemsPage() {
                     <TableHead>Kondisi</TableHead>
                     <TableHead className="text-right">Jumlah</TableHead>
                     <TableHead className="text-right">Harga</TableHead>
+                    <TableHead>Sumber Dana</TableHead>
+                    <TableHead>Tahun Pengadaan</TableHead>
                     <TableHead>Lokasi</TableHead>
                     <TableHead>Keterangan</TableHead>
                     <TableHead className="w-[130px]">Aksi</TableHead>
@@ -616,6 +624,8 @@ export function RoomItemsPage() {
                       <TableCell>{conditionBadge(item.condition)}</TableCell>
                       <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
                       <TableCell className="text-right">{item.price > 0 ? formatRupiah(item.price) : '-'}</TableCell>
+                      <TableCell>{item.sumberDana || '-'}</TableCell>
+                      <TableCell>{item.acquisitionYear || '-'}</TableCell>
                       <TableCell>{renderLocation(item)}</TableCell>
                       <TableCell className="max-w-[150px] truncate">{item.notes || '-'}</TableCell>
                       <TableCell>
@@ -727,6 +737,27 @@ export function RoomItemsPage() {
             <div className="space-y-2">
               <Label htmlFor="item-price">Harga (Rp)</Label>
               <Input id="item-price" type="number" min={0} value={itemForm.price} onChange={(e) => setItemForm({ ...itemForm, price: Number(e.target.value) || 0 })} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="item-sumber-dana">Sumber Dana</Label>
+              <Select value={itemForm.sumberDana || '_none_'} onValueChange={(val) => setItemForm({ ...itemForm, sumberDana: val === '_none_' ? '' : val })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih sumber dana" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none_">— Tidak Ditentukan —</SelectItem>
+                  <SelectItem value="APBN">APBN</SelectItem>
+                  <SelectItem value="APBD">APBD</SelectItem>
+                  <SelectItem value="BOS">BOS</SelectItem>
+                  <SelectItem value="Donasi">Donasi</SelectItem>
+                  <SelectItem value="Hibah">Hibah</SelectItem>
+                  <SelectItem value="Lainnya">Lainnya</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="item-tahun-pengadaan">Tahun Pengadaan</Label>
+              <Input id="item-tahun-pengadaan" type="number" min={1900} max={2100} value={itemForm.acquisitionYear ?? ''} onChange={(e) => setItemForm({ ...itemForm, acquisitionYear: e.target.value ? Number(e.target.value) : null })} placeholder="Contoh: 2024" />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="item-notes">Keterangan</Label>

@@ -48,7 +48,7 @@ function buildUpdateData(body: Record<string, unknown>) {
   const simpleFields = [
     "name", "kibType", "registrationNumber", "brand", "model",
     "serialNumber", "material", "size", "condition", "unit",
-    "origin", "notes", "landCertificate", "landStatus", "landUsage",
+    "origin", "sumberDana", "notes", "landCertificate", "landStatus", "landUsage",
     "buildingLevel", "buildingConcrete", "buildingLocation",
     "roadLocation", "contractNumber",
   ];

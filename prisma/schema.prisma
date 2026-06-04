@@ -107,8 +107,9 @@ model Item {
   quantity          Int      @default(1)
   unit              String   @default("Unit")
   origin            String   @default("") // Asal usul
+  sumberDana        String   @default("") // Sumber Dana (APBN, APBD, BOS, Donasi, dll)
   price             Float    @default(0)
-  acquisitionYear   Int?     // Tahun perolehan
+  acquisitionYear   Int?     // Tahun pengadaan
   notes             String   @default("")
   // Location fields
   roomId            String?
