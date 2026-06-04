@@ -68,6 +68,8 @@ import {
   Printer,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
+import { PhotoThumbnail } from '@/components/photo-thumbnail'
+import { PhotoGallery } from '@/components/photo-gallery'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -117,6 +119,7 @@ interface ItemData {
   room?: { id: string; name: string }
   bilik?: { id: string; name: string }
   lemari?: { id: string; number: string }
+  photos?: string[]
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -158,6 +161,14 @@ export function RoomsPage() {
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; type: 'room' | 'bilik' | 'lemari' } | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Photo edit dialog
+  const [photoItem, setPhotoItem] = useState<ItemData | null>(null)
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
+
+  function handleItemPhotosChange(itemId: string, newPhotos: string[]) {
+    setItems(prev => prev.map(item => item.id === itemId ? { ...item, photos: newPhotos } : item))
+  }
 
   // ─── Fetch rooms ─────────────────────────────────────────────────────────
 
@@ -1054,6 +1065,7 @@ export function RoomsPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px]">No</TableHead>
+              <TableHead className="w-[70px]">Foto</TableHead>
               <TableHead>Nama Barang</TableHead>
               <TableHead>No. Register</TableHead>
               <TableHead>Merk</TableHead>
@@ -1066,7 +1078,21 @@ export function RoomsPage() {
             {items.map((item, idx) => (
               <TableRow key={item.id}>
                 <TableCell>{idx + 1}</TableCell>
-                <TableCell className="font-medium">{item.name}</TableCell>
+                <TableCell>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <PhotoThumbnail
+                      photos={item.photos || []}
+                    />
+                  </div>
+                </TableCell>
+                <TableCell className="font-medium">
+                  <button
+                    className="hover:text-primary hover:underline transition-colors text-left"
+                    onClick={(e) => { e.stopPropagation(); setPhotoItem(item); setPhotoDialogOpen(true) }}
+                  >
+                    {item.name}
+                  </button>
+                </TableCell>
                 <TableCell>{item.registrationNumber || '-'}</TableCell>
                 <TableCell>{item.brand || '-'}</TableCell>
                 <TableCell>{conditionBadge(item.condition)}</TableCell>
@@ -1220,6 +1246,28 @@ export function RoomsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Photo Gallery Dialog */}
+      <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Foto Barang - {photoItem?.name}</DialogTitle>
+            <DialogDescription>
+              Kelola foto barang. Klik kamera atau upload untuk menambahkan foto.
+            </DialogDescription>
+          </DialogHeader>
+          {photoItem && (
+            <PhotoGallery
+              photos={photoItem.photos || []}
+              itemId={photoItem.id}
+              onPhotosChange={(newPhotos) => {
+                handleItemPhotosChange(photoItem.id, newPhotos)
+                setPhotoItem(prev => prev ? { ...prev, photos: newPhotos } : null)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

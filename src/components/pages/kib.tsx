@@ -51,6 +51,8 @@ import {
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
+import { PhotoThumbnail } from '@/components/photo-thumbnail'
+import { PhotoGallery } from '@/components/photo-gallery'
 import {
   Plus,
   Pencil,
@@ -59,6 +61,7 @@ import {
   Loader2,
   ClipboardList,
   Printer,
+  Camera,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-utils'
 
@@ -119,6 +122,7 @@ interface Item {
   roadLocation: string
   contractNumber: string
   implementationYear: number | null
+  photos: string[]
   room: Room | null
   createdAt: string
   updatedAt: string
@@ -266,7 +270,7 @@ function getColumns(kibType: string): ColumnDef[] {
     ],
   }
 
-  return [...base, ...(specific[kibType] || []), { key: 'actions', label: 'Aksi', className: 'w-[100px]' }]
+  return [...base, ...(specific[kibType] || []), { key: 'photos', label: 'Foto', className: 'w-[70px]' }, { key: 'actions', label: 'Aksi', className: 'w-[100px]' }]
 }
 
 // Print columns (same as getColumns but without actions)
@@ -371,6 +375,10 @@ export function KibPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteName, setDeleteName] = useState('')
   const [deleting, setDeleting] = useState(false)
+
+  // Photo dialog
+  const [photoItem, setPhotoItem] = useState<Item | null>(null)
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
 
   // ─── Fetch items ─────────────────────────────────────────────────────────
 
@@ -507,6 +515,10 @@ export function KibPage() {
     }
   }
 
+  function handleItemPhotosChange(itemId: string, newPhotos: string[]) {
+    setItems(prev => prev.map(item => item.id === itemId ? { ...item, photos: newPhotos } : item))
+  }
+
   async function handleDelete() {
     if (!deleteId) return
     setDeleting(true)
@@ -564,9 +576,22 @@ export function KibPage() {
         return `${item.quantity} ${item.unit}`
       case 'implementationYear':
         return item.implementationYear ?? '-'
+      case 'photos':
+        return (
+          <PhotoThumbnail photos={item.photos || []} />
+        )
       case 'actions':
         return (
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => { setPhotoItem(item); setPhotoDialogOpen(true) }}
+              title="Kelola Foto"
+            >
+              <Camera className="size-4" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -1183,6 +1208,20 @@ export function KibPage() {
             <div className="space-y-2">
               {renderCommonFields()}
               {renderTypeSpecificFields()}
+              {/* Photo section in dialog */}
+              {editingItem && (
+                <div className="mt-4 pt-4 border-t">
+                  <Label className="mb-2 block">Foto Barang</Label>
+                  <PhotoGallery
+                    photos={editingItem.photos || []}
+                    itemId={editingItem.id}
+                    onPhotosChange={(newPhotos) => {
+                      handleItemPhotosChange(editingItem.id, newPhotos)
+                      setEditingItem(prev => prev ? { ...prev, photos: newPhotos } : null)
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </ScrollArea>
 
@@ -1234,6 +1273,28 @@ export function KibPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Photo Gallery Dialog */}
+      <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Foto Barang - {photoItem?.name}</DialogTitle>
+            <DialogDescription>
+              Kelola foto barang. Klik kamera atau upload untuk menambahkan foto.
+            </DialogDescription>
+          </DialogHeader>
+          {photoItem && (
+            <PhotoGallery
+              photos={photoItem.photos || []}
+              itemId={photoItem.id}
+              onPhotosChange={(newPhotos) => {
+                handleItemPhotosChange(photoItem.id, newPhotos)
+                setPhotoItem(prev => prev ? { ...prev, photos: newPhotos } : null)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

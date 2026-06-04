@@ -135,6 +135,8 @@ model Item {
   // KIB F specific (Konstruksi Dalam Pengerjaan)
   contractNumber    String   @default("") // Nomor Kontrak
   implementationYear Int?    // Tahun pelaksanaan
+  // Photos
+  photos            String   @default("[]") // JSON array of photo filenames
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

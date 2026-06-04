@@ -25,7 +25,13 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(items);
+    // Parse photos JSON for each item
+    const itemsWithPhotos = items.map((item) => ({
+      ...item,
+      photos: JSON.parse(item.photos || "[]"),
+    }));
+
+    return NextResponse.json(itemsWithPhotos);
   } catch (error) {
     console.error("Error fetching items:", error);
     return NextResponse.json(
@@ -74,6 +80,7 @@ export async function POST(request: NextRequest) {
         roadLocation: body.roadLocation ?? "",
         contractNumber: body.contractNumber ?? "",
         implementationYear: body.implementationYear ?? null,
+        photos: JSON.stringify(body.photos ?? []),
       },
     });
 

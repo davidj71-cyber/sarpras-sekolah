@@ -23,7 +23,13 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(item);
+    // Parse photos JSON
+    const itemWithPhotos = {
+      ...item,
+      photos: JSON.parse(item.photos || "[]"),
+    };
+
+    return NextResponse.json(itemWithPhotos);
   } catch (error) {
     console.error("Error fetching item:", error);
     return NextResponse.json(
@@ -77,6 +83,7 @@ export async function PUT(
         roadLocation: body.roadLocation,
         contractNumber: body.contractNumber,
         implementationYear: body.implementationYear ?? null,
+        photos: JSON.stringify(body.photos ?? []),
       },
     });
 

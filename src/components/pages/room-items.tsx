@@ -43,6 +43,7 @@ import {
   Printer,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
+import { PhotoThumbnail } from '@/components/photo-thumbnail'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -70,6 +71,7 @@ interface ItemData {
   room?: { id: string; name: string; building: string; floor: string } | null
   bilik?: { id: string; name: string } | null
   lemari?: { id: string; number: string } | null
+  photos?: string[]
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -478,6 +480,7 @@ export function RoomItemsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[50px]">No</TableHead>
+                    <TableHead className="w-[70px]">Foto</TableHead>
                     <TableHead>Nama Barang</TableHead>
                     <TableHead>No. Register</TableHead>
                     <TableHead>KIB</TableHead>
@@ -493,6 +496,9 @@ export function RoomItemsPage() {
                   {filteredItems.map((item, idx) => (
                     <TableRow key={item.id}>
                       <TableCell>{idx + 1}</TableCell>
+                      <TableCell>
+                        <PhotoThumbnail photos={item.photos || []} />
+                      </TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.registrationNumber || '-'}</TableCell>
                       <TableCell>
