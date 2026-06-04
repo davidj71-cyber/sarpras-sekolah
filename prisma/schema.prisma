@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model SchoolSettings {
+  id                String  @id @default(cuid())
+  schoolName        String  @default("")
+  logo              String? // base64 encoded logo
+  logoWidth         Float   @default(3.0) // in cm
+  logoHeight        Float   @default(3.0) // in cm
+  fontFamily        String  @default("Times New Roman")
+  fontSize          Int     @default(14) // in pt
+  isBold            Boolean @default(false)
+  textTransform     String  @default("none") // none, uppercase, capitalize, lowercase
+  underlineThickness Float  @default(1.0) // in px
+  underlineWidth    Float   @default(100.0) // in percentage
+  address           String?
+  phone             String?
+  email             String?
+  npsn              String? // Nomor Pokok Sekolah Nasional
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Store {
+  id          String   @id @default(cuid())
+  name        String
+  ownerName   String   @default("")
+  npwp        String   @default("")
+  goodsType   String   @default("") // Jenis barang yang dijual
+  phone       String   @default("")
+  address     String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      Order[]
+}
+
+model Employee {
+  id          String   @id @default(cuid())
+  name        String
+  nip         String   @default("") // Nomor Induk Pegawai
+  position    String   @default("") // Jabatan
+  department  String   @default("") // Unit kerja
+  phone       String   @default("")
+  address     String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      Order[]
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  building    String   @default("")
+  floor       String   @default("")
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  biliks      Bilik[]
+  lemari      Lemari[]
+  items       Item[]
+}
+
+model Bilik {
+  id          String   @id @default(cuid())
+  name        String
+  number      String   @default("")
+  description String   @default("")
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  items       Item[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Lemari {
+  id          String   @id @default(cuid())
+  number      String
+  description String   @default("")
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  items       Item[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Item {
+  id                String   @id @default(cuid())
+  name              String
+  kibType           String   @default("B") // A, B, C, D, E, F
+  registrationNumber String  @default("") // Nomor Register
+  brand             String   @default("") // Merk
+  model             String   @default("") // Model
+  serialNumber      String   @default("") // No. Seri Pabrik
+  material          String   @default("") // Bahan
+  yearMade          Int?     // Tahun pembuatan
+  size              String   @default("") // Ukuran
+  condition         String   @default("Baik") // Kondisi (Baik, Rusak Ringan, Rusak Berat)
+  quantity          Int      @default(1)
+  unit              String   @default("Unit")
+  origin            String   @default("") // Asal usul
+  price             Float    @default(0)
+  acquisitionYear   Int?     // Tahun perolehan
+  notes             String   @default("")
+  // Location fields
+  roomId            String?
+  room              Room?    @relation(fields: [roomId], references: [id])
+  bilikId           String?
+  bilik             Bilik?   @relation(fields: [bilikId], references: [id])
+  lemariId          String?
+  lemari           Lemari?  @relation(fields: [lemariId], references: [id])
+  // KIB A specific (Tanah)
+  landCertificate   String   @default("") // Sertifikat
+  landArea          Float    @default(0) // Luas tanah (m2)
+  landStatus        String   @default("") // Status tanah
+  landUsage         String   @default("") // Penggunaan tanah
+  // KIB C specific (Gedung & Bangunan)
+  buildingLevel     String   @default("") // Tingkat
+  buildingConcrete  String   @default("") // Beton
+  buildingArea      Float    @default(0) // Luas (m2)
+  buildingLocation  String   @default("") // Letak
+  // KIB D specific (Jalan, Irigasi, Jaringan)
+  roadLength        Float    @default(0) // Panjang (km)
+  roadWidth         Float    @default(0) // Lebar (m)
+  roadArea          Float    @default(0) // Luas (m2)
+  roadLocation      String   @default("") // Letak
+  // KIB F specific (Konstruksi Dalam Pengerjaan)
+  contractNumber    String   @default("") // Nomor Kontrak
+  implementationYear Int?    // Tahun pelaksanaan
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   // Nomor Surat Pesanan
+  orderDate       DateTime @default(now())
+  storeId         String
+  store           Store    @relation(fields: [storeId], references: [id])
+  employeeId      String?  // Pegawai yang memesan
+  employee        Employee? @relation(fields: [employeeId], references: [id])
+  status          String   @default("Draft") // Draft, Dikirim, Diterima, Selesai
+  notes           String   @default("")
+  totalAmount     Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemName    String
+  quantity    Int      @default(1)
+  unit        String   @default("Unit")
+  unitPrice   Float    @default(0)
+  totalPrice  Float    @default(0)
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
