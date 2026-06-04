@@ -12,6 +12,7 @@ import { RoomsPage } from '@/components/pages/rooms'
 import { OrdersPage } from '@/components/pages/orders'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
+import { Store, FileText } from 'lucide-react'
 
 const kibItems = [
   { type: 'A', label: 'KIB A - Tanah' },
@@ -22,26 +23,10 @@ const kibItems = [
   { type: 'F', label: 'KIB F - Konstruksi Dalam Pengerjaan' },
 ]
 
-function renderPage(page: string) {
-  switch (page) {
-    case 'dashboard':
-      return <DashboardPage />
-    case 'settings':
-      return <SettingsPage />
-    case 'stores':
-      return <StoresPage />
-    case 'employees':
-      return <EmployeesPage />
-    case 'kib':
-      return <KibPage />
-    case 'rooms':
-      return <RoomsPage />
-    case 'orders':
-      return <OrdersPage />
-    default:
-      return <DashboardPage />
-  }
-}
+const storeItems = [
+  { key: 'stores' as const, label: 'Toko', icon: Store },
+  { key: 'orders' as const, label: 'Pesanan', icon: FileText },
+]
 
 function KibNavbar() {
   const { kibType, setKibType } = useNavigationStore()
@@ -68,9 +53,53 @@ function KibNavbar() {
   )
 }
 
+function StoreNavbar() {
+  const { storeSubPage, setStoreSubPage } = useNavigationStore()
+
+  return (
+    <div className="flex items-center gap-1">
+      {storeItems.map((item) => (
+        <button
+          key={item.key}
+          onClick={() => setStoreSubPage(item.key)}
+          className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+            storeSubPage === item.key
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+          }`}
+        >
+          <item.icon className="size-4" />
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function Home() {
-  const { currentPage } = useNavigationStore()
+  const { currentPage, storeSubPage } = useNavigationStore()
+
   const showKibNavbar = currentPage === 'kib'
+  const showStoreNavbar = currentPage === 'stores'
+
+  function renderPage() {
+    switch (currentPage) {
+      case 'dashboard':
+        return <DashboardPage />
+      case 'settings':
+        return <SettingsPage />
+      case 'stores':
+        return storeSubPage === 'orders' ? <OrdersPage /> : <StoresPage />
+      case 'employees':
+        return <EmployeesPage />
+      case 'kib':
+        return <KibPage />
+      case 'rooms':
+        return <RoomsPage />
+      default:
+        return <DashboardPage />
+    }
+  }
 
   return (
     <SidebarProvider>
@@ -82,6 +111,11 @@ export default function Home() {
             <Separator orientation="vertical" className="mr-2 h-4" />
             <h1 className="text-lg font-semibold">Sarana Prasarana Sekolah</h1>
           </div>
+          {showStoreNavbar && (
+            <div className="border-t px-4 py-2">
+              <StoreNavbar />
+            </div>
+          )}
           {showKibNavbar && (
             <div className="border-t px-4 py-2">
               <KibNavbar />
@@ -89,7 +123,7 @@ export default function Home() {
           )}
         </header>
         <main className="flex-1 overflow-auto p-4 md:p-6">
-          {renderPage(currentPage)}
+          {renderPage()}
         </main>
       </SidebarInset>
     </SidebarProvider>

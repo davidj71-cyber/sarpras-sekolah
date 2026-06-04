@@ -8,7 +8,6 @@ import {
   Users,
   ClipboardList,
   DoorOpen,
-  FileText,
 } from 'lucide-react'
 
 import {
@@ -36,7 +35,6 @@ const navItems: {
   { page: 'employees', label: 'Pegawai', icon: Users },
   { page: 'kib', label: 'KIB', icon: ClipboardList },
   { page: 'rooms', label: 'Ruang', icon: DoorOpen },
-  { page: 'orders', label: 'Pesanan', icon: FileText },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
