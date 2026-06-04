@@ -28,7 +28,9 @@ import {
   Clock,
   Loader2,
   Sparkles,
+  Printer,
 } from 'lucide-react'
+import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-utils'
 import {
   ChartContainer,
   ChartTooltip,
@@ -244,6 +246,115 @@ export function DashboardPage() {
   const baikPercent = data.totalItems > 0 ? Math.round((data.itemsBaik / data.totalItems) * 100) : 0
   const placedPercent = data.totalItems > 0 ? Math.round(((data.totalItems - data.itemsWithoutRoom) / data.totalItems) * 100) : 0
 
+  const handlePrint = async () => {
+    const placed = data.totalItems - data.itemsWithoutRoom
+    const rrPercent = data.totalItems > 0 ? ((data.itemsRusakRingan / data.totalItems) * 100).toFixed(1) : '0'
+    const rbPercent = data.totalItems > 0 ? ((data.itemsRusakBerat / data.totalItems) * 100).toFixed(1) : '0'
+
+    // Section 1: Ringkasan Statistik
+    const section1 = `
+      <div style="margin-top:20px;"><strong>I. Ringkasan Statistik</strong></div>
+      <table style="width:auto; margin:8px 0 16px;">
+        <tr><td style="border:none; padding:3px 12px 3px 0; font-weight:bold;">Total Barang</td><td style="border:none; padding:3px 8px;">:</td><td style="border:none; padding:3px 0;">${formatNumberPrint(data.totalItems)}</td></tr>
+        <tr><td style="border:none; padding:3px 12px 3px 0; font-weight:bold;">Nilai Aset</td><td style="border:none; padding:3px 8px;">:</td><td style="border:none; padding:3px 0;">${formatRupiahPrint(data.totalAssetValue)}</td></tr>
+        <tr><td style="border:none; padding:3px 12px 3px 0; font-weight:bold;">Ruang & Lokasi</td><td style="border:none; padding:3px 8px;">:</td><td style="border:none; padding:3px 0;">${formatNumberPrint(data.totalRooms)} ruang, ${formatNumberPrint(data.totalBilik)} bilik, ${formatNumberPrint(data.totalLemari)} lemari</td></tr>
+        <tr><td style="border:none; padding:3px 12px 3px 0; font-weight:bold;">Pesanan</td><td style="border:none; padding:3px 8px;">:</td><td style="border:none; padding:3px 0;">${formatNumberPrint(data.totalOrders)}</td></tr>
+      </table>
+    `
+
+    // Section 2: Kondisi Barang
+    const section2 = `
+      <div style="margin-top:12px;"><strong>II. Kondisi Barang</strong></div>
+      <table style="margin:8px 0 16px;">
+        <thead>
+          <tr><th>Kondisi</th><th>Jumlah</th><th>Persentase</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="text-center">Baik</td><td class="text-right">${formatNumberPrint(data.itemsBaik)}</td><td class="text-right">${baikPercent}%</td></tr>
+          <tr><td class="text-center">Rusak Ringan</td><td class="text-right">${formatNumberPrint(data.itemsRusakRingan)}</td><td class="text-right">${rrPercent}%</td></tr>
+          <tr><td class="text-center">Rusak Berat</td><td class="text-right">${formatNumberPrint(data.itemsRusakBerat)}</td><td class="text-right">${rbPercent}%</td></tr>
+          <tr style="font-weight:bold;"><td class="text-center">Total</td><td class="text-right">${formatNumberPrint(data.totalItems)}</td><td class="text-right">100%</td></tr>
+        </tbody>
+      </table>
+    `
+
+    // Section 3: Klasifikasi KIB
+    const kibRows = data.kibBreakdown.map(k =>
+      `<tr><td class="text-center">KIB ${k.type}</td><td>${k.label}</td><td class="text-right">${formatNumberPrint(k.count)}</td></tr>`
+    ).join('\n')
+    const section3 = `
+      <div style="margin-top:12px;"><strong>III. Klasifikasi KIB</strong></div>
+      <table style="margin:8px 0 16px;">
+        <thead>
+          <tr><th>Jenis KIB</th><th>Keterangan</th><th>Jumlah</th></tr>
+        </thead>
+        <tbody>
+          ${kibRows}
+        </tbody>
+      </table>
+    `
+
+    // Section 4: Penempatan Barang
+    const section4 = `
+      <div style="margin-top:12px;"><strong>IV. Penempatan Barang</strong></div>
+      <table style="margin:8px 0 16px;">
+        <thead>
+          <tr><th>Keterangan</th><th>Jumlah</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Total Barang</td><td class="text-right">${formatNumberPrint(data.totalItems)}</td></tr>
+          <tr><td>Ditempatkan</td><td class="text-right">${formatNumberPrint(placed)}</td></tr>
+          <tr><td>Belum Ditempatkan</td><td class="text-right">${formatNumberPrint(data.itemsWithoutRoom)}</td></tr>
+          <tr style="font-weight:bold;"><td>Persentase Ditempatkan</td><td class="text-right">${placedPercent}%</td></tr>
+        </tbody>
+      </table>
+    `
+
+    // Section 5: Status Pesanan
+    const section5 = `
+      <div style="margin-top:12px;"><strong>V. Status Pesanan</strong></div>
+      <table style="margin:8px 0 16px;">
+        <thead>
+          <tr><th>Status</th><th>Jumlah</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Draft</td><td class="text-right">${formatNumberPrint(data.ordersDraft)}</td></tr>
+          <tr><td>Dikirim</td><td class="text-right">${formatNumberPrint(data.ordersDikirim)}</td></tr>
+          <tr><td>Diterima</td><td class="text-right">${formatNumberPrint(data.ordersDiterima)}</td></tr>
+          <tr><td>Selesai</td><td class="text-right">${formatNumberPrint(data.ordersSelesai)}</td></tr>
+        </tbody>
+      </table>
+    `
+
+    // Section 6: Barang Perlu Perhatian
+    let section6 = ''
+    if (data.damagedItems.length > 0) {
+      const damagedRows = data.damagedItems.map((item, idx) =>
+        `<tr><td class="text-center">${idx + 1}</td><td>${item.name}</td><td class="text-center">${item.condition}</td><td>${item.room ? item.room.name : '-'}</td><td class="text-center">${item.registrationNumber || '-'}</td></tr>`
+      ).join('\n')
+      section6 = `
+        <div style="margin-top:12px;"><strong>VI. Barang Perlu Perhatian</strong></div>
+        <table style="margin:8px 0 16px;">
+          <thead>
+            <tr><th>No</th><th>Nama Barang</th><th>Kondisi</th><th>Ruangan</th><th>No. Register</th></tr>
+          </thead>
+          <tbody>
+            ${damagedRows}
+          </tbody>
+        </table>
+      `
+    } else {
+      section6 = `
+        <div style="margin-top:12px;"><strong>VI. Barang Perlu Perhatian</strong></div>
+        <p style="margin:8px 0 16px; font-style:italic;">Tidak ada barang yang memerlukan perhatian.</p>
+      `
+    }
+
+    const contentHtml = section1 + section2 + section3 + section4 + section5 + section6
+
+    await printWithKop('LAPORAN DASHBOARD SARANA PRASARANA', contentHtml)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -252,9 +363,15 @@ export function DashboardPage() {
           <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
           <p className="text-muted-foreground">Ringkasan data Sarana Prasarana Sekolah</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-1.5">
-          <Sparkles className="size-3.5 text-primary" />
-          {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-1.5">
+            <Sparkles className="size-3.5 text-primary" />
+            {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
+            <Printer className="size-4" />
+            Cetak Laporan
+          </Button>
         </div>
       </div>
 

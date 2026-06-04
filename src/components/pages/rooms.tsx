@@ -65,7 +65,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  Printer,
 } from 'lucide-react'
+import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -225,6 +227,191 @@ export function RoomsPage() {
   const totalItems = rooms.reduce((acc, r) => acc + (r.items?.length || 0), 0)
   const totalBilik = rooms.reduce((acc, r) => acc + (r.biliks?.length || 0), 0)
   const totalLemari = rooms.reduce((acc, r) => acc + (r.lemari?.length || 0), 0)
+
+  // ─── Print Room List ──────────────────────────────────────────────────────
+
+  async function handlePrintRoomList() {
+    const tableRows = rooms.map((room, idx) => {
+      const bilikCount = room.biliks?.length || 0
+      const lemariCount = room.lemari?.length || 0
+      const itemCount = room.items?.length || 0
+      return `<tr>
+        <td class="text-center">${idx + 1}</td>
+        <td>${room.name}</td>
+        <td>${room.building || '-'}</td>
+        <td class="text-center">${room.floor || '-'}</td>
+        <td class="text-center">${bilikCount}</td>
+        <td class="text-center">${lemariCount}</td>
+        <td class="text-center">${itemCount}</td>
+      </tr>`
+    }).join('')
+
+    const totalBilikPrint = rooms.reduce((acc, r) => acc + (r.biliks?.length || 0), 0)
+    const totalLemariPrint = rooms.reduce((acc, r) => acc + (r.lemari?.length || 0), 0)
+    const totalItemsPrint = rooms.reduce((acc, r) => acc + (r.items?.length || 0), 0)
+
+    const contentHtml = `
+      <table>
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Nama Ruang</th>
+            <th>Gedung</th>
+            <th>Lantai</th>
+            <th>Jumlah Bilik</th>
+            <th>Jumlah Lemari</th>
+            <th>Jumlah Barang</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+          <tr>
+            <td colspan="4" class="font-bold text-right">Total</td>
+            <td class="text-center font-bold">${totalBilikPrint}</td>
+            <td class="text-center font-bold">${totalLemariPrint}</td>
+            <td class="text-center font-bold">${totalItemsPrint}</td>
+          </tr>
+        </tbody>
+      </table>
+    `
+
+    await printWithKop('DAFTAR RUANGAN', contentHtml)
+  }
+
+  // ─── Print Room Detail ──────────────────────────────────────────────────
+
+  async function handlePrintRoomDetail() {
+    if (!selectedRoomId || !currentRoom) return
+
+    try {
+      // Fetch all items for the room (including items in biliks and lemari)
+      const res = await fetch(`/api/items?roomId=${selectedRoomId}`)
+      if (!res.ok) throw new Error('Gagal')
+      const allItems: ItemData[] = await res.json()
+
+      // Also fetch items from biliks and lemari in this room
+      const bilikItemPromises = currentRoom.biliks.map(async (bilik) => {
+        try {
+          const bRes = await fetch(`/api/items?bilikId=${bilik.id}`)
+          if (!bRes.ok) return []
+          return await bRes.json()
+        } catch { return [] }
+      })
+
+      const lemariItemPromises = currentRoom.lemari.map(async (lem) => {
+        try {
+          const lRes = await fetch(`/api/items?lemariId=${lem.id}`)
+          if (!lRes.ok) return []
+          return await lRes.json()
+        } catch { return [] }
+      })
+
+      const [bilikItems, lemariItems] = await Promise.all([
+        Promise.all(bilikItemPromises),
+        Promise.all(lemariItemPromises),
+      ])
+
+      // Combine all items and deduplicate
+      const allBilikItems = bilikItems.flat()
+      const allLemariItems = lemariItems.flat()
+      const combinedItems = [...allItems, ...allBilikItems, ...allLemariItems]
+      const uniqueItems = Array.from(
+        combinedItems.reduce((map, item) => { map.set(item.id, item); return map }, new Map<string, ItemData>())
+        .values()
+      )
+
+      const baikCount = uniqueItems.filter(i => i.condition === 'Baik').length
+      const rusakRinganCount = uniqueItems.filter(i => i.condition === 'Rusak Ringan').length
+      const rusakBeratCount = uniqueItems.filter(i => i.condition === 'Rusak Berat').length
+
+      // Determine location for each item
+      function getItemLocation(item: ItemData): string {
+        const parts: string[] = []
+        parts.push(currentRoom.name)
+        if (item.bilikId) {
+          const bilik = currentRoom.biliks.find(b => b.id === item.bilikId)
+          if (bilik) parts.push(`Bilik ${bilik.name}`)
+        }
+        if (item.lemariId) {
+          const lem = currentRoom.lemari.find(l => l.id === item.lemariId)
+          if (lem) parts.push(`Lemari ${lem.number}`)
+        }
+        return parts.join(' / ')
+      }
+
+      const tableRows = uniqueItems.map((item, idx) => {
+        return `<tr>
+          <td class="text-center">${idx + 1}</td>
+          <td>${item.name}</td>
+          <td>${item.registrationNumber || '-'}</td>
+          <td>${item.brand || '-'}</td>
+          <td class="text-center">${item.condition}</td>
+          <td class="text-center">${item.quantity} ${item.unit}</td>
+          <td>${getItemLocation(item)}</td>
+          <td>${item.notes || '-'}</td>
+        </tr>`
+      }).join('')
+
+      const contentHtml = `
+        <table class="meta-table">
+          <tr><td class="font-bold" style="width:120px">Nama Ruang</td><td>: ${currentRoom.name}</td></tr>
+          <tr><td class="font-bold">Gedung</td><td>: ${currentRoom.building || '-'}</td></tr>
+          <tr><td class="font-bold">Lantai</td><td>: ${currentRoom.floor || '-'}</td></tr>
+          ${currentRoom.description ? `<tr><td class="font-bold">Deskripsi</td><td>: ${currentRoom.description}</td></tr>` : ''}
+        </table>
+
+        <table class="meta-table" style="margin-bottom:16px;">
+          <tr>
+            <td style="border:1px solid #333;padding:4px 12px;text-align:center;"><strong>Baik</strong><br/>${baikCount}</td>
+            <td style="border:1px solid #333;padding:4px 12px;text-align:center;"><strong>Rusak Ringan</strong><br/>${rusakRinganCount}</td>
+            <td style="border:1px solid #333;padding:4px 12px;text-align:center;"><strong>Rusak Berat</strong><br/>${rusakBeratCount}</td>
+            <td style="border:1px solid #333;padding:4px 12px;text-align:center;"><strong>Total</strong><br/>${uniqueItems.length}</td>
+          </tr>
+        </table>
+
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama Barang</th>
+              <th>No. Register</th>
+              <th>Merk</th>
+              <th>Kondisi</th>
+              <th>Jumlah</th>
+              <th>Lokasi</th>
+              <th>Keterangan</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows || '<tr><td colspan="8" class="text-center">Tidak ada barang</td></tr>'}
+          </tbody>
+        </table>
+
+        <div class="signature-block">
+          <div style="display:flex;justify-content:space-between;">
+            <div style="text-align:center;">
+              <p>Mengetahui,</p>
+              <p>Kepala Sekolah</p>
+              <br/><br/><br/><br/>
+              <p style="text-decoration:underline;font-weight:bold;">________________________</p>
+              <p>NIP. ________________________</p>
+            </div>
+            <div style="text-align:center;">
+              <p>........................, 20.....</p>
+              <p>Pengelola Barang</p>
+              <br/><br/><br/><br/>
+              <p style="text-decoration:underline;font-weight:bold;">________________________</p>
+              <p>NIP. ________________________</p>
+            </div>
+          </div>
+        </div>
+      `
+
+      await printWithKop(`INVENTARIS RUANG ${currentRoom.name.toUpperCase()}`, contentHtml)
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mencetak data ruangan', variant: 'destructive' })
+    }
+  }
 
   // ─── Room CRUD ──────────────────────────────────────────────────────────
 
@@ -629,6 +816,9 @@ export function RoomsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handlePrintRoomDetail}>
+                  <Printer className="size-3.5 mr-1" /> Cetak
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => openEditRoom(currentRoom)}>
                   <Pencil className="size-3.5 mr-1" /> Edit
                 </Button>
@@ -900,10 +1090,16 @@ export function RoomsPage() {
           <p className="text-muted-foreground">Manajemen ruangan dan lokasi barang</p>
         </div>
         {!selectedRoomId && (
-          <Button onClick={openAddRoom}>
-            <Plus className="size-4 mr-2" />
-            Tambah Ruang
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handlePrintRoomList} disabled={rooms.length === 0}>
+              <Printer className="size-4 mr-2" />
+              Cetak
+            </Button>
+            <Button onClick={openAddRoom}>
+              <Plus className="size-4 mr-2" />
+              Tambah Ruang
+            </Button>
+          </div>
         )}
       </div>
 

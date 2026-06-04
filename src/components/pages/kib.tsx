@@ -58,7 +58,9 @@ import {
   Search,
   Loader2,
   ClipboardList,
+  Printer,
 } from 'lucide-react'
+import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-utils'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -265,6 +267,87 @@ function getColumns(kibType: string): ColumnDef[] {
   }
 
   return [...base, ...(specific[kibType] || []), { key: 'actions', label: 'Aksi', className: 'w-[100px]' }]
+}
+
+// Print columns (same as getColumns but without actions)
+function getPrintColumns(kibType: string): ColumnDef[] {
+  const base: ColumnDef[] = [
+    { key: 'no', label: 'No' },
+    { key: 'registrationNumber', label: 'No. Register' },
+    { key: 'name', label: 'Nama Barang' },
+  ]
+
+  const specific: Record<string, ColumnDef[]> = {
+    A: [
+      { key: 'landCertificate', label: 'Sertifikat' },
+      { key: 'landArea', label: 'Luas (m²)' },
+      { key: 'landStatus', label: 'Status' },
+      { key: 'landUsage', label: 'Penggunaan' },
+      { key: 'price', label: 'Harga' },
+    ],
+    B: [
+      { key: 'brand', label: 'Merk' },
+      { key: 'model', label: 'Model' },
+      { key: 'serialNumber', label: 'No. Seri' },
+      { key: 'quantity', label: 'Jumlah' },
+      { key: 'condition', label: 'Kondisi' },
+      { key: 'price', label: 'Harga' },
+    ],
+    C: [
+      { key: 'buildingLevel', label: 'Tingkat' },
+      { key: 'buildingConcrete', label: 'Beton' },
+      { key: 'buildingArea', label: 'Luas (m²)' },
+      { key: 'buildingLocation', label: 'Letak' },
+      { key: 'price', label: 'Harga' },
+    ],
+    D: [
+      { key: 'roadLength', label: 'Panjang (km)' },
+      { key: 'roadWidth', label: 'Lebar (m)' },
+      { key: 'roadArea', label: 'Luas (m²)' },
+      { key: 'roadLocation', label: 'Letak' },
+      { key: 'price', label: 'Harga' },
+    ],
+    E: [
+      { key: 'quantity', label: 'Jumlah' },
+      { key: 'condition', label: 'Kondisi' },
+      { key: 'price', label: 'Harga' },
+    ],
+    F: [
+      { key: 'contractNumber', label: 'No. Kontrak' },
+      { key: 'implementationYear', label: 'Tahun Pelaksanaan' },
+      { key: 'price', label: 'Harga' },
+    ],
+  }
+
+  return [...base, ...(specific[kibType] || [])]
+}
+
+// Get plain text value for print cell
+function getPrintCellValue(item: Item, col: ColumnDef, idx: number): string {
+  switch (col.key) {
+    case 'no':
+      return String(idx + 1)
+    case 'price':
+      return formatRupiahPrint(item.price)
+    case 'landArea':
+    case 'buildingArea':
+    case 'roadArea':
+      return item[col.key] ? `${formatNumberPrint(item[col.key] as number)} m²` : '-'
+    case 'roadLength':
+      return item.roadLength ? `${formatNumberPrint(item.roadLength)} km` : '-'
+    case 'roadWidth':
+      return item.roadWidth ? `${formatNumberPrint(item.roadWidth)} m` : '-'
+    case 'quantity':
+      return `${formatNumberPrint(item.quantity)} ${item.unit}`
+    case 'implementationYear':
+      return item.implementationYear ? String(item.implementationYear) : '-'
+    case 'condition':
+      return item.condition || '-'
+    default: {
+      const value = (item as Record<string, unknown>)[col.key]
+      return value ? String(value) : '-'
+    }
+  }
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -918,6 +1001,65 @@ export function KibPage() {
 
   const totalPrice = filteredItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
+  // ─── Print handler ───────────────────────────────────────────────────────
+
+  async function handlePrint() {
+    const printCols = getPrintColumns(kibType)
+    const title = `KARTU INVENTARIS BARANG (KIB ${kibType}) - ${label}`
+
+    // Build table header
+    const headerCells = printCols.map(col => `<th>${col.label}</th>`).join('')
+
+    // Build table rows
+    const rows = filteredItems.map((item, idx) => {
+      const cells = printCols.map(col => {
+        const value = getPrintCellValue(item, col, idx)
+        const align = col.key === 'price' || col.key === 'quantity' || col.key === 'no'
+          ? 'text-center'
+          : col.key === 'landArea' || col.key === 'buildingArea' || col.key === 'roadArea' || col.key === 'roadLength' || col.key === 'roadWidth'
+            ? 'text-right'
+            : ''
+        return `<td class="${align}">${value}</td>`
+      }).join('')
+      return `<tr>${cells}</tr>`
+    }).join('')
+
+    // Summary row: calculate column spans
+    const totalCols = printCols.length
+    const priceColIdx = printCols.findIndex(c => c.key === 'price')
+    // Fill cells before price column with empty/spans
+    let summaryBeforePrice = ''
+    if (priceColIdx > 0) {
+      summaryBeforePrice = `<td colspan="${priceColIdx}" class="font-bold text-right">Total (${filteredItems.length} barang)</td>`
+    } else {
+      // Fallback: just put in first cell
+      summaryBeforePrice = `<td class="font-bold">Total (${filteredItems.length} barang)</td>`
+    }
+    // Fill any cells between priceColIdx+1 and totalCols
+    const afterPriceCount = totalCols - priceColIdx - 1
+    const afterPriceCells = afterPriceCount > 0
+      ? `<td colspan="${afterPriceCount}"></td>`
+      : ''
+
+    const summaryRow = priceColIdx >= 0
+      ? `<tr style="background-color: #f0f0f0;">${summaryBeforePrice}<td class="font-bold text-right">${formatRupiahPrint(totalPrice)}</td>${afterPriceCells}</tr>`
+      : `<tr style="background-color: #f0f0f0;"><td colspan="${totalCols}" class="font-bold">Total: ${filteredItems.length} barang | ${formatRupiahPrint(totalPrice)}</td></tr>`
+
+    const contentHtml = `
+      <table>
+        <thead>
+          <tr>${headerCells}</tr>
+        </thead>
+        <tbody>
+          ${rows}
+          ${summaryRow}
+        </tbody>
+      </table>
+    `
+
+    await printWithKop(title, contentHtml)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -930,10 +1072,16 @@ export function KibPage() {
             Manajemen Kartu Inventaris Barang - KIB {kibType}
           </p>
         </div>
-        <Button onClick={openAddDialog}>
-          <Plus className="size-4 mr-2" />
-          Tambah Barang
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handlePrint} disabled={filteredItems.length === 0}>
+            <Printer className="size-4 mr-2" />
+            Cetak
+          </Button>
+          <Button onClick={openAddDialog}>
+            <Plus className="size-4 mr-2" />
+            Tambah Barang
+          </Button>
+        </div>
       </div>
 
       {/* Main Card */}

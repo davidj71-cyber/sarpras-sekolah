@@ -57,8 +57,10 @@ import {
   Search,
   Loader2,
   PackagePlus,
+  Printer,
   X,
 } from 'lucide-react'
+import { printWithKop, formatDatePrint } from '@/lib/print-utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -315,6 +317,127 @@ export function BarangMasukPage() {
     }
   }
 
+  // ─── Print handlers ───────────────────────────────────────────────────────
+
+  async function handlePrintList() {
+    if (filteredData.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data untuk dicetak' })
+      return
+    }
+
+    const rowsHtml = filteredData.map((record, idx) => `
+      <tr>
+        <td class="text-center">${idx + 1}</td>
+        <td class="text-center">${record.documentNumber}</td>
+        <td>${record.entryDate ? formatDatePrint(record.entryDate) : '-'}</td>
+        <td>${record.source || '-'}</td>
+        <td>${record.store?.name || '-'}</td>
+        <td class="text-center">${record.items?.length || 0}</td>
+        <td class="text-center">${record.status}</td>
+      </tr>
+    `).join('')
+
+    const totalItems = filteredData.reduce((sum, r) => sum + (r.items?.length || 0), 0)
+
+    const contentHtml = `
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 40px;">No</th>
+            <th>No. Dokumen</th>
+            <th>Tanggal</th>
+            <th>Sumber</th>
+            <th>Toko</th>
+            <th style="width: 80px;">Jumlah Item</th>
+            <th style="width: 80px;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+      <div style="margin-top: 12px; font-size: 10pt;">
+        <strong>Total Data:</strong> ${filteredData.length} dokumen &nbsp;|&nbsp; <strong>Total Item:</strong> ${totalItems} item
+      </div>
+    `
+
+    await printWithKop('DAFTAR BARANG MASUK', contentHtml)
+  }
+
+  async function handlePrintDetail(record: BarangMasukData) {
+    try {
+      const res = await fetch(`/api/barang-masuk/${record.id}`)
+      if (!res.ok) throw new Error('Gagal')
+      const detail: BarangMasukData = await res.json()
+
+      const itemsHtml = (detail.items || []).map((item, idx) => `
+        <tr>
+          <td class="text-center">${idx + 1}</td>
+          <td>${item.itemName}</td>
+          <td class="text-center">${item.quantity}</td>
+          <td class="text-center">${item.unit}</td>
+          <td class="text-center">${item.condition}</td>
+          <td>${item.notes || '-'}</td>
+        </tr>
+      `).join('')
+
+      const totalQuantity = (detail.items || []).reduce((sum, i) => sum + i.quantity, 0)
+
+      const contentHtml = `
+        <table class="meta-table">
+          <tr><td style="width:140px;"><strong>No. Dokumen</strong></td><td>: ${detail.documentNumber}</td></tr>
+          <tr><td><strong>Tanggal</strong></td><td>: ${detail.entryDate ? formatDatePrint(detail.entryDate) : '-'}</td></tr>
+          <tr><td><strong>Sumber</strong></td><td>: ${detail.source || '-'}</td></tr>
+          <tr><td><strong>Toko</strong></td><td>: ${detail.store?.name || '-'}</td></tr>
+          <tr><td><strong>Pegawai Penerima</strong></td><td>: ${detail.employee?.name || '-'}${detail.employee?.position ? ` (${detail.employee.position})` : ''}</td></tr>
+          <tr><td><strong>Keterangan</strong></td><td>: ${detail.notes || '-'}</td></tr>
+          <tr><td><strong>Status</strong></td><td>: ${detail.status}</td></tr>
+        </table>
+
+        <div style="margin-top: 16px; font-weight: bold; font-size: 10pt;">Daftar Barang:</div>
+        <table style="margin-top: 4px;">
+          <thead>
+            <tr>
+              <th style="width: 40px;">No</th>
+              <th>Nama Barang</th>
+              <th style="width: 60px;">Jumlah</th>
+              <th style="width: 60px;">Satuan</th>
+              <th style="width: 100px;">Kondisi</th>
+              <th>Keterangan</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+        <div style="margin-top: 8px; font-size: 10pt;">
+          <strong>Total:</strong> ${detail.items?.length || 0} jenis barang, ${totalQuantity} unit
+        </div>
+
+        <div class="signature-block">
+          <div style="display: flex; justify-content: space-between; margin-top: 24px;">
+            <div style="text-align: center; width: 200px;">
+              <div>Mengetahui,</div>
+              <div style="margin-top: 4px;">Kepala Sekolah</div>
+              <div style="margin-top: 60px;">________________________</div>
+              <div>NIP.</div>
+            </div>
+            <div style="text-align: center; width: 200px;">
+              <div>Penerima,</div>
+              <div style="margin-top: 4px;">${detail.employee?.name || 'Pegawai'}</div>
+              <div style="margin-top: 60px;">________________________</div>
+              <div>NIP. ${detail.employee?.nip || ''}</div>
+            </div>
+          </div>
+        </div>
+      `
+
+      await printWithKop(`LAPORAN BARANG MASUK - ${detail.documentNumber}`, contentHtml)
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mencetak detail barang masuk', variant: 'destructive' })
+    }
+  }
+
   // ─── Filter ────────────────────────────────────────────────────────────────
 
   const filteredData = data.filter((d) => {
@@ -334,10 +457,16 @@ export function BarangMasukPage() {
           <h2 className="text-2xl font-bold tracking-tight">Barang Masuk</h2>
           <p className="text-muted-foreground">Pencatatan barang masuk dan penerimaan</p>
         </div>
-        <Button onClick={openAddDialog}>
-          <Plus className="size-4 mr-2" />
-          Tambah Barang Masuk
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handlePrintList} disabled={loading || filteredData.length === 0}>
+            <Printer className="size-4 mr-2" />
+            Cetak
+          </Button>
+          <Button onClick={openAddDialog}>
+            <Plus className="size-4 mr-2" />
+            Tambah Barang Masuk
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -379,7 +508,7 @@ export function BarangMasukPage() {
                     <TableHead>Toko</TableHead>
                     <TableHead>Jumlah Item</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-[100px]">Aksi</TableHead>
+                    <TableHead className="w-[130px]">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -406,6 +535,9 @@ export function BarangMasukPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => handlePrintDetail(record)} title="Cetak">
+                            <Printer className="size-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(record)} title="Edit">
                             <Pencil className="size-4" />
                           </Button>

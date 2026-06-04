@@ -48,7 +48,9 @@ import {
   Search,
   Loader2,
   Users,
+  Printer,
 } from 'lucide-react'
+import { printWithKop } from '@/lib/print-utils'
 
 interface EmployeeData {
   id: string
@@ -178,6 +180,49 @@ export function EmployeesPage() {
     return e.name.toLowerCase().includes(q) || e.nip.toLowerCase().includes(q) || e.position.toLowerCase().includes(q) || e.department.toLowerCase().includes(q)
   })
 
+  async function handlePrint() {
+    if (filteredEmployees.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data pegawai untuk dicetak' })
+      return
+    }
+
+    const rows = filteredEmployees.map((emp, idx) => `
+      <tr>
+        <td class="text-center">${idx + 1}</td>
+        <td>${emp.name || '-'}</td>
+        <td class="text-center">${emp.nip || '-'}</td>
+        <td>${emp.position || '-'}</td>
+        <td>${emp.department || '-'}</td>
+        <td class="text-center">${emp.phone || '-'}</td>
+        <td>${emp.address || '-'}</td>
+      </tr>
+    `).join('')
+
+    const contentHtml = `
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 40px;">No</th>
+            <th>Nama</th>
+            <th style="width: 120px;">NIP</th>
+            <th>Jabatan</th>
+            <th>Unit Kerja</th>
+            <th style="width: 100px;">No HP</th>
+            <th>Alamat</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+      <div style="margin-top: 12px; font-size: 10pt;">
+        <strong>Total Pegawai: ${filteredEmployees.length} orang</strong>
+      </div>
+    `
+
+    await printWithKop('DAFTAR PEGAWAI', contentHtml)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -185,10 +230,16 @@ export function EmployeesPage() {
           <h2 className="text-2xl font-bold tracking-tight">Pegawai</h2>
           <p className="text-muted-foreground">Manajemen data pegawai sekolah</p>
         </div>
-        <Button onClick={openAddDialog}>
-          <Plus className="size-4 mr-2" />
-          Tambah Pegawai
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handlePrint} disabled={loading || filteredEmployees.length === 0}>
+            <Printer className="size-4 mr-2" />
+            Cetak
+          </Button>
+          <Button onClick={openAddDialog}>
+            <Plus className="size-4 mr-2" />
+            Tambah Pegawai
+          </Button>
+        </div>
       </div>
 
       <Card>

@@ -48,7 +48,9 @@ import {
   Search,
   Loader2,
   Store,
+  Printer,
 } from 'lucide-react'
+import { printWithKop } from '@/lib/print-utils'
 
 interface StoreData {
   id: string
@@ -178,6 +180,51 @@ export function StoresPage() {
     return s.name.toLowerCase().includes(q) || s.ownerName.toLowerCase().includes(q) || s.goodsType.toLowerCase().includes(q)
   })
 
+  async function handlePrint() {
+    if (filteredStores.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data toko untuk dicetak' })
+      return
+    }
+
+    const rows = filteredStores
+      .map(
+        (store, idx) => `
+        <tr>
+          <td class="text-center">${idx + 1}</td>
+          <td>${store.name}</td>
+          <td>${store.ownerName || '-'}</td>
+          <td>${store.npwp || '-'}</td>
+          <td>${store.goodsType || '-'}</td>
+          <td>${store.phone || '-'}</td>
+          <td>${store.address || '-'}</td>
+        </tr>`
+      )
+      .join('')
+
+    const contentHtml = `
+      <table>
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Nama Toko</th>
+            <th>Nama Pemilik</th>
+            <th>NPWP</th>
+            <th>Jenis Barang</th>
+            <th>No HP</th>
+            <th>Alamat</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+      <div style="margin-top: 12px; font-size: 10pt;">
+        <strong>Total: ${filteredStores.length} toko/supplier</strong>
+      </div>`
+
+    await printWithKop('DAFTAR TOKO DAN SUPPLIER', contentHtml)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -185,10 +232,16 @@ export function StoresPage() {
           <h2 className="text-2xl font-bold tracking-tight">Toko</h2>
           <p className="text-muted-foreground">Manajemen data toko dan supplier</p>
         </div>
-        <Button onClick={openAddDialog}>
-          <Plus className="size-4 mr-2" />
-          Tambah Toko
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handlePrint} disabled={loading || filteredStores.length === 0}>
+            <Printer className="size-4 mr-2" />
+            Cetak
+          </Button>
+          <Button onClick={openAddDialog}>
+            <Plus className="size-4 mr-2" />
+            Tambah Toko
+          </Button>
+        </div>
       </div>
 
       <Card>

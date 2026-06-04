@@ -40,7 +40,9 @@ import {
   Box,
   Filter,
   MapPin,
+  Printer,
 } from 'lucide-react'
+import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -212,6 +214,108 @@ export function RoomItemsPage() {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value)
   }
 
+  // ─── Handle Print ──────────────────────────────────────────────────────
+
+  const [printing, setPrinting] = useState(false)
+
+  async function handlePrint() {
+    if (filteredItems.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data untuk dicetak' })
+      return
+    }
+    setPrinting(true)
+    try {
+      // Build filter subtitle
+      const filterParts: string[] = []
+      if (filterRoom !== 'all') {
+        const room = rooms.find(r => r.id === filterRoom)
+        if (room) filterParts.push(`Ruang - ${room.name}`)
+      }
+      if (filterCondition !== 'all') {
+        filterParts.push(`Kondisi - ${filterCondition}`)
+      }
+      if (filterKibType !== 'all') {
+        filterParts.push(`KIB - ${kibLabels[filterKibType] || filterKibType}`)
+      }
+      const subtitle = filterParts.length > 0
+        ? `<div class="subtitle">Filter: ${filterParts.join(', ')}</div>`
+        : ''
+
+      // Build table rows
+      const rowsHtml = filteredItems.map((item, idx) => {
+        const locationParts: string[] = []
+        if (item.room) locationParts.push(item.room.name)
+        if (item.bilik) locationParts.push(`Bilik ${item.bilik.name}`)
+        if (item.lemari) locationParts.push(`Lemari ${item.lemari.number}`)
+        const location = locationParts.length > 0 ? locationParts.join(' &gt; ') : '-'
+
+        return `<tr>
+          <td class="text-center">${idx + 1}</td>
+          <td>${item.name}</td>
+          <td class="text-center">${item.registrationNumber || '-'}</td>
+          <td class="text-center">${kibLabels[item.kibType] || item.kibType}</td>
+          <td>${item.brand || '-'}</td>
+          <td class="text-center">${item.condition}</td>
+          <td class="text-right">${item.quantity} ${item.unit}</td>
+          <td class="text-right">${item.price > 0 ? formatRupiahPrint(item.price) : '-'}</td>
+          <td>${location}</td>
+          <td>${item.notes || '-'}</td>
+        </tr>`
+      }).join('\n')
+
+      // Build content HTML
+      const contentHtml = `
+        ${subtitle}
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama Barang</th>
+              <th>No. Register</th>
+              <th>KIB</th>
+              <th>Merk</th>
+              <th>Kondisi</th>
+              <th>Jumlah</th>
+              <th>Harga</th>
+              <th>Lokasi</th>
+              <th>Keterangan</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+        <br/>
+        <table style="width: auto; border: none; margin-top: 8px;">
+          <tr>
+            <td style="border: none; padding: 3px 16px 3px 0; font-weight: bold;">Jumlah Barang</td>
+            <td style="border: none; padding: 3px 8px;">: ${filteredItems.length} item</td>
+            <td style="border: none; padding: 3px 16px 3px 32px; font-weight: bold;">Baik</td>
+            <td style="border: none; padding: 3px 8px;">: ${baikCount}</td>
+          </tr>
+          <tr>
+            <td style="border: none; padding: 3px 16px 3px 0; font-weight: bold;">Total Nilai</td>
+            <td style="border: none; padding: 3px 8px;">: ${formatRupiahPrint(totalValue)}</td>
+            <td style="border: none; padding: 3px 16px 3px 32px; font-weight: bold;">Rusak Ringan</td>
+            <td style="border: none; padding: 3px 8px;">: ${rusakRinganCount}</td>
+          </tr>
+          <tr>
+            <td style="border: none; padding: 3px 16px 3px 0;"></td>
+            <td style="border: none; padding: 3px 8px;"></td>
+            <td style="border: none; padding: 3px 16px 3px 32px; font-weight: bold;">Rusak Berat</td>
+            <td style="border: none; padding: 3px 8px;">: ${rusakBeratCount}</td>
+          </tr>
+        </table>
+      `
+
+      await printWithKop('DAFTAR BARANG DI RUANGAN', contentHtml)
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mencetak data', variant: 'destructive' })
+    } finally {
+      setPrinting(false)
+    }
+  }
+
   // ─── Render ──────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -229,6 +333,10 @@ export function RoomItemsPage() {
           <h2 className="text-2xl font-bold tracking-tight">Barang di Ruang</h2>
           <p className="text-muted-foreground">Daftar semua barang beserta lokasi ruangan</p>
         </div>
+        <Button onClick={handlePrint} disabled={printing || filteredItems.length === 0} variant="outline" size="sm">
+          {printing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
+          Cetak
+        </Button>
       </div>
 
       {/* Stats */}
