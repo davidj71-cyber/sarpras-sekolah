@@ -6,8 +6,8 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { useNavigationStore } from '@/lib/navigation-store'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { Store, FileText, PackagePlus } from 'lucide-react'
-import type { StoreSubPage } from '@/lib/navigation-store'
+import { Store, FileText, PackagePlus, DoorOpen, Package } from 'lucide-react'
+import type { StoreSubPage, RoomSubPage } from '@/lib/navigation-store'
 
 // Dynamic imports to reduce initial compilation memory usage
 const DashboardPage = dynamic(() => import('@/components/pages/dashboard').then(m => ({ default: m.DashboardPage })), { ssr: false })
@@ -18,6 +18,7 @@ const KibPage = dynamic(() => import('@/components/pages/kib').then(m => ({ defa
 const RoomsPage = dynamic(() => import('@/components/pages/rooms').then(m => ({ default: m.RoomsPage })), { ssr: false })
 const OrdersPage = dynamic(() => import('@/components/pages/orders').then(m => ({ default: m.OrdersPage })), { ssr: false })
 const BarangMasukPage = dynamic(() => import('@/components/pages/barang-masuk').then(m => ({ default: m.BarangMasukPage })), { ssr: false })
+const RoomItemsPage = dynamic(() => import('@/components/pages/room-items').then(m => ({ default: m.RoomItemsPage })), { ssr: false })
 
 const kibItems = [
   { type: 'A', label: 'KIB A - Tanah' },
@@ -32,6 +33,11 @@ const storeItems: { key: StoreSubPage; label: string; icon: React.ElementType }[
   { key: 'stores', label: 'Toko', icon: Store },
   { key: 'orders', label: 'Pesanan', icon: FileText },
   { key: 'barangMasuk', label: 'Barang Masuk', icon: PackagePlus },
+]
+
+const roomItems: { key: RoomSubPage; label: string; icon: React.ElementType }[] = [
+  { key: 'rooms', label: 'Ruang', icon: DoorOpen },
+  { key: 'allItems', label: 'Barang di Ruang', icon: Package },
 ]
 
 function KibNavbar() {
@@ -82,11 +88,35 @@ function StoreNavbar() {
   )
 }
 
+function RoomNavbar() {
+  const { roomSubPage, setRoomSubPage } = useNavigationStore()
+
+  return (
+    <div className="flex items-center gap-1">
+      {roomItems.map((item) => (
+        <button
+          key={item.key}
+          onClick={() => setRoomSubPage(item.key)}
+          className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+            roomSubPage === item.key
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+          }`}
+        >
+          <item.icon className="size-4" />
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function Home() {
-  const { currentPage, storeSubPage } = useNavigationStore()
+  const { currentPage, storeSubPage, roomSubPage } = useNavigationStore()
 
   const showKibNavbar = currentPage === 'kib'
   const showStoreNavbar = currentPage === 'stores'
+  const showRoomNavbar = currentPage === 'rooms'
 
   function renderPage() {
     switch (currentPage) {
@@ -108,7 +138,12 @@ export default function Home() {
       case 'kib':
         return <KibPage />
       case 'rooms':
-        return <RoomsPage />
+        switch (roomSubPage) {
+          case 'allItems':
+            return <RoomItemsPage />
+          default:
+            return <RoomsPage />
+        }
       default:
         return <DashboardPage />
     }
@@ -132,6 +167,11 @@ export default function Home() {
           {showKibNavbar && (
             <div className="border-t px-4 py-2">
               <KibNavbar />
+            </div>
+          )}
+          {showRoomNavbar && (
+            <div className="border-t px-4 py-2">
+              <RoomNavbar />
             </div>
           )}
         </header>

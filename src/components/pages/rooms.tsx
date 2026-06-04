@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigationStore } from '@/lib/navigation-store'
 import { useToast } from '@/hooks/use-toast'
-import { toast } from '@/hooks/use-toast'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,10 +55,16 @@ import {
   Trash2,
   Loader2,
   DoorOpen,
-  ChevronLeft,
+  ChevronRight,
   Archive,
   Box,
   Package,
+  Search,
+  Building2,
+  Layers,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
 } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -107,6 +112,9 @@ interface ItemData {
   roomId: string | null
   bilikId: string | null
   lemariId: string | null
+  room?: { id: string; name: string }
+  bilik?: { id: string; name: string }
+  lemari?: { id: string; number: string }
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -127,6 +135,7 @@ export function RoomsPage() {
   const [items, setItems] = useState<ItemData[]>([])
   const [loading, setLoading] = useState(true)
   const [itemsLoading, setItemsLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Room dialog
   const [roomDialogOpen, setRoomDialogOpen] = useState(false)
@@ -205,6 +214,18 @@ export function RoomsPage() {
     }
   }, [selectedRoomId, selectedBilikId, selectedLemariId])
 
+  // ─── Computed values ───────────────────────────────────────────────────────
+
+  const filteredRooms = rooms.filter(room =>
+    room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    room.building.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    room.floor.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const totalItems = rooms.reduce((acc, r) => acc + (r.items?.length || 0), 0)
+  const totalBilik = rooms.reduce((acc, r) => acc + (r.biliks?.length || 0), 0)
+  const totalLemari = rooms.reduce((acc, r) => acc + (r.lemari?.length || 0), 0)
+
   // ─── Room CRUD ──────────────────────────────────────────────────────────
 
   function openAddRoom() {
@@ -269,7 +290,6 @@ export function RoomsPage() {
       toast({ title: 'Berhasil', description: editingBilik ? 'Bilik berhasil diperbarui' : 'Bilik berhasil ditambahkan' })
       setBilikDialogOpen(false)
       fetchRooms()
-      // Refresh room detail
       const roomRes = await fetch(`/api/rooms/${selectedRoomId}`)
       if (roomRes.ok) setCurrentRoom(await roomRes.json())
     } catch {
@@ -353,20 +373,35 @@ export function RoomsPage() {
     }
   }
 
+  // ─── Condition badge helper ──────────────────────────────────────────────
+
+  function conditionBadge(condition: string) {
+    switch (condition) {
+      case 'Baik':
+        return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100"><CheckCircle2 className="size-3 mr-1" />Baik</Badge>
+      case 'Rusak Ringan':
+        return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100"><AlertTriangle className="size-3 mr-1" />Rusak Ringan</Badge>
+      case 'Rusak Berat':
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100"><XCircle className="size-3 mr-1" />Rusak Berat</Badge>
+      default:
+        return <Badge variant="secondary">{condition}</Badge>
+    }
+  }
+
   // ─── Breadcrumb ──────────────────────────────────────────────────────────
 
   function renderBreadcrumb() {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-wrap">
         <button
           onClick={() => { setSelectedRoomId(null); setSelectedBilikId(null); setSelectedLemariId(null) }}
-          className="hover:text-foreground transition-colors"
+          className="hover:text-foreground transition-colors font-medium"
         >
           Ruang
         </button>
         {selectedRoomId && currentRoom && (
           <>
-            <ChevronLeft className="size-3 rotate-180" />
+            <ChevronRight className="size-3.5" />
             <button
               onClick={() => { setSelectedBilikId(null); setSelectedLemariId(null) }}
               className={`hover:text-foreground transition-colors ${!selectedBilikId && !selectedLemariId ? 'text-foreground font-medium' : ''}`}
@@ -377,20 +412,51 @@ export function RoomsPage() {
         )}
         {selectedBilikId && currentRoom && (
           <>
-            <ChevronLeft className="size-3 rotate-180" />
+            <ChevronRight className="size-3.5" />
             <span className="text-foreground font-medium">
-              Bilik: {currentRoom.biliks.find(b => b.id === selectedBilikId)?.name || ''}
+              Bilik {currentRoom.biliks.find(b => b.id === selectedBilikId)?.name || ''}
             </span>
           </>
         )}
         {selectedLemariId && currentRoom && (
           <>
-            <ChevronLeft className="size-3 rotate-180" />
+            <ChevronRight className="size-3.5" />
             <span className="text-foreground font-medium">
-              Lemari: {currentRoom.lemari.find(l => l.id === selectedLemariId)?.number || ''}
+              Lemari {currentRoom.lemari.find(l => l.id === selectedLemariId)?.number || ''}
             </span>
           </>
         )}
+      </div>
+    )
+  }
+
+  // ─── Stats Cards ─────────────────────────────────────────────────────────
+
+  function renderStatsCards() {
+    const stats = [
+      { label: 'Total Ruang', value: rooms.length, icon: DoorOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
+      { label: 'Total Bilik', value: totalBilik, icon: Archive, color: 'text-purple-600', bg: 'bg-purple-50' },
+      { label: 'Total Lemari', value: totalLemari, icon: Box, color: 'text-orange-600', bg: 'bg-orange-50' },
+      { label: 'Total Barang', value: totalItems, icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    ]
+
+    return (
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <Card key={stat.label} className="overflow-hidden">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`rounded-lg p-2.5 ${stat.bg}`}>
+                  <stat.icon className={`size-5 ${stat.color}`} />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     )
   }
@@ -408,52 +474,121 @@ export function RoomsPage() {
 
     if (rooms.length === 0) {
       return (
-        <div className="text-center py-12 text-muted-foreground">
-          <DoorOpen className="size-12 mx-auto mb-4 opacity-30" />
+        <div className="text-center py-16 text-muted-foreground">
+          <DoorOpen className="size-16 mx-auto mb-4 opacity-20" />
           <p className="text-lg font-medium">Belum ada data ruangan</p>
-          <p className="text-sm">Klik "Tambah Ruang" untuk menambahkan</p>
+          <p className="text-sm mb-6">Klik tombol di atas untuk menambahkan ruangan baru</p>
+          <Button onClick={openAddRoom}>
+            <Plus className="size-4 mr-2" />
+            Tambah Ruang
+          </Button>
         </div>
       )
     }
 
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {rooms.map((room) => (
-          <Card
-            key={room.id}
-            className="cursor-pointer hover:border-primary/50 transition-colors"
-            onClick={() => setSelectedRoomId(room.id)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <DoorOpen className="size-5 text-primary" />
-                  <CardTitle className="text-base">{room.name}</CardTitle>
-                </div>
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon" className="size-7" onClick={() => openEditRoom(room)}>
-                    <Pencil className="size-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="size-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ id: room.id, name: room.name, type: 'room' })}>
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                {room.building && <p>Gedung: {room.building}</p>}
-                {room.floor && <p>Lantai: {room.floor}</p>}
-                {room.description && <p className="truncate">{room.description}</p>}
-                <div className="flex gap-3 pt-2">
-                  <Badge variant="secondary">{room.biliks?.length || 0} Bilik</Badge>
-                  <Badge variant="secondary">{room.lemari?.length || 0} Lemari</Badge>
-                  <Badge variant="outline">{room.items?.length || 0} Barang</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-4">
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari ruang, gedung, atau lantai..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {/* Stats */}
+        {renderStatsCards()}
+
+        {/* Room grid */}
+        {filteredRooms.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Search className="size-10 mx-auto mb-3 opacity-30" />
+            <p className="font-medium">Tidak ditemukan</p>
+            <p className="text-sm">Tidak ada ruangan yang cocok dengan pencarian</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filteredRooms.map((room) => {
+              const itemCount = room.items?.length || 0
+              const baikCount = room.items?.filter(i => i.condition === 'Baik').length || 0
+              const rusakRinganCount = room.items?.filter(i => i.condition === 'Rusak Ringan').length || 0
+              const rusakBeratCount = room.items?.filter(i => i.condition === 'Rusak Berat').length || 0
+
+              return (
+                <Card
+                  key={room.id}
+                  className="cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all group"
+                  onClick={() => setSelectedRoomId(room.id)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-lg bg-blue-50 p-2">
+                          <DoorOpen className="size-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base group-hover:text-primary transition-colors">{room.name}</CardTitle>
+                          <div className="flex items-center gap-2 mt-0.5 text-sm text-muted-foreground">
+                            {room.building && (
+                              <span className="flex items-center gap-1">
+                                <Building2 className="size-3" />{room.building}
+                              </span>
+                            )}
+                            {room.floor && (
+                              <span className="flex items-center gap-1">
+                                <Layers className="size-3" />Lantai {room.floor}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditRoom(room)}>
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ id: room.id, name: room.name, type: 'room' })}>
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {room.description && (
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{room.description}</p>
+                    )}
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <Badge variant="secondary" className="text-xs">
+                        <Archive className="size-3 mr-1" />{room.biliks?.length || 0} Bilik
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        <Box className="size-3 mr-1" />{room.lemari?.length || 0} Lemari
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        <Package className="size-3 mr-1" />{itemCount} Barang
+                      </Badge>
+                    </div>
+                    {itemCount > 0 && (
+                      <div className="flex gap-2 text-xs">
+                        <span className="flex items-center gap-1 text-emerald-600">
+                          <CheckCircle2 className="size-3" />{baikCount}
+                        </span>
+                        <span className="flex items-center gap-1 text-amber-600">
+                          <AlertTriangle className="size-3" />{rusakRinganCount}
+                        </span>
+                        <span className="flex items-center gap-1 text-red-600">
+                          <XCircle className="size-3" />{rusakBeratCount}
+                        </span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )}
       </div>
     )
   }
@@ -463,14 +598,76 @@ export function RoomsPage() {
   function renderRoomDetail() {
     if (!currentRoom) return null
 
+    const itemCount = currentRoom.items?.length || 0
+    const baikCount = currentRoom.items?.filter(i => i.condition === 'Baik').length || 0
+    const rusakRinganCount = currentRoom.items?.filter(i => i.condition === 'Rusak Ringan').length || 0
+    const rusakBeratCount = currentRoom.items?.filter(i => i.condition === 'Rusak Berat').length || 0
+
     return (
       <div className="space-y-6">
+        {/* Room Header */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-blue-50 p-3">
+                  <DoorOpen className="size-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">{currentRoom.name}</h3>
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    {currentRoom.building && (
+                      <span className="flex items-center gap-1"><Building2 className="size-3.5" />{currentRoom.building}</span>
+                    )}
+                    {currentRoom.floor && (
+                      <span className="flex items-center gap-1"><Layers className="size-3.5" />Lantai {currentRoom.floor}</span>
+                    )}
+                  </div>
+                  {currentRoom.description && (
+                    <p className="text-sm text-muted-foreground mt-1">{currentRoom.description}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => openEditRoom(currentRoom)}>
+                  <Pencil className="size-3.5 mr-1" /> Edit
+                </Button>
+                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ id: currentRoom.id, name: currentRoom.name, type: 'room' })}>
+                  <Trash2 className="size-3.5 mr-1" /> Hapus
+                </Button>
+              </div>
+            </div>
+
+            {/* Room Stats */}
+            {itemCount > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t">
+                <div className="text-center p-2 rounded-lg bg-muted/50">
+                  <p className="text-lg font-bold">{itemCount}</p>
+                  <p className="text-xs text-muted-foreground">Total Barang</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-emerald-50">
+                  <p className="text-lg font-bold text-emerald-600">{baikCount}</p>
+                  <p className="text-xs text-muted-foreground">Baik</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-amber-50">
+                  <p className="text-lg font-bold text-amber-600">{rusakRinganCount}</p>
+                  <p className="text-xs text-muted-foreground">Rusak Ringan</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-red-50">
+                  <p className="text-lg font-bold text-red-600">{rusakBeratCount}</p>
+                  <p className="text-xs text-muted-foreground">Rusak Berat</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Bilik Section */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Archive className="size-5" />
+                <Archive className="size-5 text-purple-600" />
                 <div>
                   <CardTitle className="text-base">Bilik</CardTitle>
                   <CardDescription>Daftar bilik di ruang {currentRoom.name}</CardDescription>
@@ -483,21 +680,30 @@ export function RoomsPage() {
           </CardHeader>
           <CardContent>
             {currentRoom.biliks?.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Belum ada bilik</p>
+              <div className="text-center py-8 text-muted-foreground">
+                <Archive className="size-10 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">Belum ada bilik</p>
+                <p className="text-sm">Tambahkan bilik untuk mengorganisir barang</p>
+              </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {currentRoom.biliks.map((bilik) => (
                   <div
                     key={bilik.id}
-                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedBilikId === bilik.id ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}
+                    className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedBilikId === bilik.id ? 'border-primary bg-primary/5 shadow-sm' : 'hover:border-primary/50 hover:shadow-sm'}`}
                     onClick={() => { setSelectedBilikId(bilik.id); setSelectedLemariId(null) }}
                   >
                     <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium">{bilik.name}</p>
-                        <p className="text-sm text-muted-foreground">No: {bilik.number || '-'}</p>
-                        {bilik.description && <p className="text-xs text-muted-foreground mt-1 truncate">{bilik.description}</p>}
-                        <Badge variant="outline" className="mt-2">{bilik.items?.length || 0} Barang</Badge>
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-md bg-purple-50 p-1.5 mt-0.5">
+                          <Archive className="size-4 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{bilik.name}</p>
+                          <p className="text-sm text-muted-foreground">No: {bilik.number || '-'}</p>
+                          {bilik.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{bilik.description}</p>}
+                          <Badge variant="outline" className="mt-2 text-xs">{bilik.items?.length || 0} Barang</Badge>
+                        </div>
                       </div>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="size-7" onClick={() => openEditBilik(bilik)}>
@@ -520,7 +726,7 @@ export function RoomsPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Box className="size-5" />
+                <Box className="size-5 text-orange-600" />
                 <div>
                   <CardTitle className="text-base">Lemari</CardTitle>
                   <CardDescription>Daftar lemari di ruang {currentRoom.name}</CardDescription>
@@ -533,20 +739,29 @@ export function RoomsPage() {
           </CardHeader>
           <CardContent>
             {currentRoom.lemari?.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Belum ada lemari</p>
+              <div className="text-center py-8 text-muted-foreground">
+                <Box className="size-10 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">Belum ada lemari</p>
+                <p className="text-sm">Tambahkan lemari untuk menyimpan barang</p>
+              </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {currentRoom.lemari.map((lem) => (
                   <div
                     key={lem.id}
-                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedLemariId === lem.id ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}
+                    className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedLemariId === lem.id ? 'border-primary bg-primary/5 shadow-sm' : 'hover:border-primary/50 hover:shadow-sm'}`}
                     onClick={() => { setSelectedLemariId(lem.id); setSelectedBilikId(null) }}
                   >
                     <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium">Lemari {lem.number}</p>
-                        {lem.description && <p className="text-sm text-muted-foreground mt-1 truncate">{lem.description}</p>}
-                        <Badge variant="outline" className="mt-2">{lem.items?.length || 0} Barang</Badge>
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-md bg-orange-50 p-1.5 mt-0.5">
+                          <Box className="size-4 text-orange-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Lemari {lem.number}</p>
+                          {lem.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{lem.description}</p>}
+                          <Badge variant="outline" className="mt-2 text-xs">{lem.items?.length || 0} Barang</Badge>
+                        </div>
                       </div>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="size-7" onClick={() => openEditLemari(lem)}>
@@ -569,10 +784,10 @@ export function RoomsPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Package className="size-5" />
+                <Package className="size-5 text-emerald-600" />
                 <div>
                   <CardTitle className="text-base">Barang di Ruang {currentRoom.name}</CardTitle>
-                  <CardDescription>Barang yang berada langsung di ruangan ini</CardDescription>
+                  <CardDescription>Barang yang berada langsung di ruangan ini (tidak di bilik/lemari)</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -599,7 +814,7 @@ export function RoomsPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Package className="size-5" />
+              <Package className="size-5 text-emerald-600" />
               <div>
                 <CardTitle className="text-base">{title}</CardTitle>
                 <CardDescription>Daftar barang yang ada di dalamnya</CardDescription>
@@ -613,7 +828,7 @@ export function RoomsPage() {
                 setSelectedLemariId(null)
               }}
             >
-              <ChevronLeft className="size-4 mr-1" /> Kembali
+              <ChevronRight className="size-4 mr-1 rotate-180" /> Kembali
             </Button>
           </div>
         </CardHeader>
@@ -636,7 +851,7 @@ export function RoomsPage() {
     if (items.length === 0) {
       return (
         <div className="text-center py-8 text-muted-foreground">
-          <Package className="size-10 mx-auto mb-3 opacity-30" />
+          <Package className="size-10 mx-auto mb-3 opacity-20" />
           <p className="font-medium">Belum ada barang</p>
           <p className="text-sm">Tambahkan barang melalui menu KIB</p>
         </div>
@@ -651,8 +866,9 @@ export function RoomsPage() {
               <TableHead className="w-[50px]">No</TableHead>
               <TableHead>Nama Barang</TableHead>
               <TableHead>No. Register</TableHead>
+              <TableHead>Merk</TableHead>
               <TableHead>Kondisi</TableHead>
-              <TableHead>Jumlah</TableHead>
+              <TableHead className="text-right">Jumlah</TableHead>
               <TableHead>Keterangan</TableHead>
             </TableRow>
           </TableHeader>
@@ -662,12 +878,9 @@ export function RoomsPage() {
                 <TableCell>{idx + 1}</TableCell>
                 <TableCell className="font-medium">{item.name}</TableCell>
                 <TableCell>{item.registrationNumber || '-'}</TableCell>
-                <TableCell>
-                  <Badge variant={item.condition === 'Baik' ? 'default' : item.condition === 'Rusak Ringan' ? 'secondary' : 'destructive'}>
-                    {item.condition}
-                  </Badge>
-                </TableCell>
-                <TableCell>{item.quantity} {item.unit}</TableCell>
+                <TableCell>{item.brand || '-'}</TableCell>
+                <TableCell>{conditionBadge(item.condition)}</TableCell>
+                <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{item.notes || '-'}</TableCell>
               </TableRow>
             ))}
