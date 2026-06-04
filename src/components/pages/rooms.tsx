@@ -167,6 +167,25 @@ export function RoomsPage() {
   const [photoItem, setPhotoItem] = useState<ItemData | null>(null)
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
 
+  // Item edit dialog
+  const [itemDialogOpen, setItemDialogOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<ItemData | null>(null)
+  const [itemForm, setItemForm] = useState({
+    name: '',
+    registrationNumber: '',
+    brand: '',
+    condition: 'Baik' as string,
+    quantity: 1 as number,
+    unit: 'Unit',
+    price: 0 as number,
+    notes: '',
+  })
+  const [itemSaving, setItemSaving] = useState(false)
+
+  // Item delete confirmation
+  const [deleteItemTarget, setDeleteItemTarget] = useState<{ id: string; name: string } | null>(null)
+  const [deletingItem, setDeletingItem] = useState(false)
+
   function handleItemPhotosChange(itemId: string, newPhotos: string[]) {
     setItems(prev => prev.map(item => item.id === itemId ? { ...item, photos: newPhotos } : item))
   }
@@ -569,6 +588,100 @@ export function RoomsPage() {
     } finally {
       setDeleting(false)
       setDeleteTarget(null)
+    }
+  }
+
+  // ─── Item Edit/Delete ──────────────────────────────────────────────────
+
+  function openEditItem(item: ItemData) {
+    setEditingItem(item)
+    setItemForm({
+      name: item.name,
+      registrationNumber: item.registrationNumber,
+      brand: item.brand || '',
+      condition: item.condition,
+      quantity: item.quantity,
+      unit: item.unit,
+      price: item.price,
+      notes: item.notes || '',
+    })
+    setItemDialogOpen(true)
+  }
+
+  async function handleItemSubmit() {
+    if (!editingItem || !itemForm.name.trim()) {
+      toast({ title: 'Validasi', description: 'Nama barang wajib diisi', variant: 'destructive' })
+      return
+    }
+    setItemSaving(true)
+    try {
+      const res = await fetch(`/api/items/${editingItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(itemForm),
+      })
+      if (!res.ok) throw new Error('Gagal')
+      toast({ title: 'Berhasil', description: 'Barang berhasil diperbarui' })
+      setItemDialogOpen(false)
+      // Refresh items list
+      if (selectedLemariId) {
+        fetch(`/api/items?lemariId=${selectedLemariId}`)
+          .then(res => res.ok ? res.json() : [])
+          .then(data => setItems(data))
+      } else if (selectedBilikId) {
+        fetch(`/api/items?bilikId=${selectedBilikId}`)
+          .then(res => res.ok ? res.json() : [])
+          .then(data => setItems(data))
+      } else if (selectedRoomId) {
+        fetch(`/api/items?roomId=${selectedRoomId}`)
+          .then(res => res.ok ? res.json() : [])
+          .then(data => setItems(data))
+      }
+      // Also refresh room data
+      if (selectedRoomId) {
+        const roomRes = await fetch(`/api/rooms/${selectedRoomId}`)
+        if (roomRes.ok) setCurrentRoom(await roomRes.json())
+      }
+      fetchRooms()
+    } catch {
+      toast({ title: 'Error', description: 'Gagal memperbarui barang', variant: 'destructive' })
+    } finally {
+      setItemSaving(false)
+    }
+  }
+
+  async function handleDeleteItem() {
+    if (!deleteItemTarget) return
+    setDeletingItem(true)
+    try {
+      const res = await fetch(`/api/items/${deleteItemTarget.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Gagal')
+      toast({ title: 'Berhasil', description: 'Barang berhasil dihapus' })
+      // Refresh items list
+      if (selectedLemariId) {
+        fetch(`/api/items?lemariId=${selectedLemariId}`)
+          .then(res => res.ok ? res.json() : [])
+          .then(data => setItems(data))
+      } else if (selectedBilikId) {
+        fetch(`/api/items?bilikId=${selectedBilikId}`)
+          .then(res => res.ok ? res.json() : [])
+          .then(data => setItems(data))
+      } else if (selectedRoomId) {
+        fetch(`/api/items?roomId=${selectedRoomId}`)
+          .then(res => res.ok ? res.json() : [])
+          .then(data => setItems(data))
+      }
+      // Also refresh room data
+      if (selectedRoomId) {
+        const roomRes = await fetch(`/api/rooms/${selectedRoomId}`)
+        if (roomRes.ok) setCurrentRoom(await roomRes.json())
+      }
+      fetchRooms()
+    } catch {
+      toast({ title: 'Error', description: 'Gagal menghapus barang', variant: 'destructive' })
+    } finally {
+      setDeletingItem(false)
+      setDeleteItemTarget(null)
     }
   }
 
@@ -1073,7 +1186,7 @@ export function RoomsPage() {
               <TableHead>Kondisi</TableHead>
               <TableHead className="text-right">Jumlah</TableHead>
               <TableHead>Keterangan</TableHead>
-              <TableHead className="w-[50px]">Aksi</TableHead>
+              <TableHead className="w-[120px]">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1094,7 +1207,7 @@ export function RoomsPage() {
                 <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{item.notes || '-'}</TableCell>
                 <TableCell>
-                  <div className="relative">
+                  <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -1103,6 +1216,24 @@ export function RoomsPage() {
                       title={item.photos && item.photos.length > 0 ? `Kelola foto (${item.photos.length})` : 'Tambah foto'}
                     >
                       <Camera className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      onClick={(e) => { e.stopPropagation(); openEditItem(item) }}
+                      title="Edit barang"
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-destructive hover:text-destructive"
+                      onClick={(e) => { e.stopPropagation(); setDeleteItemTarget({ id: item.id, name: item.name }) }}
+                      title="Hapus barang"
+                    >
+                      <Trash2 className="size-4" />
                     </Button>
                     {item.photos && item.photos.length > 0 && (
                       <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] rounded-full size-3.5 flex items-center justify-center font-bold">{item.photos.length}</span>
@@ -1279,6 +1410,85 @@ export function RoomsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Item Edit Dialog */}
+      <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Barang</DialogTitle>
+            <DialogDescription>Perbarui data barang. Untuk mengubah field khusus KIB, gunakan halaman KIB.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="item-name">Nama Barang *</Label>
+              <Input id="item-name" value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} placeholder="Masukkan nama barang" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="item-reg">No. Register</Label>
+              <Input id="item-reg" value={itemForm.registrationNumber} onChange={(e) => setItemForm({ ...itemForm, registrationNumber: e.target.value })} placeholder="Nomor register" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="item-brand">Merk</Label>
+              <Input id="item-brand" value={itemForm.brand} onChange={(e) => setItemForm({ ...itemForm, brand: e.target.value })} placeholder="Merk barang" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="item-condition">Kondisi</Label>
+              <Select value={itemForm.condition} onValueChange={(val) => setItemForm({ ...itemForm, condition: val })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih kondisi" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Baik">Baik</SelectItem>
+                  <SelectItem value="Rusak Ringan">Rusak Ringan</SelectItem>
+                  <SelectItem value="Rusak Berat">Rusak Berat</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="item-qty">Jumlah</Label>
+              <Input id="item-qty" type="number" min={1} value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: Number(e.target.value) || 1 })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="item-unit">Satuan</Label>
+              <Input id="item-unit" value={itemForm.unit} onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })} placeholder="Satuan" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="item-price">Harga (Rp)</Label>
+              <Input id="item-price" type="number" min={0} value={itemForm.price} onChange={(e) => setItemForm({ ...itemForm, price: Number(e.target.value) || 0 })} placeholder="0" />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="item-notes">Keterangan</Label>
+              <Textarea id="item-notes" value={itemForm.notes} onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })} placeholder="Keterangan tambahan" rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setItemDialogOpen(false)} disabled={itemSaving}>Batal</Button>
+            <Button onClick={handleItemSubmit} disabled={itemSaving}>
+              {itemSaving && <Loader2 className="size-4 mr-2 animate-spin" />}
+              Simpan Perubahan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Item Delete Confirmation */}
+      <AlertDialog open={!!deleteItemTarget} onOpenChange={(open) => { if (!open) setDeleteItemTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Barang</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus <span className="font-semibold">{deleteItemTarget?.name}</span>? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingItem}>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteItem} disabled={deletingItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingItem && <Loader2 className="size-4 mr-2 animate-spin" />}
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
