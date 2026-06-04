@@ -104,6 +104,12 @@ interface OrderData {
   createdAt: string
 }
 
+interface KopLine {
+  text: string
+  style: 'header' | 'detail'
+  bold: boolean
+}
+
 interface SettingsData {
   schoolName: string
   logo: string | null
@@ -119,7 +125,7 @@ interface SettingsData {
   phone: string | null
   email: string | null
   npsn: string | null
-  kopLines: string | string[] // JSON string or array
+  kopLines: string | KopLine[]
 }
 
 interface OrderItemForm {
@@ -144,6 +150,36 @@ function formatRupiah(value: number): string {
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat('id-ID').format(value)
+}
+
+// ─── Parse kopLines helper ──────────────────────────────────────────────────
+
+function parseKopLines(raw: unknown): KopLine[] {
+  if (!raw) return []
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((item: unknown) => {
+      if (typeof item === 'string') {
+        return { text: item, style: 'detail' as const, bold: false }
+      }
+      if (typeof item === 'object' && item !== null) {
+        const obj = item as Record<string, unknown>
+        return {
+          text: String(obj.text ?? ''),
+          style: (obj.style === 'header' ? 'header' : 'detail') as 'header' | 'detail',
+          bold: Boolean(obj.bold ?? false),
+        }
+      }
+      return { text: '', style: 'detail' as const, bold: false }
+    })
+  } catch {
+    return []
+  }
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -362,65 +398,81 @@ export function OrdersPage() {
 
     // Fetch settings for KOP
     const settingsRes = await fetch('/api/settings')
-    const settings: SettingsData = settingsRes.ok ? await settingsRes.json() : {
+    const rawSettings: SettingsData = settingsRes.ok ? await settingsRes.json() : {
       schoolName: '', logo: null, logoWidth: 3, logoHeight: 3, fontFamily: 'Times New Roman',
       fontSize: 14, isBold: false, textTransform: 'none', underlineThickness: 1, underlineWidth: 100,
       address: null, phone: null, email: null, npsn: null, kopLines: [],
     }
 
+    // Parse kopLines
+    const kopLines = parseKopLines(rawSettings.kopLines)
+    const headerLines = kopLines.filter(l => l.style === 'header' && l.text.trim())
+    const detailLines = kopLines.filter(l => l.style === 'detail' && l.text.trim())
+
     const store = fullOrder.store || stores.find((s) => s.id === fullOrder.storeId)
     const employee = fullOrder.employee || employees.find((e) => e.id === fullOrder.employeeId)
 
-    // Build KOP HTML
+    // ─── Build KOP HTML ─────────────────────────────────────────────────────
     const cmToPx = 37.8
-    const logoWidthPx = settings.logoWidth * cmToPx
-    const logoHeightPx = settings.logoHeight * cmToPx
+    const logoWidthPx = rawSettings.logoWidth * cmToPx
+    const logoHeightPx = rawSettings.logoHeight * cmToPx
 
     let textTransformCSS = 'none'
-    switch (settings.textTransform) {
+    switch (rawSettings.textTransform) {
       case 'uppercase': textTransformCSS = 'uppercase'; break
       case 'capitalize': textTransformCSS = 'capitalize'; break
       case 'lowercase': textTransformCSS = 'lowercase'; break
     }
 
-    const schoolNameStyle = `
-      font-family: '${settings.fontFamily}', serif;
-      font-size: ${settings.fontSize}pt;
-      font-weight: ${settings.isBold ? 'bold' : 'normal'};
-      text-transform: ${textTransformCSS};
+    // Header lines HTML (above school name, same font size)
+    const headerLinesHtml = headerLines.map(line => `
+      <div style="
+        font-family: '${rawSettings.fontFamily}', serif;
+        font-size: ${rawSettings.fontSize}pt;
+        font-weight: ${line.bold ? 'bold' : 'normal'};
+        text-transform: ${textTransformCSS};
+        line-height: 1.3;
+        margin-top: 1px;
+      ">${line.text}</div>
+    `).join('\n')
+
+    // School name HTML
+    const schoolNameHtml = `
+      <div style="
+        font-family: '${rawSettings.fontFamily}', serif;
+        font-size: ${rawSettings.fontSize}pt;
+        font-weight: ${rawSettings.isBold ? 'bold' : 'normal'};
+        text-transform: ${textTransformCSS};
+        line-height: 1.3;
+        margin-top: ${headerLines.length > 0 ? '1px' : '0'};
+      ">${rawSettings.schoolName || 'NAMA SEKOLAH'}</div>
     `
 
-    const underlineWidthPx = (settings.underlineWidth / 100) * 100
-
-    // Parse kopLines
-    let parsedKopLines: string[] = []
-    if (settings.kopLines) {
-      try {
-        const parsed = typeof settings.kopLines === 'string' ? JSON.parse(settings.kopLines) : settings.kopLines
-        parsedKopLines = Array.isArray(parsed) ? parsed.filter((l: string) => l.trim()) : []
-      } catch {
-        parsedKopLines = []
-      }
-    }
-
-    // Build KOP identity lines HTML
-    const kopLinesHtml = parsedKopLines
-      .map((line) => `<div style="font-size: 10pt; margin-top: 2px;">${line}</div>`)
-      .join('\n')
+    // Detail lines HTML (below school name, smaller font)
+    const detailLinesHtml = detailLines.map(line => `
+      <div style="
+        font-family: Arial, sans-serif;
+        font-size: ${Math.max(Math.round(rawSettings.fontSize * 0.55), 7)}pt;
+        font-weight: ${line.bold ? 'bold' : 'normal'};
+        line-height: 1.4;
+        margin-top: 1px;
+      ">${line.text}</div>
+    `).join('\n')
 
     const kopHtml = `
-      <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 4px;">
-        ${settings.logo ? `<img src="${settings.logo}" style="width: ${logoWidthPx}px; height: ${logoHeightPx}px; object-fit: contain;" />` : ''}
+      <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 2px;">
+        ${rawSettings.logo ? `<img src="${rawSettings.logo}" style="width: ${logoWidthPx}px; height: ${logoHeightPx}px; object-fit: contain;" />` : `<div style="width: ${logoWidthPx}px; height: ${logoHeightPx}px;"></div>`}
         <div style="flex: 1; text-align: center;">
-          <div style="${schoolNameStyle}">${settings.schoolName || 'NAMA SEKOLAH'}</div>
-          ${kopLinesHtml}
+          ${headerLinesHtml}
+          ${schoolNameHtml}
+          ${detailLinesHtml}
         </div>
-        <div style="width: ${logoWidthPx}px;"></div>
+        ${rawSettings.logo ? `<div style="width: ${logoWidthPx}px;"></div>` : ''}
       </div>
-      <div style="border-bottom: ${settings.underlineThickness}px solid black; width: ${underlineWidthPx}%; margin: 8px auto;"></div>
+      <div style="border-bottom: ${rawSettings.underlineThickness}px solid black; width: ${rawSettings.underlineWidth}%; margin: 6px auto 0;"></div>
     `
 
-    // Build items rows
+    // ─── Build items rows ──────────────────────────────────────────────────
     let itemsHtml = ''
     let grandTotal = 0
     fullOrder.items?.forEach((item, idx) => {
@@ -428,84 +480,132 @@ export function OrdersPage() {
       grandTotal += total
       itemsHtml += `
         <tr>
-          <td style="border: 1px solid #333; padding: 6px 10px; text-align: center;">${idx + 1}</td>
-          <td style="border: 1px solid #333; padding: 6px 10px;">${item.itemName}</td>
-          <td style="border: 1px solid #333; padding: 6px 10px; text-align: center;">${item.quantity}</td>
-          <td style="border: 1px solid #333; padding: 6px 10px; text-align: center;">${item.unit}</td>
-          <td style="border: 1px solid #333; padding: 6px 10px; text-align: right;">${formatRupiah(item.unitPrice)}</td>
-          <td style="border: 1px solid #333; padding: 6px 10px; text-align: right;">${formatRupiah(total)}</td>
+          <td style="border: 1px solid #333; padding: 4px 8px; text-align: center;">${idx + 1}</td>
+          <td style="border: 1px solid #333; padding: 4px 8px;">${item.itemName}</td>
+          <td style="border: 1px solid #333; padding: 4px 8px; text-align: center;">${item.quantity}</td>
+          <td style="border: 1px solid #333; padding: 4px 8px; text-align: center;">${item.unit}</td>
+          <td style="border: 1px solid #333; padding: 4px 8px; text-align: right;">Rp ${formatNumber(item.unitPrice)}</td>
+          <td style="border: 1px solid #333; padding: 4px 8px; text-align: right;">Rp ${formatNumber(total)}</td>
         </tr>
       `
     })
 
+    // ─── Format date ──────────────────────────────────────────────────────
+    const orderDateStr = fullOrder.orderDate
+      ? new Date(fullOrder.orderDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    // Extract city from school address or use default
+    const city = rawSettings.address ? rawSettings.address.split(',').pop()?.trim() || '___________' : '___________'
+
+    // ─── Build full print HTML ─────────────────────────────────────────────
     const printHtml = `
       <!DOCTYPE html>
       <html>
       <head>
         <title>Surat Pesanan - ${fullOrder.orderNumber}</title>
         <style>
-          @page { size: A4; margin: 20mm 25mm; }
-          body { font-family: 'Times New Roman', serif; font-size: 12pt; margin: 0; padding: 0; color: #000; }
+          @page { size: A4; margin: 20mm 25mm 20mm 25mm; }
+          body {
+            font-family: 'Times New Roman', serif;
+            font-size: 12pt;
+            margin: 0;
+            padding: 0;
+            color: #000;
+            line-height: 1.4;
+          }
           table { border-collapse: collapse; width: 100%; }
-          th { background-color: #f5f5f5; }
-          @media print { body { margin: 0; padding: 0; } }
+          th { background-color: #e8e8e8; font-weight: bold; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          @media print {
+            body { margin: 0; padding: 0; }
+          }
         </style>
       </head>
       <body>
+        <!-- KOP Surat -->
         ${kopHtml}
 
-        <div style="text-align: center; margin: 24px 0 8px;">
-          <div style="font-size: 14pt; font-weight: bold; text-decoration: underline;">SURAT PESANAN</div>
-          <div>Nomor: ${fullOrder.orderNumber}</div>
+        <!-- Judul Surat -->
+        <div style="text-align: center; margin-top: 16px; margin-bottom: 12px;">
+          <span style="font-size: 12pt; font-weight: bold; text-decoration: underline;">SURAT PESANAN</span>
         </div>
 
-        <div style="margin: 16px 0;">
-          <p>Kepada Yth.</p>
-          <p style="font-weight: bold;">${store?.name || '-'}</p>
-          <p>${store?.address || '-'}</p>
-          ${store?.phone ? `<p>Telp: ${store.phone}</p>` : ''}
+        <!-- Tanggal -->
+        <div style="text-align: right; margin-bottom: 12px; font-size: 12pt;">
+          ${city}, ${orderDateStr}
         </div>
 
-        <p>Dengan ini kami bermaksud memesan barang-barang sebagai berikut:</p>
+        <!-- No dan Perihal -->
+        <table style="width: auto; border: none; margin-bottom: 8px; font-size: 12pt;">
+          <tr>
+            <td style="border: none; padding: 2px 8px 2px 0; vertical-align: top; white-space: nowrap;">No</td>
+            <td style="border: none; padding: 2px 4px; vertical-align: top;">:</td>
+            <td style="border: none; padding: 2px 0;">${fullOrder.orderNumber}</td>
+          </tr>
+          <tr>
+            <td style="border: none; padding: 2px 8px 2px 0; vertical-align: top; white-space: nowrap;">Perihal</td>
+            <td style="border: none; padding: 2px 4px; vertical-align: top;">:</td>
+            <td style="border: none; padding: 2px 0; font-weight: bold;">Pemesanan Barang</td>
+          </tr>
+        </table>
 
-        <table style="margin: 12px 0;">
+        <!-- Kepada -->
+        <div style="margin-bottom: 16px; font-size: 12pt;">
+          <div>Kepada Yth, Pimpinan ${store?.name || '-'}</div>
+          <div style="padding-left: 16px;">di</div>
+          <div style="padding-left: 32px;">Tempat</div>
+        </div>
+
+        <!-- Salam Pembuka -->
+        <div style="margin-bottom: 12px; font-size: 12pt;">
+          Dengan Hormat,
+        </div>
+
+        <!-- Isi Surat -->
+        <div style="margin-bottom: 12px; font-size: 12pt; text-align: justify;">
+          Bersamaan dengan surat ini kami memohon bantuan saudara untuk menyediakan ATK untuk ${rawSettings.schoolName || 'Sekolah'}
+          dengan rincian berikut :
+        </div>
+
+        <!-- Tabel Pesanan -->
+        <table style="margin: 12px 0; font-size: 11pt;">
           <thead>
             <tr>
-              <th style="border: 1px solid #333; padding: 6px 10px; width: 40px;">No</th>
-              <th style="border: 1px solid #333; padding: 6px 10px;">Nama Barang</th>
-              <th style="border: 1px solid #333; padding: 6px 10px; width: 60px;">Jumlah</th>
-              <th style="border: 1px solid #333; padding: 6px 10px; width: 60px;">Satuan</th>
-              <th style="border: 1px solid #333; padding: 6px 10px; width: 120px;">Harga Satuan</th>
-              <th style="border: 1px solid #333; padding: 6px 10px; width: 120px;">Jumlah Harga</th>
+              <th style="border: 1px solid #333; padding: 6px 8px; width: 35px; text-align: center;">No</th>
+              <th style="border: 1px solid #333; padding: 6px 8px;">Nama Barang</th>
+              <th style="border: 1px solid #333; padding: 6px 8px; width: 55px; text-align: center;">Jumlah</th>
+              <th style="border: 1px solid #333; padding: 6px 8px; width: 55px; text-align: center;">Satuan</th>
+              <th style="border: 1px solid #333; padding: 6px 8px; width: 100px; text-align: center;">Harga Satuan</th>
+              <th style="border: 1px solid #333; padding: 6px 8px; width: 100px; text-align: center;">Total Harga</th>
             </tr>
           </thead>
           <tbody>
             ${itemsHtml}
-            <tr>
-              <td colspan="5" style="border: 1px solid #333; padding: 6px 10px; text-align: right; font-weight: bold;">Total</td>
-              <td style="border: 1px solid #333; padding: 6px 10px; text-align: right; font-weight: bold;">${formatRupiah(grandTotal)}</td>
+            <tr style="background-color: #e8e8e8;">
+              <td colspan="2" style="border: 1px solid #333; padding: 6px 8px; font-weight: bold; text-align: right;">Total</td>
+              <td style="border: 1px solid #333; padding: 6px 8px; text-align: center; font-weight: bold;">${fullOrder.items?.reduce((s, i) => s + i.quantity, 0) || 0}</td>
+              <td style="border: 1px solid #333; padding: 6px 8px; text-align: center;">-</td>
+              <td style="border: 1px solid #333; padding: 6px 8px;">Rp</td>
+              <td style="border: 1px solid #333; padding: 6px 8px; text-align: right; font-weight: bold;">Rp ${formatNumber(grandTotal)}</td>
             </tr>
           </tbody>
         </table>
 
-        ${fullOrder.notes ? `<p><strong>Keterangan:</strong> ${fullOrder.notes}</p>` : ''}
-
-        <div style="margin-top: 32px;">
-          <p>Demikian surat pesanan ini kami sampaikan, atas terlaksananya pesanan ini kami ucapkan terima kasih.</p>
+        <!-- Penutup -->
+        <div style="margin-top: 16px; font-size: 12pt; text-align: justify;">
+          Demikian surat pesanan ini kami sampaikan, atas terlaksananya pesanan ini kami ucapkan terima kasih.
         </div>
 
-        <div style="display: flex; justify-content: space-between; margin-top: 40px;">
-          <div style="text-align: center; width: 45%;">
-            <p>Pemesan,</p>
-            <div style="height: 70px;"></div>
-            <p style="font-weight: bold; text-decoration: underline;">${employee?.name || '____________________'}</p>
-            <p>${employee?.nip ? `NIP. ${employee.nip}` : ''}</p>
-          </div>
-          <div style="text-align: center; width: 45%;">
-            <p>Kepala Sekolah,</p>
-            <div style="height: 70px;"></div>
-            <p style="font-weight: bold; text-decoration: underline;">____________________</p>
-            <p>NIP.</p>
+        <!-- Tanda Tangan -->
+        <div style="margin-top: 32px; font-size: 12pt;">
+          <div style="display: inline-block; min-width: 200px;">
+            <div>an. Kepala Sekolah</div>
+            <div>Bendahara ${rawSettings.schoolName || 'Sekolah'}</div>
+            <div style="height: 60px;"></div>
+            <div style="text-decoration: underline; font-weight: bold;">${employee?.name || '____________________'}</div>
+            <div>${employee?.nip ? `NIP. ${employee.nip}` : '&nbsp;'}</div>
           </div>
         </div>
       </body>
@@ -642,7 +742,7 @@ export function OrdersPage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Nomor Surat Pesanan *</Label>
-                  <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="SP/001/2025" />
+                  <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="9/PB/SMAN1TLD-TU/XI/2025" />
                 </div>
                 <div className="space-y-2">
                   <Label>Tanggal Pesanan</Label>
@@ -660,7 +760,7 @@ export function OrdersPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Pegawai</Label>
+                  <Label>Pegawai (Bendahara)</Label>
                   <Select value={employeeId} onValueChange={setEmployeeId}>
                     <SelectTrigger><SelectValue placeholder="Pilih pegawai" /></SelectTrigger>
                     <SelectContent>

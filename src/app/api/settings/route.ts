@@ -44,9 +44,54 @@ export async function POST(request: NextRequest) {
     const existing = await db.schoolSettings.findFirst();
 
     // Ensure kopLines is a valid JSON string
-    const kopLines = Array.isArray(body.kopLines)
-      ? JSON.stringify(body.kopLines)
-      : body.kopLines ?? "[]";
+    // Support both old format (string[]) and new format ({text, style, bold}[])
+    let kopLines: string;
+    if (Array.isArray(body.kopLines)) {
+      // Normalize: ensure each item is an object with text, style, bold
+      const normalized = body.kopLines.map((item: unknown) => {
+        if (typeof item === 'string') {
+          return { text: item, style: 'detail', bold: false };
+        }
+        if (typeof item === 'object' && item !== null) {
+          const obj = item as Record<string, unknown>;
+          return {
+            text: String(obj.text ?? ''),
+            style: obj.style === 'header' ? 'header' : 'detail',
+            bold: Boolean(obj.bold ?? false),
+          };
+        }
+        return { text: '', style: 'detail', bold: false };
+      });
+      kopLines = JSON.stringify(normalized);
+    } else if (typeof body.kopLines === 'string') {
+      // Try to parse and re-normalize
+      try {
+        const parsed = JSON.parse(body.kopLines);
+        if (Array.isArray(parsed)) {
+          const normalized = parsed.map((item: unknown) => {
+            if (typeof item === 'string') {
+              return { text: item, style: 'detail', bold: false };
+            }
+            if (typeof item === 'object' && item !== null) {
+              const obj = item as Record<string, unknown>;
+              return {
+                text: String(obj.text ?? ''),
+                style: obj.style === 'header' ? 'header' : 'detail',
+                bold: Boolean(obj.bold ?? false),
+              };
+            }
+            return { text: '', style: 'detail', bold: false };
+          });
+          kopLines = JSON.stringify(normalized);
+        } else {
+          kopLines = "[]";
+        }
+      } catch {
+        kopLines = "[]";
+      }
+    } else {
+      kopLines = "[]";
+    }
 
     let settings;
 
