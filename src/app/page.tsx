@@ -10,9 +10,11 @@ import { EmployeesPage } from '@/components/pages/employees'
 import { KibPage } from '@/components/pages/kib'
 import { RoomsPage } from '@/components/pages/rooms'
 import { OrdersPage } from '@/components/pages/orders'
+import { BarangMasukPage } from '@/components/pages/barang-masuk'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { Store, FileText } from 'lucide-react'
+import { Store, FileText, PackagePlus } from 'lucide-react'
+import type { StoreSubPage } from '@/lib/navigation-store'
 
 const kibItems = [
   { type: 'A', label: 'KIB A - Tanah' },
@@ -23,9 +25,10 @@ const kibItems = [
   { type: 'F', label: 'KIB F - Konstruksi Dalam Pengerjaan' },
 ]
 
-const storeItems = [
-  { key: 'stores' as const, label: 'Toko', icon: Store },
-  { key: 'orders' as const, label: 'Pesanan', icon: FileText },
+const storeItems: { key: StoreSubPage; label: string; icon: React.ElementType }[] = [
+  { key: 'stores', label: 'Toko', icon: Store },
+  { key: 'orders', label: 'Pesanan', icon: FileText },
+  { key: 'barangMasuk', label: 'Barang Masuk', icon: PackagePlus },
 ]
 
 function KibNavbar() {
@@ -89,7 +92,14 @@ export default function Home() {
       case 'settings':
         return <SettingsPage />
       case 'stores':
-        return storeSubPage === 'orders' ? <OrdersPage /> : <StoresPage />
+        switch (storeSubPage) {
+          case 'orders':
+            return <OrdersPage />
+          case 'barangMasuk':
+            return <BarangMasukPage />
+          default:
+            return <StoresPage />
+        }
       case 'employees':
         return <EmployeesPage />
       case 'kib':

@@ -23,3 +23,27 @@ Stage Summary:
 - Print template matches reference PDF layout exactly
 - Backward compatible: old kopLines string format auto-converts to new object format
 - All pages verified working via browser automation
+
+---
+Task ID: 2
+Agent: Main
+Task: Add "Barang Masuk" feature to the Toko navbar tabs
+
+Work Log:
+- Updated navigation store: added 'barangMasuk' to StoreSubPage type union
+- Updated page.tsx navbar: added PackagePlus icon + "Barang Masuk" button in StoreNavbar component
+- Updated page.tsx renderPage: added case for storeSubPage === 'barangMasuk' rendering BarangMasukPage
+- Created Prisma models: BarangMasuk (documentNumber, entryDate, storeId, employeeId, source, notes, status) + BarangMasukItem (itemName, quantity, unit, condition, notes)
+- Added relations: Store.barangMasuk[], Employee.barangMasuk[]
+- Ran db:push to sync schema changes
+- Created API routes: /api/barang-masuk (GET, POST) and /api/barang-masuk/[id] (GET, PUT, DELETE)
+- Created BarangMasukPage component with full CRUD: list, add/edit dialog, status change dialog, delete confirmation
+- BarangMasuk page features: document number, entry date, store selector, employee selector, source, notes, status (Draft/Diterima/Ditolak), item list with condition (Baik/Rusak Ringan/Rusak Berat)
+- Lint check passed with no errors
+- API tested: GET /api/barang-masuk returns 200 with []
+
+Stage Summary:
+- "Barang Masuk" tab now appears in navbar alongside "Toko" and "Pesanan" when Toko is selected
+- Full CRUD functionality for incoming goods tracking
+- Database schema includes BarangMasuk and BarangMasukItem tables
+- API routes handle all CRUD operations with proper error handling

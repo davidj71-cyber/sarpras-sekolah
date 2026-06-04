@@ -8,7 +8,7 @@ export type Page =
   | 'kib'
   | 'rooms'
 
-export type StoreSubPage = 'stores' | 'orders'
+export type StoreSubPage = 'stores' | 'orders' | 'barangMasuk'
 
 interface NavigationState {
   currentPage: Page

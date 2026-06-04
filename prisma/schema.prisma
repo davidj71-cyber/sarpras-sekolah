@@ -38,7 +38,8 @@ model Store {
   address     String   @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  orders      Order[]
+  orders        Order[]
+  barangMasuk   BarangMasuk[]
 }
 
 model Employee {
@@ -51,7 +52,8 @@ model Employee {
   address     String   @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  orders      Order[]
+  orders        Order[]
+  barangMasuk   BarangMasuk[]
 }
 
 model Room {
@@ -165,4 +167,33 @@ model OrderItem {
   notes       String   @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model BarangMasuk {
+  id              String            @id @default(cuid())
+  documentNumber  String            // Nomor dokumen barang masuk
+  entryDate       DateTime          @default(now()) // Tanggal masuk
+  storeId         String?           // Toko asal (opsional)
+  store           Store?            @relation(fields: [storeId], references: [id])
+  employeeId      String?           // Pegawai penerima
+  employee        Employee?         @relation(fields: [employeeId], references: [id])
+  source          String            @default("") // Sumber barang (donasi, pembelian, dll)
+  notes           String            @default("")
+  status          String            @default("Draft") // Draft, Diterima, Ditolak
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  items           BarangMasukItem[]
+}
+
+model BarangMasukItem {
+  id            String   @id @default(cuid())
+  barangMasukId String
+  barangMasuk   BarangMasuk @relation(fields: [barangMasukId], references: [id], onDelete: Cascade)
+  itemName      String   // Nama barang
+  quantity      Int      @default(1)
+  unit          String   @default("Unit")
+  condition     String   @default("Baik") // Kondisi (Baik, Rusak Ringan, Rusak Berat)
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
