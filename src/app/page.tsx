@@ -1,20 +1,23 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useNavigationStore } from '@/lib/navigation-store'
-import { DashboardPage } from '@/components/pages/dashboard'
-import { SettingsPage } from '@/components/pages/settings'
-import { StoresPage } from '@/components/pages/stores'
-import { EmployeesPage } from '@/components/pages/employees'
-import { KibPage } from '@/components/pages/kib'
-import { RoomsPage } from '@/components/pages/rooms'
-import { OrdersPage } from '@/components/pages/orders'
-import { BarangMasukPage } from '@/components/pages/barang-masuk'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Store, FileText, PackagePlus } from 'lucide-react'
 import type { StoreSubPage } from '@/lib/navigation-store'
+
+// Dynamic imports to reduce initial compilation memory usage
+const DashboardPage = dynamic(() => import('@/components/pages/dashboard').then(m => ({ default: m.DashboardPage })), { ssr: false })
+const SettingsPage = dynamic(() => import('@/components/pages/settings').then(m => ({ default: m.SettingsPage })), { ssr: false })
+const StoresPage = dynamic(() => import('@/components/pages/stores').then(m => ({ default: m.StoresPage })), { ssr: false })
+const EmployeesPage = dynamic(() => import('@/components/pages/employees').then(m => ({ default: m.EmployeesPage })), { ssr: false })
+const KibPage = dynamic(() => import('@/components/pages/kib').then(m => ({ default: m.KibPage })), { ssr: false })
+const RoomsPage = dynamic(() => import('@/components/pages/rooms').then(m => ({ default: m.RoomsPage })), { ssr: false })
+const OrdersPage = dynamic(() => import('@/components/pages/orders').then(m => ({ default: m.OrdersPage })), { ssr: false })
+const BarangMasukPage = dynamic(() => import('@/components/pages/barang-masuk').then(m => ({ default: m.BarangMasukPage })), { ssr: false })
 
 const kibItems = [
   { type: 'A', label: 'KIB A - Tanah' },
