@@ -50,10 +50,10 @@ function KibNavbar() {
           <button
             key={kib.type}
             onClick={() => setKibType(kib.type)}
-            className={`inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`inline-flex items-center rounded-lg px-3.5 py-1.5 text-sm font-medium transition-all duration-200 ${
               kibType === kib.type
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+                : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
             }`}
           >
             {kib.label}
@@ -74,10 +74,10 @@ function StoreNavbar() {
         <button
           key={item.key}
           onClick={() => setStoreSubPage(item.key)}
-          className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
             storeSubPage === item.key
-              ? 'bg-primary text-primary-foreground shadow-sm'
-              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+              : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
           }`}
         >
           <item.icon className="size-4" />
@@ -97,10 +97,10 @@ function RoomNavbar() {
         <button
           key={item.key}
           onClick={() => setRoomSubPage(item.key)}
-          className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
             roomSubPage === item.key
-              ? 'bg-primary text-primary-foreground shadow-sm'
-              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+              : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
           }`}
         >
           <item.icon className="size-4" />
@@ -109,6 +109,16 @@ function RoomNavbar() {
       ))}
     </div>
   )
+}
+
+// Page title map
+const pageTitles: Record<string, string> = {
+  dashboard: 'Dashboard',
+  settings: 'Pengaturan',
+  stores: 'Toko',
+  employees: 'Pegawai',
+  kib: 'Kartu Inventaris Barang',
+  rooms: 'Ruang',
 }
 
 export default function Home() {
@@ -153,11 +163,13 @@ export default function Home() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex shrink-0 flex-col border-b">
+        <header className="flex shrink-0 flex-col bg-card/80 backdrop-blur-sm border-b supports-[backdrop-filter]:bg-card/60">
           <div className="flex h-14 items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
+            <SidebarTrigger className="-ml-1 transition-colors" />
             <Separator orientation="vertical" className="mr-2 h-4" />
-            <h1 className="text-lg font-semibold">Sarana Prasarana Sekolah</h1>
+            <h1 className="text-lg font-semibold tracking-tight">
+              {pageTitles[currentPage] || 'Sarana Prasarana Sekolah'}
+            </h1>
           </div>
           {showStoreNavbar && (
             <div className="border-t px-4 py-2">
@@ -176,7 +188,9 @@ export default function Home() {
           )}
         </header>
         <main className="flex-1 overflow-auto p-4 md:p-6">
-          {renderPage()}
+          <div className="animate-fade-in-up">
+            {renderPage()}
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>

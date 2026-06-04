@@ -45,12 +45,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="Sarpras Sekolah">
-              <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+            <SidebarMenuButton size="lg" tooltip="Sarpras Sekolah" className="group/header">
+              <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shadow-sm transition-shadow group-hover/header:shadow-md">
                 <ClipboardList className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Sarpras Sekolah</span>
+                <span className="truncate font-semibold tracking-tight">Sarpras Sekolah</span>
                 <span className="text-muted-foreground truncate text-xs">Manajemen Inventaris</span>
               </div>
             </SidebarMenuButton>
@@ -59,7 +59,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu Utama</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">Menu Utama</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
@@ -68,8 +68,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     isActive={currentPage === item.page}
                     tooltip={item.label}
                     onClick={() => setPage(item.page)}
+                    className="transition-all duration-200"
                   >
-                    <item.icon />
+                    <item.icon className="transition-transform duration-200 group-hover:scale-110" />
                     <span>{item.label}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

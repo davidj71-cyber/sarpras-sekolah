@@ -15,7 +15,6 @@ import { Progress } from '@/components/ui/progress'
 import {
   Store,
   Users,
-  DoorOpen,
   Package,
   FileText,
   PackagePlus,
@@ -26,9 +25,9 @@ import {
   TrendingUp,
   Warehouse,
   Archive,
-  Box,
   Clock,
   Loader2,
+  Sparkles,
 } from 'lucide-react'
 import {
   ChartContainer,
@@ -103,16 +102,16 @@ const conditionChartConfig: ChartConfig = {
 
 const kibChartConfig: ChartConfig = {
   count: { label: 'Jumlah' },
-  'KIB A': { label: 'KIB A', color: '#6366f1' },
-  'KIB B': { label: 'KIB B', color: '#8b5cf6' },
-  'KIB C': { label: 'KIB C', color: '#a855f7' },
-  'KIB D': { label: 'KIB D', color: '#c084fc' },
-  'KIB E': { label: 'KIB E', color: '#d8b4fe' },
-  'KIB F': { label: 'KIB F', color: '#e9d5ff' },
+  'KIB A': { label: 'KIB A', color: '#0d9488' },
+  'KIB B': { label: 'KIB B', color: '#0891b2' },
+  'KIB C': { label: 'KIB C', color: '#2563eb' },
+  'KIB D': { label: 'KIB D', color: '#7c3aed' },
+  'KIB E': { label: 'KIB E', color: '#c026d3' },
+  'KIB F': { label: 'KIB F', color: '#e11d48' },
 }
 
 const roomChartConfig: ChartConfig = {
-  items: { label: 'Barang', color: '#3b82f6' },
+  items: { label: 'Barang', color: '#0891b2' },
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -134,23 +133,60 @@ function formatDate(dateStr: string) {
 
 function orderStatusBadge(status: string) {
   const variants: Record<string, { className: string }> = {
-    Draft: { className: 'bg-gray-100 text-gray-800 hover:bg-gray-100' },
-    Dikirim: { className: 'bg-blue-100 text-blue-800 hover:bg-blue-100' },
-    Diterima: { className: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100' },
-    Selesai: { className: 'bg-green-100 text-green-800 hover:bg-green-100' },
+    Draft: { className: 'bg-slate-100 text-slate-700 hover:bg-slate-100' },
+    Dikirim: { className: 'bg-sky-100 text-sky-700 hover:bg-sky-100' },
+    Diterima: { className: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' },
+    Selesai: { className: 'bg-teal-100 text-teal-700 hover:bg-teal-100' },
   }
   const v = variants[status] || { className: '' }
-  return <Badge className={v.className}>{status}</Badge>
+  return <Badge className={`text-[11px] font-medium ${v.className}`}>{status}</Badge>
 }
 
 function bmStatusBadge(status: string) {
   const variants: Record<string, { className: string }> = {
-    Draft: { className: 'bg-gray-100 text-gray-800 hover:bg-gray-100' },
-    Diterima: { className: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100' },
-    Ditolak: { className: 'bg-red-100 text-red-800 hover:bg-red-100' },
+    Draft: { className: 'bg-slate-100 text-slate-700 hover:bg-slate-100' },
+    Diterima: { className: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' },
+    Ditolak: { className: 'bg-red-100 text-red-700 hover:bg-red-100' },
   }
   const v = variants[status] || { className: '' }
-  return <Badge className={v.className}>{status}</Badge>
+  return <Badge className={`text-[11px] font-medium ${v.className}`}>{status}</Badge>
+}
+
+// ─── Stat Card Component ────────────────────────────────────────────────────
+
+function StatCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  iconBg,
+  iconColor,
+  delay = 0,
+}: {
+  title: string
+  value: string | number
+  subtitle?: string
+  icon: React.ElementType
+  iconBg: string
+  iconColor: string
+  delay?: number
+}) {
+  return (
+    <Card className={`overflow-hidden card-elegant animate-fade-in-up stagger-${delay}`}>
+      <CardContent className="p-5">
+        <div className="flex items-start gap-3.5">
+          <div className={`rounded-xl p-2.5 shadow-sm ${iconBg}`}>
+            <Icon className={`size-5 ${iconColor}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground mb-0.5">{title}</p>
+            <p className="text-2xl font-bold tracking-tight stat-value">{typeof value === 'number' ? value.toLocaleString('id-ID') : value}</p>
+            {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -180,7 +216,10 @@ export function DashboardPage() {
   if (loading || !data) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="size-8 animate-spin text-primary/60" />
+          <p className="text-sm text-muted-foreground">Memuat dashboard...</p>
+        </div>
       </div>
     )
   }
@@ -194,7 +233,7 @@ export function DashboardPage() {
   const kibData = data.kibBreakdown.map((k, i) => ({
     kib: `KIB ${k.type}`,
     count: k.count,
-    fill: ['#6366f1', '#8b5cf6', '#a855f7', '#c084fc', '#d8b4fe', '#e9d5ff'][i],
+    fill: ['#0d9488', '#0891b2', '#2563eb', '#7c3aed', '#c026d3', '#e11d48'][i],
   }))
 
   const roomData = data.roomsWithItems.map(r => ({
@@ -208,81 +247,61 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
           <p className="text-muted-foreground">Ringkasan data Sarana Prasarana Sekolah</p>
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-1.5">
+          <Sparkles className="size-3.5 text-primary" />
           {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </div>
       </div>
 
       {/* ─── Stat Cards ──────────────────────────────────────────────────────── */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-blue-50 p-2.5">
-                <Package className="size-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Barang</p>
-                <p className="text-2xl font-bold">{data.totalItems.toLocaleString('id-ID')}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-emerald-50 p-2.5">
-                <TrendingUp className="size-5 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Nilai Aset</p>
-                <p className="text-2xl font-bold">{formatRupiah(data.totalAssetValue)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-purple-50 p-2.5">
-                <Warehouse className="size-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Ruang & Lokasi</p>
-                <p className="text-2xl font-bold">{data.totalRooms}</p>
-                <p className="text-xs text-muted-foreground">{data.totalBilik} bilik · {data.totalLemari} lemari</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-orange-50 p-2.5">
-                <FileText className="size-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Pesanan</p>
-                <p className="text-2xl font-bold">{data.totalOrders}</p>
-                <p className="text-xs text-muted-foreground">{data.ordersDikirim} dikirim · {data.ordersDraft} draft</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Total Barang"
+          value={data.totalItems}
+          subtitle="Barang inventaris terdaftar"
+          icon={Package}
+          iconBg="bg-sky-50"
+          iconColor="text-sky-600"
+          delay={1}
+        />
+        <StatCard
+          title="Nilai Aset"
+          value={formatRupiah(data.totalAssetValue)}
+          subtitle="Total nilai seluruh aset"
+          icon={TrendingUp}
+          iconBg="bg-emerald-50"
+          iconColor="text-emerald-600"
+          delay={2}
+        />
+        <StatCard
+          title="Ruang & Lokasi"
+          value={data.totalRooms}
+          subtitle={`${data.totalBilik} bilik · ${data.totalLemari} lemari`}
+          icon={Warehouse}
+          iconBg="bg-violet-50"
+          iconColor="text-violet-600"
+          delay={3}
+        />
+        <StatCard
+          title="Pesanan"
+          value={data.totalOrders}
+          subtitle={`${data.ordersDikirim} dikirim · ${data.ordersDraft} draft`}
+          icon={FileText}
+          iconBg="bg-amber-50"
+          iconColor="text-amber-600"
+          delay={4}
+        />
       </div>
 
       {/* ─── Condition & KIB Charts Row ───────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Kondisi Barang */}
-        <Card>
+        <Card className="card-elegant animate-fade-in-up stagger-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Kondisi Barang</CardTitle>
             <CardDescription>Distribusi kondisi seluruh barang inventaris</CardDescription>
@@ -293,7 +312,7 @@ export function DashboardPage() {
                 Belum ada data barang
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-center gap-6">
                 <ChartContainer config={conditionChartConfig} className="mx-auto size-[200px]">
                   <PieChart>
                     <ChartTooltip content={<ChartTooltipContent />} />
@@ -329,7 +348,7 @@ export function DashboardPage() {
                     </Pie>
                   </PieChart>
                 </ChartContainer>
-                <div className="flex-1 space-y-3 w-full">
+                <div className="flex-1 space-y-4 w-full">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-1.5">
@@ -364,7 +383,7 @@ export function DashboardPage() {
         </Card>
 
         {/* KIB Breakdown */}
-        <Card>
+        <Card className="card-elegant animate-fade-in-up stagger-3">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Klasifikasi KIB</CardTitle>
             <CardDescription>Distribusi barang berdasarkan jenis KIB</CardDescription>
@@ -380,7 +399,7 @@ export function DashboardPage() {
                   <XAxis type="number" hide />
                   <YAxis dataKey="kib" type="category" tickLine={false} axisLine={false} width={50} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={32}>
+                  <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={32}>
                     {kibData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
@@ -395,20 +414,19 @@ export function DashboardPage() {
       {/* ─── Location & Alerts Row ─────────────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Lokasi Barang */}
-        <Card>
+        <Card className="card-elegant animate-fade-in-up stagger-4">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base">Penempatan Barang</CardTitle>
                 <CardDescription>Status lokasi barang inventaris</CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={() => { setPage('rooms'); setRoomSubPage('allItems') }}>
+              <Button variant="outline" size="sm" className="transition-all" onClick={() => { setPage('rooms'); setRoomSubPage('allItems') }}>
                 Lihat Detail <ArrowRight className="size-3.5 ml-1" />
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Placement progress */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Barang sudah ditempatkan</span>
@@ -418,7 +436,6 @@ export function DashboardPage() {
               <p className="text-xs text-muted-foreground">{placedPercent}% barang sudah memiliki lokasi</p>
             </div>
 
-            {/* Items per room chart */}
             {roomData.length > 0 && (
               <div className="pt-2">
                 <p className="text-sm font-medium mb-3">Barang per Ruangan (Top 10)</p>
@@ -427,15 +444,17 @@ export function DashboardPage() {
                     <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} />
                     <YAxis hide />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="items" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                    <Bar dataKey="items" fill="#0891b2" radius={[4, 4, 0, 0]} maxBarSize={40} />
                   </BarChart>
                 </ChartContainer>
               </div>
             )}
 
             {data.itemsWithoutRoom > 0 && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 text-amber-800 text-sm">
-                <AlertTriangle className="size-4 shrink-0" />
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200/50 text-amber-800 text-sm">
+                <div className="rounded-full bg-amber-100 p-1">
+                  <AlertTriangle className="size-3.5" />
+                </div>
                 <span><strong>{data.itemsWithoutRoom}</strong> barang belum ditempatkan di ruangan manapun</span>
               </div>
             )}
@@ -443,7 +462,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Barang Perlu Perhatian */}
-        <Card>
+        <Card className="card-elegant animate-fade-in-up stagger-5">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -454,7 +473,7 @@ export function DashboardPage() {
                 <CardDescription>Barang rusak yang memerlukan tindakan</CardDescription>
               </div>
               {data.itemsRusakRingan + data.itemsRusakBerat > 0 && (
-                <Badge variant="destructive">{data.itemsRusakRingan + data.itemsRusakBerat} barang rusak</Badge>
+                <Badge variant="destructive" className="text-[11px]">{data.itemsRusakRingan + data.itemsRusakBerat} barang rusak</Badge>
               )}
             </div>
           </CardHeader>
@@ -468,7 +487,7 @@ export function DashboardPage() {
             ) : (
               <div className="max-h-[280px] overflow-y-auto space-y-2">
                 {data.damagedItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div key={item.id} className="flex items-center justify-between p-3 rounded-xl border hover:bg-muted/30 transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{item.name}</p>
                       <p className="text-xs text-muted-foreground">
@@ -478,8 +497,8 @@ export function DashboardPage() {
                     </div>
                     <Badge className={
                       item.condition === 'Rusak Ringan'
-                        ? 'bg-amber-100 text-amber-800 hover:bg-amber-100 ml-2'
-                        : 'bg-red-100 text-red-800 hover:bg-red-100 ml-2'
+                        ? 'bg-amber-100 text-amber-800 hover:bg-amber-100 ml-2 text-[11px]'
+                        : 'bg-red-100 text-red-800 hover:bg-red-100 ml-2 text-[11px]'
                     }>
                       {item.condition === 'Rusak Ringan' ? (
                         <><AlertTriangle className="size-3 mr-1" />Rusak Ringan</>
@@ -498,17 +517,17 @@ export function DashboardPage() {
       {/* ─── Recent Activity Row ─────────────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Pesanan Terbaru */}
-        <Card>
+        <Card className="card-elegant animate-fade-in-up stagger-4">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="size-4 text-orange-500" />
+                  <FileText className="size-4 text-amber-500" />
                   Pesanan Terbaru
                 </CardTitle>
                 <CardDescription>5 pesanan terakhir</CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={() => { setPage('stores'); setStoreSubPage('orders') }}>
+              <Button variant="outline" size="sm" className="transition-all" onClick={() => { setPage('stores'); setStoreSubPage('orders') }}>
                 Semua <ArrowRight className="size-3.5 ml-1" />
               </Button>
             </div>
@@ -520,22 +539,22 @@ export function DashboardPage() {
                 Belum ada pesanan
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {data.recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div key={order.id} className="flex items-center justify-between p-3 rounded-xl border hover:bg-muted/30 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium">{order.orderNumber}</p>
                         {orderStatusBadge(order.status)}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {order.store?.name || '-'}
-                        {order.employee ? ` · ${order.employee.name}` : ''}
-                        <span className="flex items-center gap-1"><Clock className="size-3" />{formatDate(order.orderDate)}</span>
+                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <span>{order.store?.name || '-'}</span>
+                        {order.employee && <span>· {order.employee.name}</span>}
+                        <span className="flex items-center gap-0.5"><Clock className="size-3" />{formatDate(order.orderDate)}</span>
                       </p>
                     </div>
                     <div className="text-right ml-3">
-                      <p className="text-sm font-medium">{formatRupiah(order.totalAmount)}</p>
+                      <p className="text-sm font-semibold">{formatRupiah(order.totalAmount)}</p>
                       <p className="text-xs text-muted-foreground">{order.items.length} item</p>
                     </div>
                   </div>
@@ -546,7 +565,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Barang Masuk Terbaru */}
-        <Card>
+        <Card className="card-elegant animate-fade-in-up stagger-5">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -556,7 +575,7 @@ export function DashboardPage() {
                 </CardTitle>
                 <CardDescription>5 barang masuk terakhir</CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={() => { setPage('stores'); setStoreSubPage('barangMasuk') }}>
+              <Button variant="outline" size="sm" className="transition-all" onClick={() => { setPage('stores'); setStoreSubPage('barangMasuk') }}>
                 Semua <ArrowRight className="size-3.5 ml-1" />
               </Button>
             </div>
@@ -568,18 +587,18 @@ export function DashboardPage() {
                 Belum ada barang masuk
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {data.recentBarangMasuk.map((bm) => (
-                  <div key={bm.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div key={bm.id} className="flex items-center justify-between p-3 rounded-xl border hover:bg-muted/30 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium">{bm.documentNumber}</p>
                         {bmStatusBadge(bm.status)}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {bm.store?.name || bm.source || '-'}
-                        {bm.employee ? ` · ${bm.employee.name}` : ''}
-                        <span className="flex items-center gap-1"><Clock className="size-3" />{formatDate(bm.entryDate)}</span>
+                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <span>{bm.store?.name || bm.source || '-'}</span>
+                        {bm.employee && <span>· {bm.employee.name}</span>}
+                        <span className="flex items-center gap-0.5"><Clock className="size-3" />{formatDate(bm.entryDate)}</span>
                       </p>
                     </div>
                     <div className="text-right ml-3">
@@ -593,63 +612,32 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      {/* ─── Quick Stats & Info Row ─────────────────────────────────────────────── */}
+      {/* ─── Quick Stats Row ──────────────────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { setPage('stores'); setStoreSubPage('stores') }}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-cyan-50 p-2.5">
-                <Store className="size-5 text-cyan-600" />
+        {[
+          { label: 'Toko', value: data.totalStores, icon: Store, bg: 'bg-cyan-50', color: 'text-cyan-600', action: () => { setPage('stores'); setStoreSubPage('stores') } },
+          { label: 'Pegawai', value: data.totalEmployees, icon: Users, bg: 'bg-rose-50', color: 'text-rose-600', action: () => setPage('employees') },
+          { label: 'Barang Masuk', value: data.totalBarangMasuk, icon: PackagePlus, bg: 'bg-teal-50', color: 'text-teal-600', action: () => { setPage('stores'); setStoreSubPage('barangMasuk') } },
+          { label: 'KIB Entry', value: data.totalItems, icon: Archive, bg: 'bg-violet-50', color: 'text-violet-600', action: () => setPage('kib') },
+        ].map((item, idx) => (
+          <Card
+            key={item.label}
+            className={`cursor-pointer card-elegant group animate-fade-in-up stagger-${idx + 1}`}
+            onClick={item.action}
+          >
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3.5">
+                <div className={`rounded-xl p-2.5 shadow-sm transition-transform duration-200 group-hover:scale-105 ${item.bg}`}>
+                  <item.icon className={`size-5 ${item.color}`} />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{item.label}</p>
+                  <p className="text-xl font-bold">{item.value}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Toko</p>
-                <p className="text-xl font-bold">{data.totalStores}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setPage('employees')}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-pink-50 p-2.5">
-                <Users className="size-5 text-pink-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Pegawai</p>
-                <p className="text-xl font-bold">{data.totalEmployees}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { setPage('stores'); setStoreSubPage('barangMasuk') }}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-teal-50 p-2.5">
-                <PackagePlus className="size-5 text-teal-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Barang Masuk</p>
-                <p className="text-xl font-bold">{data.totalBarangMasuk}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setPage('kib')}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-violet-50 p-2.5">
-                <Archive className="size-5 text-violet-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">KIB Entry</p>
-                <p className="text-xl font-bold">{data.totalItems}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   )
