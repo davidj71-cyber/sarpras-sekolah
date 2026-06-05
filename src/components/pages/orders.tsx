@@ -461,10 +461,10 @@ export function OrdersPage() {
       <div style="margin-top: 32px; font-size: 12pt;">
         <div style="display: inline-block; min-width: 200px;">
           <div>an. Kepala Sekolah</div>
-          <div>Bendahara ${settings.schoolName || 'Sekolah'}</div>
-          <div style="height: 60px;"></div>
-          <div style="text-decoration: underline; font-weight: bold;">${employee?.name || '____________________'}</div>
-          <div>${employee?.nip ? `NIP. ${employee.nip}` : '&nbsp;'}</div>
+          <div style="padding-left: 4ch;">Bendahara ${settings.schoolName || 'Sekolah'}</div>
+          <div style="height: 60px; padding-left: 4ch;"></div>
+          <div style="text-decoration: underline; font-weight: bold; padding-left: 4ch;">${employee?.name || '____________________'}</div>
+          <div style="padding-left: 4ch;">${employee?.nip ? `NIP. ${employee.nip}` : '&nbsp;'}</div>
         </div>
       </div>
     `
