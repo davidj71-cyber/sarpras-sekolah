@@ -129,10 +129,6 @@ export function LoginPage() {
                 'Masuk'
               )}
             </Button>
-
-            <p className="text-xs text-center text-muted-foreground mt-4">
-              Default: admin / admin123
-            </p>
           </form>
         </CardContent>
       </Card>
