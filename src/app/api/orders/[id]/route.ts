@@ -41,6 +41,32 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    // Handle mark-as-paid: set paymentStatus to LUNAS and paidAt to now
+    if (body.markAsPaid) {
+      const order = await db.order.update({
+        where: { id },
+        data: {
+          paymentStatus: "LUNAS",
+          paidAt: body.paidAt ? new Date(body.paidAt) : new Date(),
+        },
+        include: {
+          store: true,
+          employee: true,
+          items: true,
+        },
+      });
+      return NextResponse.json(order);
+    }
+
+    // Auto-set paymentStatus based on paymentMethod if not explicitly provided
+    const paymentMethod = body.paymentMethod;
+    let paymentStatus = body.paymentStatus;
+    if (!paymentStatus && paymentMethod === "BON") {
+      paymentStatus = "BELUM_BAYAR";
+    } else if (!paymentStatus && paymentMethod === "Cash") {
+      paymentStatus = "LUNAS";
+    }
+
     // If items are provided, delete existing items and recreate them
     if (body.items && Array.isArray(body.items)) {
       await db.orderItem.deleteMany({ where: { orderId: id } });
@@ -54,7 +80,9 @@ export async function PUT(
         storeId: body.storeId,
         employeeId: body.employeeId ?? null,
         status: body.status,
-        paymentMethod: body.paymentMethod,
+        paymentMethod,
+        paymentStatus,
+        paidAt: body.paidAt !== undefined ? (body.paidAt ? new Date(body.paidAt) : null) : undefined,
         notes: body.notes,
         totalAmount: body.totalAmount,
         items: body.items

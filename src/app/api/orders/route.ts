@@ -26,6 +26,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    // Auto-set paymentStatus based on paymentMethod
+    const paymentMethod = body.paymentMethod ?? "Cash";
+    const paymentStatus =
+      body.paymentStatus ??
+      (paymentMethod === "BON" ? "BELUM_BAYAR" : "LUNAS");
+
     // Check if an order with the same orderNumber already exists
     const existingOrder = await db.order.findFirst({
       where: { orderNumber: body.orderNumber },
@@ -56,14 +62,15 @@ export async function POST(request: NextRequest) {
 
       // Calculate new total
       const existingTotal = existingOrder.items.reduce((sum, i) => sum + i.totalPrice, 0);
-      const newItemsTotal = newItems.reduce((sum, i) => sum + i.totalPrice, 0);
+      const newItemsTotal = newItems.reduce((sum: number, i: { totalPrice: number }) => sum + i.totalPrice, 0);
 
       const updatedOrder = await db.order.update({
         where: { id: existingOrder.id },
         data: {
           totalAmount: existingTotal + newItemsTotal,
           status: body.status ?? existingOrder.status,
-          paymentMethod: body.paymentMethod ?? existingOrder.paymentMethod,
+          paymentMethod,
+          paymentStatus,
           notes: body.notes ?? existingOrder.notes,
           items: newItems.length > 0
             ? {
@@ -89,7 +96,9 @@ export async function POST(request: NextRequest) {
         storeId: body.storeId,
         employeeId: body.employeeId ?? null,
         status: body.status ?? "Draft",
-        paymentMethod: body.paymentMethod ?? "Cash",
+        paymentMethod,
+        paymentStatus,
+        paidAt: body.paidAt ? new Date(body.paidAt) : null,
         notes: body.notes ?? "",
         totalAmount: body.totalAmount ?? 0,
         items: body.items

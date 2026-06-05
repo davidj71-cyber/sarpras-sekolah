@@ -61,6 +61,11 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  CheckCircle2,
+  Clock,
+  DollarSign,
+  CreditCard,
+  Wallet,
 } from 'lucide-react'
 import {
   fetchPrintSettings,
@@ -107,6 +112,8 @@ interface OrderData {
   employeeId: string | null
   status: string
   paymentMethod: string
+  paymentStatus: string
+  paidAt: string | null
   notes: string
   totalAmount: number
   store?: StoreData
@@ -130,6 +137,8 @@ interface SettingsData {
   [key: string]: unknown
 }
 
+type PaymentFilter = 'all' | 'cash' | 'bon_unpaid' | 'bon_paid'
+
 const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   Draft: 'secondary',
   Dikirim: 'outline',
@@ -137,7 +146,7 @@ const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'ou
   Selesai: 'default',
 }
 
-// ─── Order Row Group (avoids Collapsible-in-table HTML issues) ─────────────
+// ─── Order Row Group ─────────────────────────────────────────────────────────
 
 function OrderRowGroup({
   order,
@@ -149,6 +158,7 @@ function OrderRowGroup({
   onEdit,
   onPrint,
   onDelete,
+  onMarkAsPaid,
 }: {
   order: OrderData
   idx: number
@@ -159,11 +169,15 @@ function OrderRowGroup({
   onEdit: (order: OrderData) => void
   onPrint: (order: OrderData) => void
   onDelete: (id: string, name: string) => void
+  onMarkAsPaid: (order: OrderData) => void
 }) {
+  const isBON = order.paymentMethod === 'BON'
+  const isUnpaid = isBON && order.paymentStatus === 'BELUM_BAYAR'
+
   return (
     <>
       {/* Main Row */}
-      <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onToggle}>
+      <TableRow className={`cursor-pointer hover:bg-muted/50 ${isUnpaid ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}`} onClick={onToggle}>
         <TableCell className="w-[40px]">
           <button className="flex items-center justify-center size-6 rounded hover:bg-muted">
             {isExpanded ? (
@@ -190,13 +204,38 @@ function OrderRowGroup({
           </Badge>
         </TableCell>
         <TableCell>
-          <Badge variant={order.paymentMethod === 'BON' ? 'outline' : 'default'}>
-            {order.paymentMethod || 'Cash'}
-          </Badge>
+          <div className="flex flex-col gap-1">
+            <Badge variant={isBON ? 'outline' : 'default'}>
+              {isBON ? '📝 BON' : '💵 Cash'}
+            </Badge>
+            {isBON && (
+              <Badge
+                variant={order.paymentStatus === 'LUNAS' ? 'default' : 'destructive'}
+                className="text-[10px] px-1.5 py-0"
+              >
+                {order.paymentStatus === 'LUNAS' ? (
+                  <><CheckCircle2 className="size-3 mr-0.5" />LUNAS</>
+                ) : (
+                  <><Clock className="size-3 mr-0.5" />BELUM BAYAR</>
+                )}
+              </Badge>
+            )}
+          </div>
         </TableCell>
         <TableCell>{formatRupiahPrint(order.totalAmount)}</TableCell>
         <TableCell>
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            {isUnpaid && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                onClick={() => onMarkAsPaid(order)}
+                title="Tandai Lunas"
+              >
+                <CheckCircle2 className="size-4" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="size-8" onClick={() => onEdit(order)} title="Edit">
               <Pencil className="size-4" />
             </Button>
@@ -214,7 +253,26 @@ function OrderRowGroup({
       {isExpanded && (
         <TableRow>
           <TableCell colSpan={9} className="p-0 border-0">
-            <div className="bg-muted/30 px-12 py-3">
+            <div className={`px-12 py-3 ${isUnpaid ? 'bg-amber-50/30 dark:bg-amber-950/10' : 'bg-muted/30'}`}>
+              {/* BON payment info */}
+              {isBON && (
+                <div className="mb-3 flex flex-wrap items-center gap-4 text-sm">
+                  <span className="text-muted-foreground">
+                    Status Pembayaran:
+                    <Badge
+                      variant={order.paymentStatus === 'LUNAS' ? 'default' : 'destructive'}
+                      className="ml-2"
+                    >
+                      {order.paymentStatus === 'LUNAS' ? '✓ LUNAS' : '⏳ BELUM BAYAR'}
+                    </Badge>
+                  </span>
+                  {order.paymentStatus === 'LUNAS' && order.paidAt && (
+                    <span className="text-muted-foreground">
+                      Tanggal Bayar: <span className="font-medium text-foreground">{formatDatePrint(order.paidAt)}</span>
+                    </span>
+                  )}
+                </div>
+              )}
               {items.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">Tidak ada item dalam pesanan ini</p>
               ) : (
@@ -256,8 +314,6 @@ function OrderRowGroup({
   )
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function toRoman(num: number): string {
@@ -288,7 +344,6 @@ function generateOrderNumber(
   dateStr: string
 ): string {
   if (!num.trim()) return ''
-  // Normalize: parse as integer to remove leading zeros (9 and 09 are the same)
   const normalizedNum = parseInt(num, 10)
   if (isNaN(normalizedNum) || normalizedNum <= 0) return ''
   const date = dateStr ? new Date(dateStr) : new Date()
@@ -310,6 +365,7 @@ export function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
 
   // Dialog
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -323,6 +379,8 @@ export function OrdersPage() {
   const [employeeId, setEmployeeId] = useState('')
   const [orderStatus, setOrderStatus] = useState('Draft')
   const [paymentMethod, setPaymentMethod] = useState('Cash')
+  const [paymentStatus, setPaymentStatus] = useState('LUNAS')
+  const [paidAt, setPaidAt] = useState('')
   const [orderNotes, setOrderNotes] = useState('')
   const [orderItems, setOrderItems] = useState<OrderItemForm[]>([
     { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0 },
@@ -338,6 +396,12 @@ export function OrdersPage() {
   const [statusOrderId, setStatusOrderId] = useState<string | null>(null)
   const [newStatus, setNewStatus] = useState('')
 
+  // Mark as paid dialog
+  const [paidDialogOpen, setPaidDialogOpen] = useState(false)
+  const [paidOrderId, setPaidOrderId] = useState<string | null>(null)
+  const [paidDate, setPaidDate] = useState('')
+  const [markingPaid, setMarkingPaid] = useState(false)
+
   // ─── Computed order number ─────────────────────────────────────────────
 
   const generatedOrderNumber = generateOrderNumber(
@@ -346,6 +410,15 @@ export function OrdersPage() {
     settings?.letterUnitCode || '',
     orderDate
   )
+
+  // ─── BON Summary ────────────────────────────────────────────────────────
+
+  const bonOrders = orders.filter(o => o.paymentMethod === 'BON')
+  const bonUnpaid = bonOrders.filter(o => o.paymentStatus === 'BELUM_BAYAR')
+  const bonPaid = bonOrders.filter(o => o.paymentStatus === 'LUNAS')
+  const totalBonUnpaid = bonUnpaid.reduce((s, o) => s + o.totalAmount, 0)
+  const totalBonPaid = bonPaid.reduce((s, o) => s + o.totalAmount, 0)
+  const totalCash = orders.filter(o => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0)
 
   // ─── Fetch ────────────────────────────────────────────────────────────────
 
@@ -412,6 +485,8 @@ export function OrdersPage() {
     setEmployeeId('')
     setOrderStatus('Draft')
     setPaymentMethod('Cash')
+    setPaymentStatus('LUNAS')
+    setPaidAt('')
     setOrderNotes('')
     setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0 }])
     setDialogOpen(true)
@@ -419,8 +494,6 @@ export function OrdersPage() {
 
   function openEditDialog(order: OrderData) {
     setEditingOrder(order)
-    // Try to extract just the number from the order number
-    // Format: {number}/PB/{code}-{unit}/{roman}/{year}
     const numPart = order.orderNumber.split('/PB/')[0] || order.orderNumber
     setOrderNumberInput(numPart)
     setOrderDate(order.orderDate ? new Date(order.orderDate).toISOString().split('T')[0] : '')
@@ -428,6 +501,8 @@ export function OrdersPage() {
     setEmployeeId(order.employeeId || '')
     setOrderStatus(order.status)
     setPaymentMethod(order.paymentMethod || 'Cash')
+    setPaymentStatus(order.paymentStatus || (order.paymentMethod === 'BON' ? 'BELUM_BAYAR' : 'LUNAS'))
+    setPaidAt(order.paidAt ? new Date(order.paidAt).toISOString().split('T')[0] : '')
     setOrderNotes(order.notes)
     setOrderItems(
       order.items?.map((i) => ({
@@ -462,6 +537,21 @@ export function OrdersPage() {
     return orderItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
   }
 
+  // Handle payment method change
+  function handlePaymentMethodChange(method: string) {
+    setPaymentMethod(method)
+    if (method === 'Cash') {
+      setPaymentStatus('LUNAS')
+      setPaidAt('')
+    } else {
+      // BON - default to BELUM_BAYAR for new, keep existing for edit
+      if (!editingOrder) {
+        setPaymentStatus('BELUM_BAYAR')
+        setPaidAt('')
+      }
+    }
+  }
+
   async function handleSubmit() {
     const fullOrderNumber = editingOrder
       ? (orderNumberInput.includes('/PB/') ? orderNumberInput : generatedOrderNumber)
@@ -489,6 +579,8 @@ export function OrdersPage() {
         employeeId: employeeId || null,
         status: orderStatus,
         paymentMethod,
+        paymentStatus,
+        paidAt: paymentMethod === 'BON' && paymentStatus === 'LUNAS' && paidAt ? paidAt : undefined,
         notes: orderNotes,
         totalAmount: getGrandTotal(),
         items: orderItems.map((i) => ({
@@ -556,10 +648,41 @@ export function OrdersPage() {
     }
   }
 
+  // ─── Mark as Paid ────────────────────────────────────────────────────────
+
+  function openMarkAsPaidDialog(order: OrderData) {
+    setPaidOrderId(order.id)
+    setPaidDate(new Date().toISOString().split('T')[0])
+    setPaidDialogOpen(true)
+  }
+
+  async function handleMarkAsPaid() {
+    if (!paidOrderId) return
+    setMarkingPaid(true)
+    try {
+      const res = await fetch(`/api/orders/${paidOrderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          markAsPaid: true,
+          paidAt: paidDate || new Date().toISOString(),
+        }),
+      })
+      if (!res.ok) throw new Error('Gagal')
+      toast({ title: 'Berhasil', description: 'BON berhasil ditandai lunas' })
+      setPaidDialogOpen(false)
+      fetchOrders()
+    } catch {
+      toast({ title: 'Error', description: 'Gagal menandai BON sebagai lunas', variant: 'destructive' })
+    } finally {
+      setMarkingPaid(false)
+      setPaidOrderId(null)
+    }
+  }
+
   // ─── Print Surat Pesanan ────────────────────────────────────────────────
 
   async function handlePrint(order: OrderData) {
-    // Fetch full order with items
     const orderRes = await fetch(`/api/orders/${order.id}`)
     if (!orderRes.ok) {
       toast({ title: 'Error', description: 'Gagal mengambil data pesanan', variant: 'destructive' })
@@ -567,16 +690,12 @@ export function OrdersPage() {
     }
     const fullOrder: OrderData = await orderRes.json()
 
-    // Fetch settings for KOP using shared utility
     const settings = await fetchPrintSettings()
-
-    // Build KOP HTML using shared utility
     const kopHtml = buildKopHtml(settings)
 
     const store = fullOrder.store || stores.find((s) => s.id === fullOrder.storeId)
     const employee = fullOrder.employee || employees.find((e) => e.id === fullOrder.employeeId)
 
-    // ─── Build items rows ──────────────────────────────────────────────────
     let itemsHtml = ''
     let grandTotal = 0
     fullOrder.items?.forEach((item, idx) => {
@@ -594,15 +713,16 @@ export function OrdersPage() {
       `
     })
 
-    // ─── Format date using shared utility ──────────────────────────────────
     const orderDateStr = fullOrder.orderDate
       ? formatDatePrint(fullOrder.orderDate)
       : formatDatePrint(new Date().toISOString())
 
-    // Extract city from school address or use default
     const city = settings.address ? settings.address.split(',').pop()?.trim() || '___________' : '___________'
 
-    // ─── Build body HTML ──────────────────────────────────────────────────
+    const paymentLabel = fullOrder.paymentMethod === 'BON'
+      ? `BON (Utang)${fullOrder.paymentStatus === 'LUNAS' ? ' — LUNAS' : ' — BELUM BAYAR'}`
+      : 'Cash (Tunai)'
+
     const bodyHtml = `
       <style>
         @page { size: A4; margin: 20mm 25mm; }
@@ -638,7 +758,7 @@ export function OrdersPage() {
         <tr>
           <td style="border: none; padding: 2px 8px 2px 0; vertical-align: top; white-space: nowrap;">Pembayaran</td>
           <td style="border: none; padding: 2px 4px; vertical-align: top;">:</td>
-          <td style="border: none; padding: 2px 0; font-weight: bold;">${fullOrder.paymentMethod === 'BON' ? 'BON (Utang)' : 'Cash (Tunai)'}</td>
+          <td style="border: none; padding: 2px 0; font-weight: bold;">${paymentLabel}</td>
         </tr>
       </table>
 
@@ -722,10 +842,25 @@ export function OrdersPage() {
   // ─── Filter ────────────────────────────────────────────────────────────────
 
   const filteredOrders = orders.filter((o) => {
+    // Payment filter
+    if (paymentFilter === 'cash' && o.paymentMethod !== 'Cash') return false
+    if (paymentFilter === 'bon_unpaid' && !(o.paymentMethod === 'BON' && o.paymentStatus === 'BELUM_BAYAR')) return false
+    if (paymentFilter === 'bon_paid' && !(o.paymentMethod === 'BON' && o.paymentStatus === 'LUNAS')) return false
+
+    // Search filter
     if (!search.trim()) return true
     const q = search.toLowerCase()
     return o.orderNumber.toLowerCase().includes(q) || (o.store?.name || '').toLowerCase().includes(q)
   })
+
+  // ─── Filter tabs config ──────────────────────────────────────────────────
+
+  const filterTabs: { key: PaymentFilter; label: string; icon: React.ElementType; count: number }[] = [
+    { key: 'all', label: 'Semua', icon: FileText, count: orders.length },
+    { key: 'cash', label: 'Cash', icon: Wallet, count: orders.filter(o => o.paymentMethod === 'Cash').length },
+    { key: 'bon_unpaid', label: 'BON Belum Bayar', icon: Clock, count: bonUnpaid.length },
+    { key: 'bon_paid', label: 'BON Lunas', icon: CheckCircle2, count: bonPaid.length },
+  ]
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -734,12 +869,70 @@ export function OrdersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Pesanan</h2>
-          <p className="text-muted-foreground">Manajemen surat pesanan dan pencetakan</p>
+          <p className="text-muted-foreground">Manajemen surat pesanan dan pencatatan BON</p>
         </div>
         <Button onClick={openAddDialog}>
           <Plus className="size-4 mr-2" />
           Tambah Pesanan
         </Button>
+      </div>
+
+      {/* BON Summary Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+                <DollarSign className="size-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Pesanan</p>
+                <p className="text-lg font-bold">{formatRupiahPrint(orders.reduce((s, o) => s + o.totalAmount, 0))}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                <Wallet className="size-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Cash (Tunai)</p>
+                <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatRupiahPrint(totalCash)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                <CreditCard className="size-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">BON Belum Bayar</p>
+                <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{formatRupiahPrint(totalBonUnpaid)}</p>
+                <p className="text-xs text-muted-foreground">{bonUnpaid.length} pesanan</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                <CheckCircle2 className="size-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">BON Lunas</p>
+                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{formatRupiahPrint(totalBonPaid)}</p>
+                <p className="text-xs text-muted-foreground">{bonPaid.length} pesanan</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -749,13 +942,35 @@ export function OrdersPage() {
               <FileText className="size-5" />
               <div>
                 <CardTitle>Data Pesanan</CardTitle>
-                <CardDescription>Kelola surat pesanan dan cetak dokumen</CardDescription>
+                <CardDescription>Kelola surat pesanan, BON, dan cetak dokumen</CardDescription>
               </div>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input placeholder="Cari pesanan..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
+          </div>
+          {/* Payment filter tabs */}
+          <div className="flex items-center gap-1 pt-2">
+            {filterTabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setPaymentFilter(tab.key)}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+                  paymentFilter === tab.key
+                    ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+                    : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
+                }`}
+              >
+                <tab.icon className="size-3.5" />
+                {tab.label}
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  paymentFilter === tab.key ? 'bg-primary-foreground/20' : 'bg-muted'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
           </div>
         </CardHeader>
         <CardContent>
@@ -782,7 +997,7 @@ export function OrdersPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Pembayaran</TableHead>
                     <TableHead>Total</TableHead>
-                    <TableHead className="w-[140px]">Aksi</TableHead>
+                    <TableHead className="w-[160px]">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -805,6 +1020,7 @@ export function OrdersPage() {
                         onEdit={openEditDialog}
                         onPrint={handlePrint}
                         onDelete={(id, name) => { setDeleteId(id); setDeleteName(name) }}
+                        onMarkAsPaid={openMarkAsPaidDialog}
                       />
                     )
                   })}
@@ -855,6 +1071,7 @@ export function OrdersPage() {
                 <div className="space-y-2">
                   <Label>Tanggal Pesanan</Label>
                   <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Untuk BON lama, isi tanggal pesanan yang sesuai</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Toko *</Label>
@@ -893,7 +1110,7 @@ export function OrdersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Metode Pembayaran</Label>
-                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <Select value={paymentMethod} onValueChange={handlePaymentMethodChange}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Cash">💵 Cash — Tunai</SelectItem>
@@ -902,6 +1119,36 @@ export function OrdersPage() {
                   </Select>
                 </div>
               </div>
+
+              {/* BON-specific fields */}
+              {paymentMethod === 'BON' && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20 p-4 space-y-4">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                    <CreditCard className="size-4" />
+                    <span className="text-sm font-semibold">Pengaturan BON</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Status Pembayaran</Label>
+                      <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="BELUM_BAYAR">⏳ Belum Bayar</SelectItem>
+                          <SelectItem value="LUNAS">✓ Lunas</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {paymentStatus === 'LUNAS' && (
+                      <div className="space-y-2">
+                        <Label>Tanggal Pelunasan</Label>
+                        <Input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
+                        <p className="text-xs text-muted-foreground">Untuk BON lama yang sudah dibayar, isi tanggal pelunasan</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Keterangan</Label>
                 <Textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} placeholder="Keterangan pesanan" rows={2} />
@@ -988,6 +1235,36 @@ export function OrdersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Mark as Paid Dialog */}
+      <Dialog open={paidDialogOpen} onOpenChange={setPaidDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Tandai BON Lunas</DialogTitle>
+            <DialogDescription>Konfirmasi pelunasan pembayaran BON</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20 p-3">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                <CheckCircle2 className="size-4" />
+                <span className="text-sm font-medium">BON akan ditandai sebagai LUNAS</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Tanggal Pelunasan</Label>
+              <Input type="date" value={paidDate} onChange={(e) => setPaidDate(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaidDialogOpen(false)}>Batal</Button>
+            <Button onClick={handleMarkAsPaid} disabled={markingPaid} className="bg-green-600 hover:bg-green-700">
+              {markingPaid && <Loader2 className="size-4 mr-2 animate-spin" />}
+              <CheckCircle2 className="size-4 mr-2" />
+              Tandai Lunas
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) { setDeleteId(null); setDeleteName('') } }}>
         <AlertDialogContent>
@@ -1000,7 +1277,7 @@ export function OrdersPage() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleting && <Loader2 className="size-4 mr-2 animate-spin" />}
+              {deleting ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>

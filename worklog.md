@@ -187,3 +187,34 @@ Stage Summary:
 - Edit barang feature works in both Inventaris pages
 - Tambah Barang feature allows direct item creation in Inventaris
 - KIB still works with its own Item model - no cross-contamination
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Implement BON (credit) and Cash payment tracking for orders, including ability to add old BON records
+
+Work Log:
+- Added `paymentStatus` (LUNAS/BELUM_BAYAR) and `paidAt` (DateTime?) fields to Order model in Prisma schema
+- Ran `db:push` to sync schema changes to database
+- Updated POST /api/orders route to auto-set paymentStatus based on paymentMethod (Cash→LUNAS, BON→BELUM_BAYAR)
+- Updated PUT /api/orders/[id] route with `markAsPaid` handling - sets paymentStatus to LUNAS and paidAt date
+- Updated PUT route to auto-derive paymentStatus when paymentMethod changes
+- Completely rewrote orders page UI with:
+  - 4 BON summary cards: Total Pesanan, Cash (Tunai), BON Belum Bayar, BON Lunas
+  - Payment filter tabs: Semua, Cash, BON Belum Bayar, BON Lunas
+  - BON-specific fields in add/edit dialog: Status Pembayaran dropdown, Tanggal Pelunasan date picker
+  - "Pengaturan BON" section with amber styling when BON method selected
+  - Payment status badges in table: "📝 BON" + "BELUM BAYAR" (red) or "LUNAS" (green)
+  - "Tandai Lunas" button for unpaid BON orders
+  - "Tandai BON Lunas" dialog with date picker for payment date
+  - Unpaid BON rows highlighted with amber background
+  - Expanded items view shows payment info (status and paid date) for BON orders
+  - Print format includes BON payment status info
+  - Hint text for adding old BON with past dates
+
+Stage Summary:
+- All BON/Cash features fully implemented and browser-verified
+- Can add old BON records by setting past dates and BON method
+- Can mark BON as paid with date tracking
+- Summary cards show real-time totals
+- Filter tabs correctly segment orders by payment type/status
