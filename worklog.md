@@ -75,3 +75,115 @@ Stage Summary:
 - Both fields visible in Inventaris tables and KIB form
 - Edit dialog includes both new fields
 - Lint passes, no errors
+
+---
+Task ID: 4
+Agent: main
+Task: REWRITE rooms.tsx to use new Inventory API routes (separate from KIB)
+
+Work Log:
+- Rewrote `/src/components/pages/rooms.tsx` with all API routes changed from old KIB routes to new Inventory routes:
+  - `/api/rooms` → `/api/inventory/rooms`, `/api/rooms/[id]` → `/api/inventory/rooms/[id]`
+  - `/api/biliks` → `/api/inventory/biliks`, `/api/biliks/[id]` → `/api/inventory/biliks/[id]`
+  - `/api/lemari` → `/api/inventory/cabinets`, `/api/lemari/[id]` → `/api/inventory/cabinets/[id]`
+  - `/api/items` → `/api/inventory/items`, `/api/items/[id]` → `/api/inventory/items/[id]`
+- Updated data model types:
+  - `LemariData` → `CabinetData` (used internally, UI still shows "Lemari")
+  - `ItemData` → `InventoryItemData` with `cabinetId` instead of `lemariId`, `tahunPengadaan` instead of `acquisitionYear`, removed `kibType`
+  - `RoomData.lemari` → `RoomData.cabinets`
+  - Added `cabinet` relation to InventoryItemData instead of `lemari`
+- `selectedLemariId` from store maps to `cabinetId` in API calls (e.g., `?cabinetId=${selectedLemariId}`)
+- Breadcrumb changed from "Ruang" to "Inventaris"
+- Added "Harga" column to items table
+- Added "Sumber Dana" and "Tahun Pengadaan" columns to items table and print detail
+- Added "Tambah Barang" button in both room detail view and bilik/lemari item view
+- Add item dialog POSTs to `/api/inventory/items` with location data auto-set from current selection (roomId/bilikId/cabinetId)
+- Edit item uses PUT `/api/inventory/items/[id]`
+- Delete item uses DELETE `/api/inventory/items/[id]`
+- Delete room/bilik/cabinet uses `/api/inventory/rooms/[id]`, `/api/inventory/biliks/[id]`, `/api/inventory/cabinets/[id]`
+- Stats card `totalLemari` now counts `cabinets` instead of `lemari`
+- Photo gallery passes `itemApiPath="/api/inventory/items"` to PhotoGallery component
+- Updated PhotoGallery component to accept optional `itemApiPath` prop for customizable API base path
+- Added helper functions `refreshItemsList()` and `refreshRoomData()` to reduce code duplication
+- Lint passes with no errors
+
+Stage Summary:
+- All API routes in rooms.tsx now use `/api/inventory/*` routes
+- Data model uses `cabinetId`/`cabinets` internally, "Lemari" displayed in UI
+- "Tambah Barang" feature added with location auto-set
+- Items table includes Harga, Sumber Dana, Tahun Pengadaan columns
+- Print detail includes Sumber Dana and Tahun Pengadaan columns
+- Breadcrumb shows "Inventaris" instead of "Ruang"
+- PhotoGallery component now supports custom API path via `itemApiPath` prop
+
+---
+Task ID: 5
+Agent: main
+Task: REWRITE room-items.tsx to use new Inventory API routes (separate from KIB)
+
+Work Log:
+- Rewrote `/src/components/pages/room-items.tsx` with all API routes changed from old KIB routes to new Inventory routes:
+  - `/api/items` → `/api/inventory/items`
+  - `/api/items/[id]` → `/api/inventory/items/[id]`
+  - `/api/rooms` → `/api/inventory/rooms`
+- Updated data model: `ItemData` → `InventoryItemData` with new fields:
+  - Removed `kibType`, `acquisitionYear`, `lemariId`, `lemari`
+  - Added `cabinetId`, `cabinet` (with `number` field), `tahunPengadaan`
+- Removed all KIB references: `filterKibType` state, `kibLabels` object, KIB filter Select dropdown, KIB badge in table, KIB column
+- Added "Tambah Barang" button next to the "Cetak" button in the page header
+- Item add/edit dialog now supports both add and edit modes:
+  - Add: POST to `/api/inventory/items` with form data including roomId from room select
+  - Edit: PUT to `/api/inventory/items/[id]`
+- Added "Lokasi / Ruang" select field to the add/edit dialog form
+- Location display uses `cabinet` data instead of `lemari`, but shows "Lemari" label in UI
+- Edit form uses `tahunPengadaan` instead of `acquisitionYear`
+- Print function updated:
+  - Removed KIB column from print table
+  - Added Sumber Dana and Tahun Pengadaan columns to print table
+  - Print title changed from "DAFTAR BARANG DI RUANGAN" to "DAFTAR BARANG INVENTARIS"
+  - Removed KIB filter from print subtitle
+- Page title changed from "Barang di Ruang" to "Barang Inventaris"
+- Stats card label changed from "Total Barang" to "Barang Inventaris"
+- PhotoGallery passes `itemApiPath="/api/inventory/items"` prop
+- Delete uses DELETE `/api/inventory/items/[id]`
+- Lint passes with no errors
+
+Stage Summary:
+- All API routes in room-items.tsx now use `/api/inventory/*` routes
+- Data model uses `cabinetId`/`cabinet` internally, "Lemari" displayed in UI
+- KIB type filter, badge, and column completely removed
+- "Tambah Barang" feature added with room select for location
+- Items table columns: No, Foto, Nama Barang, No. Register, Merk, Kondisi, Jumlah, Harga, Sumber Dana, Tahun Pengadaan, Lokasi, Keterangan, Aksi
+- Print includes Sumber Dana and Tahun Pengadaan columns, no KIB
+- Page title is "Barang Inventaris"
+
+---
+Task ID: 6
+Agent: main
+Task: Separate Inventaris from KIB - create completely independent data models
+
+Work Log:
+- Created new Prisma models: InventoryRoom, InventoryBilik, InventoryCabinet, InventoryItem (completely separate from KIB's Room, Bilik, Lemari, Item)
+- InventoryItem has: sumberDana (String), tahunPengadaan (Int?), NO kibType or KIB-specific fields
+- Pushed schema to database with `bun run db:push`
+- Created 8 API route files under /api/inventory/:
+  - rooms/route.ts, rooms/[id]/route.ts
+  - biliks/route.ts, biliks/[id]/route.ts
+  - cabinets/route.ts, cabinets/[id]/route.ts
+  - items/route.ts, items/[id]/route.ts
+- Updated rooms.tsx to use /api/inventory/* routes with new data types
+- Updated room-items.tsx to use /api/inventory/* routes, removed KIB filter/column
+- Both frontend pages now show Sumber Dana and Tahun Pengadaan columns
+- "Tambah Barang" feature added to both pages for direct item creation in Inventaris
+- KIB remains fully functional with its own data (Item model)
+- Verified with Agent Browser: Inventaris and KIB show completely separate data
+- Tested CRUD operations: add room, add bilik, add lemari, add item, edit item - all working
+
+Stage Summary:
+- Inventaris is now completely independent from KIB with its own database tables
+- New models: InventoryRoom, InventoryBilik, InventoryCabinet, InventoryItem
+- Sumber Dana and Tahun Pengadaan columns visible and functional in Inventaris
+- Bilik and Lemari can be added/deleted per room
+- Edit barang feature works in both Inventaris pages
+- Tambah Barang feature allows direct item creation in Inventaris
+- KIB still works with its own Item model - no cross-contamination

@@ -51,6 +51,7 @@ import {
 import {
   Package,
   Search,
+  Plus,
   Loader2,
   CheckCircle2,
   AlertTriangle,
@@ -78,10 +79,9 @@ interface RoomData {
   floor: string
 }
 
-interface ItemData {
+interface InventoryItemData {
   id: string
   name: string
-  kibType: string
   registrationNumber: string
   brand: string
   condition: string
@@ -89,14 +89,14 @@ interface ItemData {
   unit: string
   price: number
   sumberDana: string
-  acquisitionYear: number | null
+  tahunPengadaan: number | null
   notes: string
   roomId: string | null
   bilikId: string | null
-  lemariId: string | null
+  cabinetId: string | null
   room?: { id: string; name: string; building: string; floor: string } | null
   bilik?: { id: string; name: string } | null
-  lemari?: { id: string; number: string } | null
+  cabinet?: { id: string; number: string } | null
   photos?: string[]
 }
 
@@ -105,21 +105,20 @@ interface ItemData {
 export function RoomItemsPage() {
   const { toast } = useToast()
 
-  const [items, setItems] = useState<ItemData[]>([])
+  const [items, setItems] = useState<InventoryItemData[]>([])
   const [rooms, setRooms] = useState<RoomData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterRoom, setFilterRoom] = useState<string>('all')
   const [filterCondition, setFilterCondition] = useState<string>('all')
-  const [filterKibType, setFilterKibType] = useState<string>('all')
 
   // Photo edit dialog
-  const [photoItem, setPhotoItem] = useState<ItemData | null>(null)
+  const [photoItem, setPhotoItem] = useState<InventoryItemData | null>(null)
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
 
-  // Item edit dialog
+  // Item add/edit dialog
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<ItemData | null>(null)
+  const [editingItem, setEditingItem] = useState<InventoryItemData | null>(null)
   const [itemForm, setItemForm] = useState({
     name: '',
     registrationNumber: '',
@@ -129,8 +128,9 @@ export function RoomItemsPage() {
     unit: 'Unit',
     price: 0 as number,
     sumberDana: '',
-    acquisitionYear: null as number | null,
+    tahunPengadaan: null as number | null,
     notes: '',
+    roomId: null as string | null,
   })
   const [itemSaving, setItemSaving] = useState(false)
 
@@ -142,9 +142,27 @@ export function RoomItemsPage() {
     setItems(prev => prev.map(item => item.id === itemId ? { ...item, photos: newPhotos } : item))
   }
 
-  // ─── Item Edit/Delete ──────────────────────────────────────────────────
+  // ─── Item Add/Edit/Delete ──────────────────────────────────────────────
 
-  function openEditItem(item: ItemData) {
+  function openAddItem() {
+    setEditingItem(null)
+    setItemForm({
+      name: '',
+      registrationNumber: '',
+      brand: '',
+      condition: 'Baik',
+      quantity: 1,
+      unit: 'Unit',
+      price: 0,
+      sumberDana: '',
+      tahunPengadaan: null,
+      notes: '',
+      roomId: null,
+    })
+    setItemDialogOpen(true)
+  }
+
+  function openEditItem(item: InventoryItemData) {
     setEditingItem(item)
     setItemForm({
       name: item.name,
@@ -155,30 +173,43 @@ export function RoomItemsPage() {
       unit: item.unit,
       price: item.price,
       sumberDana: item.sumberDana || '',
-      acquisitionYear: item.acquisitionYear ?? null,
+      tahunPengadaan: item.tahunPengadaan ?? null,
       notes: item.notes || '',
+      roomId: item.roomId,
     })
     setItemDialogOpen(true)
   }
 
   async function handleItemSubmit() {
-    if (!editingItem || !itemForm.name.trim()) {
+    if (!itemForm.name.trim()) {
       toast({ title: 'Validasi', description: 'Nama barang wajib diisi', variant: 'destructive' })
       return
     }
     setItemSaving(true)
     try {
-      const res = await fetch(`/api/items/${editingItem.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(itemForm),
-      })
-      if (!res.ok) throw new Error('Gagal')
-      toast({ title: 'Berhasil', description: 'Barang berhasil diperbarui' })
+      if (editingItem) {
+        // Edit existing item
+        const res = await fetch(`/api/inventory/items/${editingItem.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(itemForm),
+        })
+        if (!res.ok) throw new Error('Gagal')
+        toast({ title: 'Berhasil', description: 'Barang berhasil diperbarui' })
+      } else {
+        // Add new item
+        const res = await fetch('/api/inventory/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(itemForm),
+        })
+        if (!res.ok) throw new Error('Gagal')
+        toast({ title: 'Berhasil', description: 'Barang berhasil ditambahkan' })
+      }
       setItemDialogOpen(false)
       fetchData()
     } catch {
-      toast({ title: 'Error', description: 'Gagal memperbarui barang', variant: 'destructive' })
+      toast({ title: 'Error', description: editingItem ? 'Gagal memperbarui barang' : 'Gagal menambahkan barang', variant: 'destructive' })
     } finally {
       setItemSaving(false)
     }
@@ -188,7 +219,7 @@ export function RoomItemsPage() {
     if (!deleteItemTarget) return
     setDeletingItem(true)
     try {
-      const res = await fetch(`/api/items/${deleteItemTarget.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/inventory/items/${deleteItemTarget.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: 'Barang berhasil dihapus' })
       fetchData()
@@ -206,8 +237,8 @@ export function RoomItemsPage() {
     setLoading(true)
     try {
       const [itemsRes, roomsRes] = await Promise.all([
-        fetch('/api/items'),
-        fetch('/api/rooms'),
+        fetch('/api/inventory/items'),
+        fetch('/api/inventory/rooms'),
       ])
 
       if (!itemsRes.ok || !roomsRes.ok) throw new Error('Gagal')
@@ -218,7 +249,7 @@ export function RoomItemsPage() {
       ])
 
       // Only items that have a room assigned
-      setItems(itemsData.filter((item: ItemData) => item.roomId))
+      setItems(itemsData.filter((item: InventoryItemData) => item.roomId))
       setRooms(roomsData)
     } catch {
       toast({ title: 'Error', description: 'Gagal mengambil data', variant: 'destructive' })
@@ -238,13 +269,12 @@ export function RoomItemsPage() {
       item.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.room?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.bilik?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.lemari?.number.toLowerCase().includes(searchQuery.toLowerCase())
+      item.cabinet?.number.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchRoom = filterRoom === 'all' || item.roomId === filterRoom
     const matchCondition = filterCondition === 'all' || item.condition === filterCondition
-    const matchKibType = filterKibType === 'all' || item.kibType === filterKibType
 
-    return matchSearch && matchRoom && matchCondition && matchKibType
+    return matchSearch && matchRoom && matchCondition
   })
 
   // ─── Stats ───────────────────────────────────────────────────────────────
@@ -271,7 +301,7 @@ export function RoomItemsPage() {
 
   // ─── Location display ─────────────────────────────────────────────────────
 
-  function renderLocation(item: ItemData) {
+  function renderLocation(item: InventoryItemData) {
     const parts: React.ReactNode[] = []
     if (item.room) {
       parts.push(
@@ -289,11 +319,11 @@ export function RoomItemsPage() {
         </span>
       )
     }
-    if (item.lemari) {
+    if (item.cabinet) {
       parts.push(
-        <span key="lemari" className="flex items-center gap-1">
+        <span key="cabinet" className="flex items-center gap-1">
           <Box className="size-3 text-orange-500" />
-          Lemari {item.lemari.number}
+          Lemari {item.cabinet.number}
         </span>
       )
     }
@@ -310,17 +340,6 @@ export function RoomItemsPage() {
         ))}
       </div>
     )
-  }
-
-  // ─── KIB Type label ──────────────────────────────────────────────────────
-
-  const kibLabels: Record<string, string> = {
-    A: 'KIB A',
-    B: 'KIB B',
-    C: 'KIB C',
-    D: 'KIB D',
-    E: 'KIB E',
-    F: 'KIB F',
   }
 
   // ─── Format currency ─────────────────────────────────────────────────────
@@ -349,9 +368,6 @@ export function RoomItemsPage() {
       if (filterCondition !== 'all') {
         filterParts.push(`Kondisi - ${filterCondition}`)
       }
-      if (filterKibType !== 'all') {
-        filterParts.push(`KIB - ${kibLabels[filterKibType] || filterKibType}`)
-      }
       const subtitle = filterParts.length > 0
         ? `<div class="subtitle">Filter: ${filterParts.join(', ')}</div>`
         : ''
@@ -361,18 +377,19 @@ export function RoomItemsPage() {
         const locationParts: string[] = []
         if (item.room) locationParts.push(item.room.name)
         if (item.bilik) locationParts.push(`Bilik ${item.bilik.name}`)
-        if (item.lemari) locationParts.push(`Lemari ${item.lemari.number}`)
+        if (item.cabinet) locationParts.push(`Lemari ${item.cabinet.number}`)
         const location = locationParts.length > 0 ? locationParts.join(' &gt; ') : '-'
 
         return `<tr>
           <td class="text-center">${idx + 1}</td>
           <td>${item.name}</td>
           <td class="text-center">${item.registrationNumber || '-'}</td>
-          <td class="text-center">${kibLabels[item.kibType] || item.kibType}</td>
           <td>${item.brand || '-'}</td>
           <td class="text-center">${item.condition}</td>
           <td class="text-right">${item.quantity} ${item.unit}</td>
           <td class="text-right">${item.price > 0 ? formatRupiahPrint(item.price) : '-'}</td>
+          <td>${item.sumberDana || '-'}</td>
+          <td class="text-center">${item.tahunPengadaan || '-'}</td>
           <td>${location}</td>
           <td>${item.notes || '-'}</td>
         </tr>`
@@ -387,11 +404,12 @@ export function RoomItemsPage() {
               <th>No</th>
               <th>Nama Barang</th>
               <th>No. Register</th>
-              <th>KIB</th>
               <th>Merk</th>
               <th>Kondisi</th>
               <th>Jumlah</th>
               <th>Harga</th>
+              <th>Sumber Dana</th>
+              <th>Tahun Pengadaan</th>
               <th>Lokasi</th>
               <th>Keterangan</th>
             </tr>
@@ -423,7 +441,7 @@ export function RoomItemsPage() {
         </table>
       `
 
-      await printWithKop('DAFTAR BARANG DI RUANGAN', contentHtml)
+      await printWithKop('DAFTAR BARANG INVENTARIS', contentHtml)
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak data', variant: 'destructive' })
     } finally {
@@ -445,13 +463,19 @@ export function RoomItemsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Barang di Ruang</h2>
-          <p className="text-muted-foreground">Daftar semua barang beserta lokasi ruangan</p>
+          <h2 className="text-2xl font-bold tracking-tight">Barang Inventaris</h2>
+          <p className="text-muted-foreground">Daftar semua barang inventaris beserta lokasi</p>
         </div>
-        <Button onClick={handlePrint} disabled={printing || filteredItems.length === 0} variant="outline" size="sm">
-          {printing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
-          Cetak
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={openAddItem} size="sm">
+            <Plus className="size-4 mr-2" />
+            Tambah Barang
+          </Button>
+          <Button onClick={handlePrint} disabled={printing || filteredItems.length === 0} variant="outline" size="sm">
+            {printing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
+            Cetak
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -463,7 +487,7 @@ export function RoomItemsPage() {
                 <Package className="size-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Barang</p>
+                <p className="text-sm text-muted-foreground">Barang Inventaris</p>
                 <p className="text-2xl font-bold">{filteredItems.length}</p>
               </div>
             </div>
@@ -550,17 +574,6 @@ export function RoomItemsPage() {
                   <SelectItem value="Rusak Berat">Rusak Berat</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={filterKibType} onValueChange={setFilterKibType}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="KIB" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua KIB</SelectItem>
-                  {Object.entries(kibLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </CardContent>
@@ -581,7 +594,7 @@ export function RoomItemsPage() {
           <p className="text-lg font-medium">Tidak ada barang ditemukan</p>
           <p className="text-sm">
             {items.length === 0
-              ? 'Belum ada barang yang ditempatkan di ruangan. Tambahkan barang melalui menu KIB dan tentukan lokasinya.'
+              ? 'Belum ada barang inventaris. Klik tombol "Tambah Barang" untuk menambahkan barang baru.'
               : 'Coba ubah filter pencarian Anda'}
           </p>
         </div>
@@ -596,7 +609,6 @@ export function RoomItemsPage() {
                     <TableHead className="w-[70px]">Foto</TableHead>
                     <TableHead>Nama Barang</TableHead>
                     <TableHead>No. Register</TableHead>
-                    <TableHead>KIB</TableHead>
                     <TableHead>Merk</TableHead>
                     <TableHead>Kondisi</TableHead>
                     <TableHead className="text-right">Jumlah</TableHead>
@@ -617,15 +629,12 @@ export function RoomItemsPage() {
                       </TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.registrationNumber || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">{kibLabels[item.kibType] || item.kibType}</Badge>
-                      </TableCell>
                       <TableCell>{item.brand || '-'}</TableCell>
                       <TableCell>{conditionBadge(item.condition)}</TableCell>
                       <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
                       <TableCell className="text-right">{item.price > 0 ? formatRupiah(item.price) : '-'}</TableCell>
                       <TableCell>{item.sumberDana || '-'}</TableCell>
-                      <TableCell>{item.acquisitionYear || '-'}</TableCell>
+                      <TableCell>{item.tahunPengadaan || '-'}</TableCell>
                       <TableCell>{renderLocation(item)}</TableCell>
                       <TableCell className="max-w-[150px] truncate">{item.notes || '-'}</TableCell>
                       <TableCell>
@@ -671,7 +680,7 @@ export function RoomItemsPage() {
         </Card>
       )}
 
-           {/* Photo Gallery Dialog */}
+      {/* Photo Gallery Dialog */}
       <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
@@ -684,6 +693,7 @@ export function RoomItemsPage() {
             <PhotoGallery
               photos={photoItem.photos || []}
               itemId={photoItem.id}
+              itemApiPath="/api/inventory/items"
               onPhotosChange={(newPhotos) => {
                 handleItemPhotosChange(photoItem.id, newPhotos)
                 setPhotoItem(prev => prev ? { ...prev, photos: newPhotos } : null)
@@ -693,12 +703,14 @@ export function RoomItemsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Item Edit Dialog */}
+      {/* Item Add/Edit Dialog */}
       <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit Barang</DialogTitle>
-            <DialogDescription>Perbarui data barang. Untuk mengubah field khusus KIB, gunakan halaman KIB.</DialogDescription>
+            <DialogTitle>{editingItem ? 'Edit Barang' : 'Tambah Barang'}</DialogTitle>
+            <DialogDescription>
+              {editingItem ? 'Perbarui data barang inventaris.' : 'Tambahkan barang inventaris baru.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
@@ -757,7 +769,23 @@ export function RoomItemsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-tahun-pengadaan">Tahun Pengadaan</Label>
-              <Input id="item-tahun-pengadaan" type="number" min={1900} max={2100} value={itemForm.acquisitionYear ?? ''} onChange={(e) => setItemForm({ ...itemForm, acquisitionYear: e.target.value ? Number(e.target.value) : null })} placeholder="Contoh: 2024" />
+              <Input id="item-tahun-pengadaan" type="number" min={1900} max={2100} value={itemForm.tahunPengadaan ?? ''} onChange={(e) => setItemForm({ ...itemForm, tahunPengadaan: e.target.value ? Number(e.target.value) : null })} placeholder="Contoh: 2024" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="item-room">Lokasi / Ruang</Label>
+              <Select value={itemForm.roomId || '_none_'} onValueChange={(val) => setItemForm({ ...itemForm, roomId: val === '_none_' ? null : val })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih ruang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none_">— Tidak Ditentukan —</SelectItem>
+                  {rooms.map(room => (
+                    <SelectItem key={room.id} value={room.id}>
+                      {room.name}{room.building ? ` (${room.building})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="item-notes">Keterangan</Label>
@@ -768,7 +796,7 @@ export function RoomItemsPage() {
             <Button variant="outline" onClick={() => setItemDialogOpen(false)} disabled={itemSaving}>Batal</Button>
             <Button onClick={handleItemSubmit} disabled={itemSaving}>
               {itemSaving && <Loader2 className="size-4 mr-2 animate-spin" />}
-              Simpan Perubahan
+              {editingItem ? 'Simpan Perubahan' : 'Tambah Barang'}
             </Button>
           </DialogFooter>
         </DialogContent>

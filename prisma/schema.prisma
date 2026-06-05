@@ -92,6 +92,69 @@ model Lemari {
   updatedAt   DateTime @updatedAt
 }
 
+// ─── Inventaris Models (completely independent from KIB) ────────────────────
+
+model InventoryRoom {
+  id          String   @id @default(cuid())
+  name        String
+  building    String   @default("")
+  floor       String   @default("")
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  biliks      InventoryBilik[]
+  cabinets    InventoryCabinet[]
+  items       InventoryItem[]
+}
+
+model InventoryBilik {
+  id          String   @id @default(cuid())
+  name        String
+  number      String   @default("")
+  description String   @default("")
+  roomId      String
+  room        InventoryRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  items       InventoryItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InventoryCabinet {
+  id          String   @id @default(cuid())
+  number      String
+  description String   @default("")
+  roomId      String
+  room        InventoryRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  items       InventoryItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InventoryItem {
+  id                String   @id @default(cuid())
+  name              String
+  registrationNumber String  @default("") // Nomor Register
+  brand             String   @default("") // Merk
+  condition         String   @default("Baik") // Kondisi (Baik, Rusak Ringan, Rusak Berat)
+  quantity          Int      @default(1)
+  unit              String   @default("Unit")
+  price             Float    @default(0)
+  sumberDana        String   @default("") // Sumber Dana (APBN, APBD, BOS, Donasi, dll)
+  tahunPengadaan    Int?     // Tahun Pengadaan
+  notes             String   @default("")
+  // Location fields
+  roomId            String?
+  room              InventoryRoom?    @relation(fields: [roomId], references: [id])
+  bilikId           String?
+  bilik             InventoryBilik?   @relation(fields: [bilikId], references: [id])
+  cabinetId         String?
+  cabinet           InventoryCabinet? @relation(fields: [cabinetId], references: [id])
+  // Photos
+  photos            String   @default("[]") // JSON array of photo filenames
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 model Item {
   id                String   @id @default(cuid())
   name              String

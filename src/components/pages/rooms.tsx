@@ -80,15 +80,15 @@ interface BilikData {
   number: string
   description: string
   roomId: string
-  items?: ItemData[]
+  items?: InventoryItemData[]
 }
 
-interface LemariData {
+interface CabinetData {
   id: string
   number: string
   description: string
   roomId: string
-  items?: ItemData[]
+  items?: InventoryItemData[]
 }
 
 interface RoomData {
@@ -98,15 +98,14 @@ interface RoomData {
   floor: string
   description: string
   biliks: BilikData[]
-  lemari: LemariData[]
-  items?: ItemData[]
+  cabinets: CabinetData[]
+  items?: InventoryItemData[]
   createdAt: string
 }
 
-interface ItemData {
+interface InventoryItemData {
   id: string
   name: string
-  kibType: string
   registrationNumber: string
   brand: string
   condition: string
@@ -114,14 +113,14 @@ interface ItemData {
   unit: string
   price: number
   sumberDana: string
-  acquisitionYear: number | null
+  tahunPengadaan: number | null
   notes: string
   roomId: string | null
   bilikId: string | null
-  lemariId: string | null
+  cabinetId: string | null
   room?: { id: string; name: string }
   bilik?: { id: string; name: string }
-  lemari?: { id: string; number: string }
+  cabinet?: { id: string; number: string }
   photos?: string[]
 }
 
@@ -140,7 +139,7 @@ export function RoomsPage() {
 
   const [rooms, setRooms] = useState<RoomData[]>([])
   const [currentRoom, setCurrentRoom] = useState<RoomData | null>(null)
-  const [items, setItems] = useState<ItemData[]>([])
+  const [items, setItems] = useState<InventoryItemData[]>([])
   const [loading, setLoading] = useState(true)
   const [itemsLoading, setItemsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -156,9 +155,9 @@ export function RoomsPage() {
   const [editingBilik, setEditingBilik] = useState<BilikData | null>(null)
   const [bilikForm, setBilikForm] = useState({ name: '', number: '', description: '' })
 
-  // Lemari dialog
+  // Lemari/Cabinet dialog (UI shows "Lemari", API uses "cabinet")
   const [lemariDialogOpen, setLemariDialogOpen] = useState(false)
-  const [editingLemari, setEditingLemari] = useState<LemariData | null>(null)
+  const [editingLemari, setEditingLemari] = useState<CabinetData | null>(null)
   const [lemariForm, setLemariForm] = useState({ number: '', description: '' })
 
   // Delete
@@ -166,12 +165,12 @@ export function RoomsPage() {
   const [deleting, setDeleting] = useState(false)
 
   // Photo edit dialog
-  const [photoItem, setPhotoItem] = useState<ItemData | null>(null)
+  const [photoItem, setPhotoItem] = useState<InventoryItemData | null>(null)
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
 
-  // Item edit dialog
+  // Item add/edit dialog
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<ItemData | null>(null)
+  const [editingItem, setEditingItem] = useState<InventoryItemData | null>(null)
   const [itemForm, setItemForm] = useState({
     name: '',
     registrationNumber: '',
@@ -181,7 +180,7 @@ export function RoomsPage() {
     unit: 'Unit',
     price: 0 as number,
     sumberDana: '',
-    acquisitionYear: null as number | null,
+    tahunPengadaan: null as number | null,
     notes: '',
   })
   const [itemSaving, setItemSaving] = useState(false)
@@ -199,7 +198,7 @@ export function RoomsPage() {
   const fetchRooms = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/rooms')
+      const res = await fetch('/api/inventory/rooms')
       if (!res.ok) throw new Error('Gagal')
       const data = await res.json()
       setRooms(data)
@@ -216,7 +215,7 @@ export function RoomsPage() {
 
   useEffect(() => {
     if (selectedRoomId) {
-      fetch(`/api/rooms/${selectedRoomId}`)
+      fetch(`/api/inventory/rooms/${selectedRoomId}`)
         .then(res => res.ok ? res.json() : null)
         .then(data => { if (data) setCurrentRoom(data) })
         .catch(() => {})
@@ -230,19 +229,19 @@ export function RoomsPage() {
   useEffect(() => {
     if (selectedLemariId) {
       setItemsLoading(true)
-      fetch(`/api/items?lemariId=${selectedLemariId}`)
+      fetch(`/api/inventory/items?cabinetId=${selectedLemariId}`)
         .then(res => res.ok ? res.json() : [])
         .then(data => { setItems(data); setItemsLoading(false) })
         .catch(() => { setItems([]); setItemsLoading(false) })
     } else if (selectedBilikId) {
       setItemsLoading(true)
-      fetch(`/api/items?bilikId=${selectedBilikId}`)
+      fetch(`/api/inventory/items?bilikId=${selectedBilikId}`)
         .then(res => res.ok ? res.json() : [])
         .then(data => { setItems(data); setItemsLoading(false) })
         .catch(() => { setItems([]); setItemsLoading(false) })
     } else if (selectedRoomId) {
       setItemsLoading(true)
-      fetch(`/api/items?roomId=${selectedRoomId}`)
+      fetch(`/api/inventory/items?roomId=${selectedRoomId}`)
         .then(res => res.ok ? res.json() : [])
         .then(data => { setItems(data); setItemsLoading(false) })
         .catch(() => { setItems([]); setItemsLoading(false) })
@@ -261,14 +260,42 @@ export function RoomsPage() {
 
   const totalItems = rooms.reduce((acc, r) => acc + (r.items?.length || 0), 0)
   const totalBilik = rooms.reduce((acc, r) => acc + (r.biliks?.length || 0), 0)
-  const totalLemari = rooms.reduce((acc, r) => acc + (r.lemari?.length || 0), 0)
+  const totalLemari = rooms.reduce((acc, r) => acc + (r.cabinets?.length || 0), 0)
+
+  // ─── Helper: refresh items list ─────────────────────────────────────────
+
+  function refreshItemsList() {
+    if (selectedLemariId) {
+      fetch(`/api/inventory/items?cabinetId=${selectedLemariId}`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setItems(data))
+    } else if (selectedBilikId) {
+      fetch(`/api/inventory/items?bilikId=${selectedBilikId}`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setItems(data))
+    } else if (selectedRoomId) {
+      fetch(`/api/inventory/items?roomId=${selectedRoomId}`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setItems(data))
+    }
+  }
+
+  // ─── Helper: refresh room data ─────────────────────────────────────────
+
+  async function refreshRoomData() {
+    if (selectedRoomId) {
+      const roomRes = await fetch(`/api/inventory/rooms/${selectedRoomId}`)
+      if (roomRes.ok) setCurrentRoom(await roomRes.json())
+    }
+    fetchRooms()
+  }
 
   // ─── Print Room List ──────────────────────────────────────────────────────
 
   async function handlePrintRoomList() {
     const tableRows = rooms.map((room, idx) => {
       const bilikCount = room.biliks?.length || 0
-      const lemariCount = room.lemari?.length || 0
+      const lemariCount = room.cabinets?.length || 0
       const itemCount = room.items?.length || 0
       return `<tr>
         <td class="text-center">${idx + 1}</td>
@@ -282,7 +309,7 @@ export function RoomsPage() {
     }).join('')
 
     const totalBilikPrint = rooms.reduce((acc, r) => acc + (r.biliks?.length || 0), 0)
-    const totalLemariPrint = rooms.reduce((acc, r) => acc + (r.lemari?.length || 0), 0)
+    const totalLemariPrint = rooms.reduce((acc, r) => acc + (r.cabinets?.length || 0), 0)
     const totalItemsPrint = rooms.reduce((acc, r) => acc + (r.items?.length || 0), 0)
 
     const contentHtml = `
@@ -319,39 +346,39 @@ export function RoomsPage() {
     if (!selectedRoomId || !currentRoom) return
 
     try {
-      // Fetch all items for the room (including items in biliks and lemari)
-      const res = await fetch(`/api/items?roomId=${selectedRoomId}`)
+      // Fetch all items for the room (including items in biliks and cabinets)
+      const res = await fetch(`/api/inventory/items?roomId=${selectedRoomId}`)
       if (!res.ok) throw new Error('Gagal')
-      const allItems: ItemData[] = await res.json()
+      const allItems: InventoryItemData[] = await res.json()
 
-      // Also fetch items from biliks and lemari in this room
+      // Also fetch items from biliks and cabinets in this room
       const bilikItemPromises = currentRoom.biliks.map(async (bilik) => {
         try {
-          const bRes = await fetch(`/api/items?bilikId=${bilik.id}`)
+          const bRes = await fetch(`/api/inventory/items?bilikId=${bilik.id}`)
           if (!bRes.ok) return []
           return await bRes.json()
         } catch { return [] }
       })
 
-      const lemariItemPromises = currentRoom.lemari.map(async (lem) => {
+      const cabinetItemPromises = currentRoom.cabinets.map(async (cab) => {
         try {
-          const lRes = await fetch(`/api/items?lemariId=${lem.id}`)
-          if (!lRes.ok) return []
-          return await lRes.json()
+          const cRes = await fetch(`/api/inventory/items?cabinetId=${cab.id}`)
+          if (!cRes.ok) return []
+          return await cRes.json()
         } catch { return [] }
       })
 
-      const [bilikItems, lemariItems] = await Promise.all([
+      const [bilikItems, cabinetItems] = await Promise.all([
         Promise.all(bilikItemPromises),
-        Promise.all(lemariItemPromises),
+        Promise.all(cabinetItemPromises),
       ])
 
       // Combine all items and deduplicate
       const allBilikItems = bilikItems.flat()
-      const allLemariItems = lemariItems.flat()
-      const combinedItems = [...allItems, ...allBilikItems, ...allLemariItems]
+      const allCabinetItems = cabinetItems.flat()
+      const combinedItems = [...allItems, ...allBilikItems, ...allCabinetItems]
       const uniqueItems = Array.from(
-        combinedItems.reduce((map, item) => { map.set(item.id, item); return map }, new Map<string, ItemData>())
+        combinedItems.reduce((map, item) => { map.set(item.id, item); return map }, new Map<string, InventoryItemData>())
         .values()
       )
 
@@ -360,16 +387,16 @@ export function RoomsPage() {
       const rusakBeratCount = uniqueItems.filter(i => i.condition === 'Rusak Berat').length
 
       // Determine location for each item
-      function getItemLocation(item: ItemData): string {
+      function getItemLocation(item: InventoryItemData): string {
         const parts: string[] = []
         parts.push(currentRoom.name)
         if (item.bilikId) {
           const bilik = currentRoom.biliks.find(b => b.id === item.bilikId)
           if (bilik) parts.push(`Bilik ${bilik.name}`)
         }
-        if (item.lemariId) {
-          const lem = currentRoom.lemari.find(l => l.id === item.lemariId)
-          if (lem) parts.push(`Lemari ${lem.number}`)
+        if (item.cabinetId) {
+          const cab = currentRoom.cabinets.find(c => c.id === item.cabinetId)
+          if (cab) parts.push(`Lemari ${cab.number}`)
         }
         return parts.join(' / ')
       }
@@ -382,6 +409,8 @@ export function RoomsPage() {
           <td>${item.brand || '-'}</td>
           <td class="text-center">${item.condition}</td>
           <td class="text-center">${item.quantity} ${item.unit}</td>
+          <td>${item.sumberDana || '-'}</td>
+          <td class="text-center">${item.tahunPengadaan || '-'}</td>
           <td>${getItemLocation(item)}</td>
           <td>${item.notes || '-'}</td>
         </tr>`
@@ -413,12 +442,14 @@ export function RoomsPage() {
               <th>Merk</th>
               <th>Kondisi</th>
               <th>Jumlah</th>
+              <th>Sumber Dana</th>
+              <th>Tahun Pengadaan</th>
               <th>Lokasi</th>
               <th>Keterangan</th>
             </tr>
           </thead>
           <tbody>
-            ${tableRows || '<tr><td colspan="8" class="text-center">Tidak ada barang</td></tr>'}
+            ${tableRows || '<tr><td colspan="10" class="text-center">Tidak ada barang</td></tr>'}
           </tbody>
         </table>
 
@@ -469,7 +500,7 @@ export function RoomsPage() {
     }
     setSaving(true)
     try {
-      const url = editingRoom ? `/api/rooms/${editingRoom.id}` : '/api/rooms'
+      const url = editingRoom ? `/api/inventory/rooms/${editingRoom.id}` : '/api/inventory/rooms'
       const method = editingRoom ? 'PUT' : 'POST'
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(roomForm) })
       if (!res.ok) throw new Error('Gagal')
@@ -501,7 +532,7 @@ export function RoomsPage() {
     if (!bilikForm.name.trim() || !selectedRoomId) return
     setSaving(true)
     try {
-      const url = editingBilik ? `/api/biliks/${editingBilik.id}` : '/api/biliks'
+      const url = editingBilik ? `/api/inventory/biliks/${editingBilik.id}` : '/api/inventory/biliks'
       const method = editingBilik ? 'PUT' : 'POST'
       const res = await fetch(url, {
         method,
@@ -512,7 +543,7 @@ export function RoomsPage() {
       toast({ title: 'Berhasil', description: editingBilik ? 'Bilik berhasil diperbarui' : 'Bilik berhasil ditambahkan' })
       setBilikDialogOpen(false)
       fetchRooms()
-      const roomRes = await fetch(`/api/rooms/${selectedRoomId}`)
+      const roomRes = await fetch(`/api/inventory/rooms/${selectedRoomId}`)
       if (roomRes.ok) setCurrentRoom(await roomRes.json())
     } catch {
       toast({ title: 'Error', description: 'Gagal menyimpan bilik', variant: 'destructive' })
@@ -521,7 +552,7 @@ export function RoomsPage() {
     }
   }
 
-  // ─── Lemari CRUD ──────────────────────────────────────────────────────────
+  // ─── Lemari/Cabinet CRUD ──────────────────────────────────────────────────
 
   function openAddLemari() {
     setEditingLemari(null)
@@ -529,9 +560,9 @@ export function RoomsPage() {
     setLemariDialogOpen(true)
   }
 
-  function openEditLemari(lem: LemariData) {
-    setEditingLemari(lem)
-    setLemariForm({ number: lem.number, description: lem.description })
+  function openEditLemari(cab: CabinetData) {
+    setEditingLemari(cab)
+    setLemariForm({ number: cab.number, description: cab.description })
     setLemariDialogOpen(true)
   }
 
@@ -539,7 +570,7 @@ export function RoomsPage() {
     if (!lemariForm.number.trim() || !selectedRoomId) return
     setSaving(true)
     try {
-      const url = editingLemari ? `/api/lemari/${editingLemari.id}` : '/api/lemari'
+      const url = editingLemari ? `/api/inventory/cabinets/${editingLemari.id}` : '/api/inventory/cabinets'
       const method = editingLemari ? 'PUT' : 'POST'
       const res = await fetch(url, {
         method,
@@ -550,7 +581,7 @@ export function RoomsPage() {
       toast({ title: 'Berhasil', description: editingLemari ? 'Lemari berhasil diperbarui' : 'Lemari berhasil ditambahkan' })
       setLemariDialogOpen(false)
       fetchRooms()
-      const roomRes = await fetch(`/api/rooms/${selectedRoomId}`)
+      const roomRes = await fetch(`/api/inventory/rooms/${selectedRoomId}`)
       if (roomRes.ok) setCurrentRoom(await roomRes.json())
     } catch {
       toast({ title: 'Error', description: 'Gagal menyimpan lemari', variant: 'destructive' })
@@ -566,9 +597,9 @@ export function RoomsPage() {
     setDeleting(true)
     try {
       const endpoints: Record<string, string> = {
-        room: `/api/rooms/${deleteTarget.id}`,
-        bilik: `/api/biliks/${deleteTarget.id}`,
-        lemari: `/api/lemari/${deleteTarget.id}`,
+        room: `/api/inventory/rooms/${deleteTarget.id}`,
+        bilik: `/api/inventory/biliks/${deleteTarget.id}`,
+        lemari: `/api/inventory/cabinets/${deleteTarget.id}`,
       }
       const res = await fetch(endpoints[deleteTarget.type], { method: 'DELETE' })
       if (!res.ok) throw new Error('Gagal')
@@ -581,7 +612,7 @@ export function RoomsPage() {
       } else {
         fetchRooms()
         if (selectedRoomId) {
-          const roomRes = await fetch(`/api/rooms/${selectedRoomId}`)
+          const roomRes = await fetch(`/api/inventory/rooms/${selectedRoomId}`)
           if (roomRes.ok) setCurrentRoom(await roomRes.json())
         }
         if (deleteTarget.type === 'bilik') setSelectedBilikId(null)
@@ -595,9 +626,26 @@ export function RoomsPage() {
     }
   }
 
-  // ─── Item Edit/Delete ──────────────────────────────────────────────────
+  // ─── Item Add/Edit/Delete ──────────────────────────────────────────────
 
-  function openEditItem(item: ItemData) {
+  function openAddItem() {
+    setEditingItem(null)
+    setItemForm({
+      name: '',
+      registrationNumber: '',
+      brand: '',
+      condition: 'Baik',
+      quantity: 1,
+      unit: 'Unit',
+      price: 0,
+      sumberDana: '',
+      tahunPengadaan: null,
+      notes: '',
+    })
+    setItemDialogOpen(true)
+  }
+
+  function openEditItem(item: InventoryItemData) {
     setEditingItem(item)
     setItemForm({
       name: item.name,
@@ -608,49 +656,48 @@ export function RoomsPage() {
       unit: item.unit,
       price: item.price,
       sumberDana: item.sumberDana || '',
-      acquisitionYear: item.acquisitionYear ?? null,
+      tahunPengadaan: item.tahunPengadaan ?? null,
       notes: item.notes || '',
     })
     setItemDialogOpen(true)
   }
 
   async function handleItemSubmit() {
-    if (!editingItem || !itemForm.name.trim()) {
+    if (!itemForm.name.trim()) {
       toast({ title: 'Validasi', description: 'Nama barang wajib diisi', variant: 'destructive' })
       return
     }
     setItemSaving(true)
     try {
-      const res = await fetch(`/api/items/${editingItem.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(itemForm),
-      })
-      if (!res.ok) throw new Error('Gagal')
-      toast({ title: 'Berhasil', description: 'Barang berhasil diperbarui' })
+      if (editingItem) {
+        // Edit existing item
+        const res = await fetch(`/api/inventory/items/${editingItem.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(itemForm),
+        })
+        if (!res.ok) throw new Error('Gagal')
+        toast({ title: 'Berhasil', description: 'Barang berhasil diperbarui' })
+      } else {
+        // Add new item — determine location from current selection
+        const locationData: Record<string, string | null> = {
+          roomId: selectedRoomId,
+          bilikId: selectedBilikId,
+          cabinetId: selectedLemariId,
+        }
+        const res = await fetch('/api/inventory/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...itemForm, ...locationData }),
+        })
+        if (!res.ok) throw new Error('Gagal')
+        toast({ title: 'Berhasil', description: 'Barang berhasil ditambahkan' })
+      }
       setItemDialogOpen(false)
-      // Refresh items list
-      if (selectedLemariId) {
-        fetch(`/api/items?lemariId=${selectedLemariId}`)
-          .then(res => res.ok ? res.json() : [])
-          .then(data => setItems(data))
-      } else if (selectedBilikId) {
-        fetch(`/api/items?bilikId=${selectedBilikId}`)
-          .then(res => res.ok ? res.json() : [])
-          .then(data => setItems(data))
-      } else if (selectedRoomId) {
-        fetch(`/api/items?roomId=${selectedRoomId}`)
-          .then(res => res.ok ? res.json() : [])
-          .then(data => setItems(data))
-      }
-      // Also refresh room data
-      if (selectedRoomId) {
-        const roomRes = await fetch(`/api/rooms/${selectedRoomId}`)
-        if (roomRes.ok) setCurrentRoom(await roomRes.json())
-      }
-      fetchRooms()
+      refreshItemsList()
+      refreshRoomData()
     } catch {
-      toast({ title: 'Error', description: 'Gagal memperbarui barang', variant: 'destructive' })
+      toast({ title: 'Error', description: editingItem ? 'Gagal memperbarui barang' : 'Gagal menambahkan barang', variant: 'destructive' })
     } finally {
       setItemSaving(false)
     }
@@ -660,29 +707,11 @@ export function RoomsPage() {
     if (!deleteItemTarget) return
     setDeletingItem(true)
     try {
-      const res = await fetch(`/api/items/${deleteItemTarget.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/inventory/items/${deleteItemTarget.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: 'Barang berhasil dihapus' })
-      // Refresh items list
-      if (selectedLemariId) {
-        fetch(`/api/items?lemariId=${selectedLemariId}`)
-          .then(res => res.ok ? res.json() : [])
-          .then(data => setItems(data))
-      } else if (selectedBilikId) {
-        fetch(`/api/items?bilikId=${selectedBilikId}`)
-          .then(res => res.ok ? res.json() : [])
-          .then(data => setItems(data))
-      } else if (selectedRoomId) {
-        fetch(`/api/items?roomId=${selectedRoomId}`)
-          .then(res => res.ok ? res.json() : [])
-          .then(data => setItems(data))
-      }
-      // Also refresh room data
-      if (selectedRoomId) {
-        const roomRes = await fetch(`/api/rooms/${selectedRoomId}`)
-        if (roomRes.ok) setCurrentRoom(await roomRes.json())
-      }
-      fetchRooms()
+      refreshItemsList()
+      refreshRoomData()
     } catch {
       toast({ title: 'Error', description: 'Gagal menghapus barang', variant: 'destructive' })
     } finally {
@@ -715,7 +744,7 @@ export function RoomsPage() {
           onClick={() => { setSelectedRoomId(null); setSelectedBilikId(null); setSelectedLemariId(null) }}
           className="hover:text-foreground transition-colors font-medium"
         >
-          Ruang
+          Inventaris
         </button>
         {selectedRoomId && currentRoom && (
           <>
@@ -740,7 +769,7 @@ export function RoomsPage() {
           <>
             <ChevronRight className="size-3.5" />
             <span className="text-foreground font-medium">
-              Lemari {currentRoom.lemari.find(l => l.id === selectedLemariId)?.number || ''}
+              Lemari {currentRoom.cabinets.find(c => c.id === selectedLemariId)?.number || ''}
             </span>
           </>
         )}
@@ -882,7 +911,7 @@ export function RoomsPage() {
                         <Archive className="size-3 mr-1" />{room.biliks?.length || 0} Bilik
                       </Badge>
                       <Badge variant="secondary" className="text-xs">
-                        <Box className="size-3 mr-1" />{room.lemari?.length || 0} Lemari
+                        <Box className="size-3 mr-1" />{room.cabinets?.length || 0} Lemari
                       </Badge>
                       <Badge variant="outline" className="text-xs">
                         <Package className="size-3 mr-1" />{itemCount} Barang
@@ -1042,7 +1071,7 @@ export function RoomsPage() {
           </CardContent>
         </Card>
 
-        {/* Lemari Section */}
+        {/* Lemari/Cabinet Section */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -1059,7 +1088,7 @@ export function RoomsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {currentRoom.lemari?.length === 0 ? (
+            {currentRoom.cabinets?.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Box className="size-10 mx-auto mb-3 opacity-20" />
                 <p className="font-medium">Belum ada lemari</p>
@@ -1067,11 +1096,11 @@ export function RoomsPage() {
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {currentRoom.lemari.map((lem) => (
+                {currentRoom.cabinets.map((cab) => (
                   <div
-                    key={lem.id}
-                    className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedLemariId === lem.id ? 'border-primary bg-primary/5 shadow-sm' : 'hover:border-primary/50 hover:shadow-sm'}`}
-                    onClick={() => { setSelectedLemariId(lem.id); setSelectedBilikId(null) }}
+                    key={cab.id}
+                    className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedLemariId === cab.id ? 'border-primary bg-primary/5 shadow-sm' : 'hover:border-primary/50 hover:shadow-sm'}`}
+                    onClick={() => { setSelectedLemariId(cab.id); setSelectedBilikId(null) }}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3">
@@ -1079,16 +1108,16 @@ export function RoomsPage() {
                           <Box className="size-4 text-orange-600" />
                         </div>
                         <div>
-                          <p className="font-medium">Lemari {lem.number}</p>
-                          {lem.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{lem.description}</p>}
-                          <Badge variant="outline" className="mt-2 text-xs">{lem.items?.length || 0} Barang</Badge>
+                          <p className="font-medium">Lemari {cab.number}</p>
+                          {cab.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{cab.description}</p>}
+                          <Badge variant="outline" className="mt-2 text-xs">{cab.items?.length || 0} Barang</Badge>
                         </div>
                       </div>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="size-7" onClick={() => openEditLemari(lem)}>
+                        <Button variant="ghost" size="icon" className="size-7" onClick={() => openEditLemari(cab)}>
                           <Pencil className="size-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="size-7 text-destructive" onClick={() => setDeleteTarget({ id: lem.id, name: `Lemari ${lem.number}`, type: 'lemari' })}>
+                        <Button variant="ghost" size="icon" className="size-7 text-destructive" onClick={() => setDeleteTarget({ id: cab.id, name: `Lemari ${cab.number}`, type: 'lemari' })}>
                           <Trash2 className="size-3.5" />
                         </Button>
                       </div>
@@ -1104,12 +1133,17 @@ export function RoomsPage() {
         {!selectedBilikId && !selectedLemariId && (
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Package className="size-5 text-emerald-600" />
-                <div>
-                  <CardTitle className="text-base">Barang di Ruang {currentRoom.name}</CardTitle>
-                  <CardDescription>Barang yang berada langsung di ruangan ini (tidak di bilik/lemari)</CardDescription>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="size-5 text-emerald-600" />
+                  <div>
+                    <CardTitle className="text-base">Barang di Ruang {currentRoom.name}</CardTitle>
+                    <CardDescription>Barang yang berada langsung di ruangan ini (tidak di bilik/lemari)</CardDescription>
+                  </div>
                 </div>
+                <Button size="sm" onClick={openAddItem}>
+                  <Plus className="size-4 mr-1" /> Tambah Barang
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -1125,7 +1159,7 @@ export function RoomsPage() {
 
   function renderBilikOrLemariItems() {
     const title = selectedLemariId
-      ? `Barang di Lemari ${currentRoom?.lemari.find(l => l.id === selectedLemariId)?.number || ''}`
+      ? `Barang di Lemari ${currentRoom?.cabinets.find(c => c.id === selectedLemariId)?.number || ''}`
       : selectedBilikId
         ? `Barang di Bilik ${currentRoom?.biliks.find(b => b.id === selectedBilikId)?.name || ''}`
         : ''
@@ -1141,16 +1175,21 @@ export function RoomsPage() {
                 <CardDescription>Daftar barang yang ada di dalamnya</CardDescription>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedBilikId(null)
-                setSelectedLemariId(null)
-              }}
-            >
-              <ChevronRight className="size-4 mr-1 rotate-180" /> Kembali
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={openAddItem}>
+                <Plus className="size-4 mr-1" /> Tambah Barang
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedBilikId(null)
+                  setSelectedLemariId(null)
+                }}
+              >
+                <ChevronRight className="size-4 mr-1 rotate-180" /> Kembali
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -1174,7 +1213,7 @@ export function RoomsPage() {
         <div className="text-center py-8 text-muted-foreground">
           <Package className="size-10 mx-auto mb-3 opacity-20" />
           <p className="font-medium">Belum ada barang</p>
-          <p className="text-sm">Tambahkan barang melalui menu KIB</p>
+          <p className="text-sm">Klik tombol &quot;Tambah Barang&quot; untuk menambahkan barang baru</p>
         </div>
       )
     }
@@ -1191,6 +1230,7 @@ export function RoomsPage() {
               <TableHead>Merk</TableHead>
               <TableHead>Kondisi</TableHead>
               <TableHead className="text-right">Jumlah</TableHead>
+              <TableHead className="text-right">Harga</TableHead>
               <TableHead>Sumber Dana</TableHead>
               <TableHead>Tahun Pengadaan</TableHead>
               <TableHead>Keterangan</TableHead>
@@ -1213,8 +1253,9 @@ export function RoomsPage() {
                 <TableCell>{item.brand || '-'}</TableCell>
                 <TableCell>{conditionBadge(item.condition)}</TableCell>
                 <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
+                <TableCell className="text-right">{item.price ? formatRupiahPrint(item.price) : '-'}</TableCell>
                 <TableCell>{item.sumberDana || '-'}</TableCell>
-                <TableCell>{item.acquisitionYear || '-'}</TableCell>
+                <TableCell>{item.tahunPengadaan || '-'}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{item.notes || '-'}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
@@ -1245,9 +1286,6 @@ export function RoomsPage() {
                     >
                       <Trash2 className="size-4" />
                     </Button>
-                    {item.photos && item.photos.length > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] rounded-full size-3.5 flex items-center justify-center font-bold">{item.photos.length}</span>
-                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -1353,7 +1391,7 @@ export function RoomsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Lemari Dialog */}
+      {/* Lemari/Cabinet Dialog */}
       <Dialog open={lemariDialogOpen} onOpenChange={setLemariDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -1412,6 +1450,7 @@ export function RoomsPage() {
             <PhotoGallery
               photos={photoItem.photos || []}
               itemId={photoItem.id}
+              itemApiPath="/api/inventory/items"
               onPhotosChange={(newPhotos) => {
                 handleItemPhotosChange(photoItem.id, newPhotos)
                 setPhotoItem(prev => prev ? { ...prev, photos: newPhotos } : null)
@@ -1421,12 +1460,12 @@ export function RoomsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Item Edit Dialog */}
+      {/* Item Add/Edit Dialog */}
       <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit Barang</DialogTitle>
-            <DialogDescription>Perbarui data barang. Untuk mengubah field khusus KIB, gunakan halaman KIB.</DialogDescription>
+            <DialogTitle>{editingItem ? 'Edit Barang' : 'Tambah Barang'}</DialogTitle>
+            <DialogDescription>{editingItem ? 'Perbarui data barang' : 'Isi data barang baru'}</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
@@ -1485,7 +1524,7 @@ export function RoomsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-tahun-pengadaan">Tahun Pengadaan</Label>
-              <Input id="item-tahun-pengadaan" type="number" min={1900} max={2100} value={itemForm.acquisitionYear ?? ''} onChange={(e) => setItemForm({ ...itemForm, acquisitionYear: e.target.value ? Number(e.target.value) : null })} placeholder="Contoh: 2024" />
+              <Input id="item-tahun-pengadaan" type="number" min={1900} max={2100} value={itemForm.tahunPengadaan ?? ''} onChange={(e) => setItemForm({ ...itemForm, tahunPengadaan: e.target.value ? Number(e.target.value) : null })} placeholder="Contoh: 2024" />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="item-notes">Keterangan</Label>
@@ -1496,7 +1535,7 @@ export function RoomsPage() {
             <Button variant="outline" onClick={() => setItemDialogOpen(false)} disabled={itemSaving}>Batal</Button>
             <Button onClick={handleItemSubmit} disabled={itemSaving}>
               {itemSaving && <Loader2 className="size-4 mr-2 animate-spin" />}
-              Simpan Perubahan
+              {editingItem ? 'Simpan Perubahan' : 'Tambah Barang'}
             </Button>
           </DialogFooter>
         </DialogContent>

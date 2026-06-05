@@ -28,6 +28,8 @@ interface PhotoGalleryProps {
   onPhotosChange: (photos: string[]) => void
   readonly?: boolean
   maxPhotos?: number
+  /** Custom API base path for item updates. Defaults to '/api/items' */
+  itemApiPath?: string
 }
 
 // Error type with icon and action
@@ -129,6 +131,7 @@ export function PhotoGallery({
   onPhotosChange,
   readonly = false,
   maxPhotos = 10,
+  itemApiPath = '/api/items',
 }: PhotoGalleryProps) {
   const { toast } = useToast()
   const [uploading, setUploading] = useState(false)
@@ -219,7 +222,7 @@ export function PhotoGallery({
       if (newPhotos.length > 0) {
         const updatedPhotos = [...photos, ...newPhotos]
         try {
-          const saveRes = await fetch(`/api/items/${itemId}`, {
+          const saveRes = await fetch(`${itemApiPath}/${itemId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ photos: updatedPhotos }),
@@ -271,7 +274,7 @@ export function PhotoGallery({
       if (fileInputRef.current) fileInputRef.current.value = ''
       if (cameraInputRef.current) cameraInputRef.current.value = ''
     }
-  }, [photos, itemId, onPhotosChange, readonly, maxPhotos, toast])
+  }, [photos, itemId, onPhotosChange, readonly, maxPhotos, itemApiPath, toast])
 
   // Delete a photo
   const handleDelete = useCallback(async (filename: string, e?: React.MouseEvent) => {
@@ -292,7 +295,7 @@ export function PhotoGallery({
 
       // Update item photos
       const updatedPhotos = photos.filter(p => p !== filename)
-      const saveRes = await fetch(`/api/items/${itemId}`, {
+      const saveRes = await fetch(`${itemApiPath}/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ photos: updatedPhotos }),
@@ -313,7 +316,7 @@ export function PhotoGallery({
     } finally {
       setDeletingPhoto(null)
     }
-  }, [photos, itemId, onPhotosChange, readonly, toast])
+  }, [photos, itemId, onPhotosChange, readonly, itemApiPath, toast])
 
   // Photo viewer navigation
   const navigateViewer = useCallback((direction: 'prev' | 'next') => {
