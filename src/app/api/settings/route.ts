@@ -16,6 +16,8 @@ const defaultSettings = {
   phone: null,
   email: null,
   npsn: null,
+  schoolCode: "",
+  letterUnitCode: "TU",
   kopLines: "[]",
 };
 
@@ -113,6 +115,8 @@ export async function POST(request: NextRequest) {
           phone: body.phone,
           email: body.email,
           npsn: body.npsn,
+          schoolCode: body.schoolCode,
+          letterUnitCode: body.letterUnitCode,
           kopLines,
         },
       });
@@ -133,6 +137,8 @@ export async function POST(request: NextRequest) {
           phone: body.phone,
           email: body.email,
           npsn: body.npsn,
+          schoolCode: body.schoolCode ?? "",
+          letterUnitCode: body.letterUnitCode ?? "TU",
           kopLines,
         },
       });

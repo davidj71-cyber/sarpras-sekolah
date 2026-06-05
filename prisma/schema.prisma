@@ -23,6 +23,8 @@ model SchoolSettings {
   phone             String?
   email             String?
   npsn              String? // Nomor Pokok Sekolah Nasional
+  schoolCode        String  @default("") // Kode sekolah untuk format nomor surat (misal: SMAN1TLD)
+  letterUnitCode    String  @default("TU") // Kode unit untuk format nomor surat (misal: TU = Tata Usaha)
   kopLines          String  @default("[]") // JSON array of strings for KOP identity lines
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

@@ -59,6 +59,8 @@ import {
   FileText,
   Printer,
   X,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import {
   fetchPrintSettings,
@@ -119,11 +121,173 @@ interface OrderItemForm {
   unitPrice: number
 }
 
+interface SettingsData {
+  schoolCode: string
+  letterUnitCode: string
+  schoolName: string
+  address: string | null
+  [key: string]: unknown
+}
+
 const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   Draft: 'secondary',
   Dikirim: 'outline',
   Diterima: 'default',
   Selesai: 'default',
+}
+
+// ─── Order Row Group (avoids Collapsible-in-table HTML issues) ─────────────
+
+function OrderRowGroup({
+  order,
+  idx,
+  isExpanded,
+  items,
+  onToggle,
+  onStatusClick,
+  onEdit,
+  onPrint,
+  onDelete,
+}: {
+  order: OrderData
+  idx: number
+  isExpanded: boolean
+  items: OrderItemData[]
+  onToggle: () => void
+  onStatusClick: (orderId: string, status: string) => void
+  onEdit: (order: OrderData) => void
+  onPrint: (order: OrderData) => void
+  onDelete: (id: string, name: string) => void
+}) {
+  return (
+    <>
+      {/* Main Row */}
+      <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onToggle}>
+        <TableCell className="w-[40px]">
+          <button className="flex items-center justify-center size-6 rounded hover:bg-muted">
+            {isExpanded ? (
+              <ChevronDown className="size-4" />
+            ) : (
+              <ChevronRight className="size-4" />
+            )}
+          </button>
+        </TableCell>
+        <TableCell>{idx + 1}</TableCell>
+        <TableCell className="font-medium">{order.orderNumber}</TableCell>
+        <TableCell>{order.orderDate ? formatDatePrint(order.orderDate) : '-'}</TableCell>
+        <TableCell>{order.store?.name || '-'}</TableCell>
+        <TableCell>
+          <Badge
+            variant={statusColors[order.status] || 'secondary'}
+            className="cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation()
+              onStatusClick(order.id, order.status)
+            }}
+          >
+            {order.status}
+          </Badge>
+        </TableCell>
+        <TableCell>{formatRupiahPrint(order.totalAmount)}</TableCell>
+        <TableCell>
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => onEdit(order)} title="Edit">
+              <Pencil className="size-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => onPrint(order)} title="Cetak Surat Pesanan">
+              <Printer className="size-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => onDelete(order.id, order.orderNumber)} title="Hapus">
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+
+      {/* Expanded Items Row */}
+      {isExpanded && (
+        <TableRow>
+          <TableCell colSpan={8} className="p-0 border-0">
+            <div className="bg-muted/30 px-12 py-3">
+              {items.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">Tidak ada item dalam pesanan ini</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[40px] h-8 text-xs">No</TableHead>
+                      <TableHead className="h-8 text-xs">Nama Barang</TableHead>
+                      <TableHead className="h-8 text-xs w-[70px]">Jumlah</TableHead>
+                      <TableHead className="h-8 text-xs w-[70px]">Satuan</TableHead>
+                      <TableHead className="h-8 text-xs w-[110px]">Harga Satuan</TableHead>
+                      <TableHead className="h-8 text-xs w-[110px]">Total Harga</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item, itemIdx) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="text-xs py-1.5">{itemIdx + 1}</TableCell>
+                        <TableCell className="text-xs py-1.5">{item.itemName}</TableCell>
+                        <TableCell className="text-xs py-1.5 text-center">{item.quantity}</TableCell>
+                        <TableCell className="text-xs py-1.5 text-center">{item.unit}</TableCell>
+                        <TableCell className="text-xs py-1.5 text-right">{formatRupiahPrint(item.unitPrice)}</TableCell>
+                        <TableCell className="text-xs py-1.5 text-right">{formatRupiahPrint(item.totalPrice)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-xs py-1.5 text-right font-semibold border-t">Total</TableCell>
+                      <TableCell className="text-xs py-1.5 border-t"></TableCell>
+                      <TableCell className="text-xs py-1.5 text-right font-semibold border-t">{formatRupiahPrint(order.totalAmount)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  )
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function toRoman(num: number): string {
+  const romanNumerals = [
+    { value: 12, symbol: 'XII' },
+    { value: 11, symbol: 'XI' },
+    { value: 10, symbol: 'X' },
+    { value: 9, symbol: 'IX' },
+    { value: 8, symbol: 'VIII' },
+    { value: 7, symbol: 'VII' },
+    { value: 6, symbol: 'VI' },
+    { value: 5, symbol: 'V' },
+    { value: 4, symbol: 'IV' },
+    { value: 3, symbol: 'III' },
+    { value: 2, symbol: 'II' },
+    { value: 1, symbol: 'I' },
+  ]
+  for (const { value, symbol } of romanNumerals) {
+    if (num === value) return symbol
+  }
+  return String(num)
+}
+
+function generateOrderNumber(
+  num: string,
+  schoolCode: string,
+  letterUnitCode: string,
+  dateStr: string
+): string {
+  if (!num.trim()) return ''
+  const date = dateStr ? new Date(dateStr) : new Date()
+  const month = date.getMonth() + 1
+  const year = date.getFullYear()
+  const code = schoolCode || 'SEKOLAH'
+  const unit = letterUnitCode || 'TU'
+  return `${num}/PB/${code}-${unit}/${toRoman(month)}/${year}`
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -133,8 +297,10 @@ export function OrdersPage() {
   const [orders, setOrders] = useState<OrderData[]>([])
   const [stores, setStores] = useState<StoreData[]>([])
   const [employees, setEmployees] = useState<EmployeeData[]>([])
+  const [settings, setSettings] = useState<SettingsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
 
   // Dialog
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -142,7 +308,7 @@ export function OrdersPage() {
   const [saving, setSaving] = useState(false)
 
   // Order form
-  const [orderNumber, setOrderNumber] = useState('')
+  const [orderNumberInput, setOrderNumberInput] = useState('')
   const [orderDate, setOrderDate] = useState('')
   const [storeId, setStoreId] = useState('')
   const [employeeId, setEmployeeId] = useState('')
@@ -162,6 +328,15 @@ export function OrdersPage() {
   const [statusOrderId, setStatusOrderId] = useState<string | null>(null)
   const [newStatus, setNewStatus] = useState('')
 
+  // ─── Computed order number ─────────────────────────────────────────────
+
+  const generatedOrderNumber = generateOrderNumber(
+    orderNumberInput,
+    settings?.schoolCode || '',
+    settings?.letterUnitCode || '',
+    orderDate
+  )
+
   // ─── Fetch ────────────────────────────────────────────────────────────────
 
   const fetchOrders = useCallback(async () => {
@@ -180,9 +355,22 @@ export function OrdersPage() {
 
   const fetchSupporting = useCallback(async () => {
     try {
-      const [storeRes, empRes] = await Promise.all([fetch('/api/stores'), fetch('/api/employees')])
+      const [storeRes, empRes, settingsRes] = await Promise.all([
+        fetch('/api/stores'),
+        fetch('/api/employees'),
+        fetch('/api/settings'),
+      ])
       if (storeRes.ok) setStores(await storeRes.json())
       if (empRes.ok) setEmployees(await empRes.json())
+      if (settingsRes.ok) {
+        const s = await settingsRes.json()
+        setSettings({
+          schoolCode: s.schoolCode || '',
+          letterUnitCode: s.letterUnitCode || 'TU',
+          schoolName: s.schoolName || '',
+          address: s.address || null,
+        })
+      }
     } catch {
       // silent
     }
@@ -190,11 +378,25 @@ export function OrdersPage() {
 
   useEffect(() => { fetchOrders(); fetchSupporting() }, [fetchOrders, fetchSupporting])
 
+  // ─── Toggle expand ─────────────────────────────────────────────────────
+
+  function toggleExpand(orderId: string) {
+    setExpandedOrders(prev => {
+      const next = new Set(prev)
+      if (next.has(orderId)) {
+        next.delete(orderId)
+      } else {
+        next.add(orderId)
+      }
+      return next
+    })
+  }
+
   // ─── Dialog handlers ──────────────────────────────────────────────────────
 
   function openAddDialog() {
     setEditingOrder(null)
-    setOrderNumber('')
+    setOrderNumberInput('')
     setOrderDate(new Date().toISOString().split('T')[0])
     setStoreId('')
     setEmployeeId('')
@@ -206,7 +408,10 @@ export function OrdersPage() {
 
   function openEditDialog(order: OrderData) {
     setEditingOrder(order)
-    setOrderNumber(order.orderNumber)
+    // Try to extract just the number from the order number
+    // Format: {number}/PB/{code}-{unit}/{roman}/{year}
+    const numPart = order.orderNumber.split('/PB/')[0] || order.orderNumber
+    setOrderNumberInput(numPart)
     setOrderDate(order.orderDate ? new Date(order.orderDate).toISOString().split('T')[0] : '')
     setStoreId(order.storeId)
     setEmployeeId(order.employeeId || '')
@@ -246,7 +451,11 @@ export function OrdersPage() {
   }
 
   async function handleSubmit() {
-    if (!orderNumber.trim()) {
+    const fullOrderNumber = editingOrder
+      ? (orderNumberInput.includes('/PB/') ? orderNumberInput : generatedOrderNumber)
+      : generatedOrderNumber
+
+    if (!orderNumberInput.trim()) {
       toast({ title: 'Validasi', description: 'Nomor surat pesanan wajib diisi', variant: 'destructive' })
       return
     }
@@ -262,7 +471,7 @@ export function OrdersPage() {
     setSaving(true)
     try {
       const body = {
-        orderNumber,
+        orderNumber: fullOrderNumber,
         orderDate: orderDate || new Date().toISOString(),
         storeId,
         employeeId: employeeId || null,
@@ -538,10 +747,11 @@ export function OrdersPage() {
               <p className="text-sm">{search ? 'Tidak ditemukan pesanan yang sesuai' : 'Klik "Tambah Pesanan" untuk menambahkan'}</p>
             </div>
           ) : (
-            <div className="max-h-[520px] overflow-y-auto rounded-md border">
+            <div className="max-h-[600px] overflow-y-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]"></TableHead>
                     <TableHead className="w-[50px]">No</TableHead>
                     <TableHead>Nomor Surat</TableHead>
                     <TableHead>Tanggal</TableHead>
@@ -552,41 +762,28 @@ export function OrdersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredOrders.map((order, idx) => (
-                    <TableRow key={order.id}>
-                      <TableCell>{idx + 1}</TableCell>
-                      <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                      <TableCell>{order.orderDate ? formatDatePrint(order.orderDate) : '-'}</TableCell>
-                      <TableCell>{order.store?.name || '-'}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={statusColors[order.status] || 'secondary'}
-                          className="cursor-pointer"
-                          onClick={() => {
-                            setStatusOrderId(order.id)
-                            setNewStatus(order.status)
-                            setStatusDialogOpen(true)
-                          }}
-                        >
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatRupiahPrint(order.totalAmount)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(order)} title="Edit">
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => handlePrint(order)} title="Cetak Surat Pesanan">
-                            <Printer className="size-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => { setDeleteId(order.id); setDeleteName(order.orderNumber) }} title="Hapus">
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredOrders.map((order, idx) => {
+                    const isExpanded = expandedOrders.has(order.id)
+                    const items = order.items || []
+                    return (
+                      <OrderRowGroup
+                        key={order.id}
+                        order={order}
+                        idx={idx}
+                        isExpanded={isExpanded}
+                        items={items}
+                        onToggle={() => toggleExpand(order.id)}
+                        onStatusClick={(orderId: string, status: string) => {
+                          setStatusOrderId(orderId)
+                          setNewStatus(status)
+                          setStatusDialogOpen(true)
+                        }}
+                        onEdit={openEditDialog}
+                        onPrint={handlePrint}
+                        onDelete={(id, name) => { setDeleteId(id); setDeleteName(name) }}
+                      />
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -608,7 +805,23 @@ export function OrdersPage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Nomor Surat Pesanan *</Label>
-                  <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="9/PB/SMAN1TLD-TU/XI/2025" />
+                  <Input
+                    type="number"
+                    min={1}
+                    value={orderNumberInput}
+                    onChange={(e) => setOrderNumberInput(e.target.value)}
+                    placeholder="Masukkan nomor surat (misal: 9)"
+                  />
+                  {generatedOrderNumber && (
+                    <p className="text-xs text-muted-foreground">
+                      Format lengkap: <span className="font-mono font-medium text-foreground">{generatedOrderNumber}</span>
+                    </p>
+                  )}
+                  {!generatedOrderNumber && settings?.schoolCode && (
+                    <p className="text-xs text-muted-foreground">
+                      Format: [No]/PB/{settings.schoolCode}-{settings.letterUnitCode}/[Bulan Romawi]/[Tahun]
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Tanggal Pesanan</Label>

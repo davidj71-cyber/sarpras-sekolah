@@ -27,6 +27,8 @@ interface SchoolSettingsData {
   address: string | null
   phone: string | null
   email: string | null
+  schoolCode: string
+  letterUnitCode: string
   logo: string | null
   logoWidth: number
   logoHeight: number
@@ -45,6 +47,8 @@ const defaultSettings: SchoolSettingsData = {
   address: '',
   phone: '',
   email: '',
+  schoolCode: '',
+  letterUnitCode: 'TU',
   logo: null,
   logoWidth: 3.0,
   logoHeight: 3.0,
@@ -121,6 +125,8 @@ export function SettingsPage() {
           address: data.address ?? '',
           phone: data.phone ?? '',
           email: data.email ?? '',
+          schoolCode: data.schoolCode ?? '',
+          letterUnitCode: data.letterUnitCode ?? 'TU',
           logo: data.logo ?? null,
           logoWidth: data.logoWidth ?? 3.0,
           logoHeight: data.logoHeight ?? 3.0,
@@ -345,6 +351,36 @@ export function SettingsPage() {
                 value={settings.email ?? ''}
                 onChange={(e) => updateSettings('email', e.target.value)}
               />
+            </div>
+          </div>
+          <Separator />
+          <div>
+            <Label className="text-base font-semibold">Format Nomor Surat Pesanan</Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-3">
+              Format: <span className="font-mono bg-muted px-1 py-0.5 rounded">[No]/PB/[Kode Sekolah]-[Kode Unit]/[Bulan Romawi]/[Tahun]</span>
+            </p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Contoh: <span className="font-mono bg-muted px-1 py-0.5 rounded">9/PB/SMAN1TLD-TU/XI/2025</span> — Anda hanya perlu memasukkan angka "9", sisanya otomatis.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="schoolCode">Kode Sekolah</Label>
+                <Input
+                  id="schoolCode"
+                  placeholder="Misal: SMAN1TLD"
+                  value={settings.schoolCode}
+                  onChange={(e) => updateSettings('schoolCode', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="letterUnitCode">Kode Unit</Label>
+                <Input
+                  id="letterUnitCode"
+                  placeholder="Misal: TU"
+                  value={settings.letterUnitCode}
+                  onChange={(e) => updateSettings('letterUnitCode', e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </CardContent>

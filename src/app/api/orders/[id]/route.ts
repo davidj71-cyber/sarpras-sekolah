@@ -41,6 +41,11 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    // If items are provided, delete existing items and recreate them
+    if (body.items && Array.isArray(body.items)) {
+      await db.orderItem.deleteMany({ where: { orderId: id } });
+    }
+
     const order = await db.order.update({
       where: { id },
       data: {
@@ -51,6 +56,27 @@ export async function PUT(
         status: body.status,
         notes: body.notes,
         totalAmount: body.totalAmount,
+        items: body.items
+          ? {
+              create: body.items.map(
+                (item: {
+                  itemName: string;
+                  quantity?: number;
+                  unit?: string;
+                  unitPrice?: number;
+                  totalPrice?: number;
+                  notes?: string;
+                }) => ({
+                  itemName: item.itemName,
+                  quantity: item.quantity ?? 1,
+                  unit: item.unit ?? "Unit",
+                  unitPrice: item.unitPrice ?? 0,
+                  totalPrice: item.totalPrice ?? 0,
+                  notes: item.notes ?? "",
+                })
+              ),
+            }
+          : undefined,
       },
       include: {
         store: true,
