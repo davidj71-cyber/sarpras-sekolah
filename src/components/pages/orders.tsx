@@ -282,12 +282,15 @@ function generateOrderNumber(
   dateStr: string
 ): string {
   if (!num.trim()) return ''
+  // Normalize: parse as integer to remove leading zeros (9 and 09 are the same)
+  const normalizedNum = parseInt(num, 10)
+  if (isNaN(normalizedNum) || normalizedNum <= 0) return ''
   const date = dateStr ? new Date(dateStr) : new Date()
   const month = date.getMonth() + 1
   const year = date.getFullYear()
   const code = schoolCode || 'SEKOLAH'
   const unit = letterUnitCode || 'TU'
-  return `${num}/PB/${code}-${unit}/${toRoman(month)}/${year}`
+  return `${normalizedNum}/PB/${code}-${unit}/${toRoman(month)}/${year}`
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -492,7 +495,12 @@ export function OrdersPage() {
       const method = editingOrder ? 'PUT' : 'POST'
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       if (!res.ok) throw new Error('Gagal')
-      toast({ title: 'Berhasil', description: editingOrder ? 'Pesanan berhasil diperbarui' : 'Pesanan berhasil ditambahkan' })
+      const result = await res.json()
+      if (result.merged) {
+        toast({ title: 'Berhasil', description: 'Item berhasil ditambahkan ke pesanan yang sudah ada' })
+      } else {
+        toast({ title: 'Berhasil', description: editingOrder ? 'Pesanan berhasil diperbarui' : 'Pesanan berhasil ditambahkan' })
+      }
       setDialogOpen(false)
       fetchOrders()
     } catch {
@@ -820,6 +828,11 @@ export function OrdersPage() {
                   {!generatedOrderNumber && settings?.schoolCode && (
                     <p className="text-xs text-muted-foreground">
                       Format: [No]/PB/{settings.schoolCode}-{settings.letterUnitCode}/[Bulan Romawi]/[Tahun]
+                    </p>
+                  )}
+                  {!editingOrder && generatedOrderNumber && orders.some(o => o.orderNumber === generatedOrderNumber) && (
+                    <p className="text-xs text-amber-600 font-medium">
+                      ⚠ Nomor surat ini sudah ada. Item akan ditambahkan ke pesanan yang sudah ada.
                     </p>
                   )}
                 </div>
