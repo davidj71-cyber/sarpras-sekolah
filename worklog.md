@@ -284,3 +284,42 @@ Stage Summary:
 - Modified: `src/lib/print-utils.ts`, `src/components/pages/orders.tsx`, `src/components/pages/barang-masuk.tsx`
 - Landscape printing now works with clear user guidance across all print features
 - Portrait printing continues to auto-print as before
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Create user account management system (login, CRUD, view passwords)
+
+Work Log:
+- Added User model to Prisma schema with fields: id, name, username, password, role, active, createdAt, updatedAt
+- Pushed schema to database and seeded default admin user (admin/admin123)
+- Created API routes:
+  - POST /api/auth - Login with username/password, returns user info or error
+  - GET /api/users - List all users with passwords visible
+  - POST /api/users - Create new user with duplicate username check
+  - PUT /api/users/[id] - Update user (name, username, password, role, active)
+  - DELETE /api/users/[id] - Delete user
+  - POST /api/seed-admin - Seed default admin account
+- Created login page component (src/components/login-page.tsx) with:
+  - Username/password form with eye toggle for password visibility
+  - Error messages for wrong credentials and inactive accounts
+  - Loading state during authentication
+- Created accounts management page (src/components/pages/accounts.tsx) with:
+  - Full CRUD: add, edit, delete users
+  - Password visibility toggle per user (eye icon to show/hide)
+  - Role management (admin/staff)
+  - Active/inactive status
+  - Search/filter functionality
+  - Current user info display with logout button
+- Updated navigation store with auth state (authUser, isAuthenticated, login, logout)
+- Updated AppSidebar with "Kelola Akun" menu item and user info footer with logout
+- Updated main page.tsx with login guard (shows LoginPage if not authenticated)
+- All API endpoints tested and verified working via curl
+- Lint passes with no errors
+
+Stage Summary:
+- Complete user management system implemented
+- Login: admin/admin123 (default)
+- Admin can: add users, edit users, delete users, view all passwords
+- Auth guard protects the entire application
+- Sidebar shows logged-in user info and logout button

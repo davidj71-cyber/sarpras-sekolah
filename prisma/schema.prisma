@@ -268,3 +268,14 @@ model BarangMasukItem {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+model User {
+  id        String   @id @default(cuid())
+  name      String   // Nama lengkap
+  username  String   @unique // Username untuk login
+  password  String   // Password (disimpan sebagai plaintext agar admin bisa melihat)
+  role      String   @default("staff") // admin, staff
+  active    Boolean  @default(true) // Status aktif
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

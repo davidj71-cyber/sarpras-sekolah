@@ -8,6 +8,7 @@ import {
   Users,
   ClipboardList,
   Archive,
+  UserCog,
 } from 'lucide-react'
 
 import {
@@ -21,6 +22,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarFooter,
 } from '@/components/ui/sidebar'
 import { useNavigationStore, type Page } from '@/lib/navigation-store'
 
@@ -31,6 +33,7 @@ const navItems: {
 }[] = [
   { page: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { page: 'settings', label: 'Pengaturan', icon: Settings },
+  { page: 'accounts', label: 'Kelola Akun', icon: UserCog },
   { page: 'stores', label: 'Toko', icon: Store },
   { page: 'employees', label: 'Pegawai', icon: Users },
   { page: 'kib', label: 'KIB', icon: ClipboardList },
@@ -38,7 +41,7 @@ const navItems: {
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { currentPage, setPage } = useNavigationStore()
+  const { currentPage, setPage, authUser, logout } = useNavigationStore()
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -79,6 +82,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      {authUser && (
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" className="group/footer">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  {authUser.role === 'admin' ? <UserCog className="size-4" /> : <Users className="size-4" />}
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">{authUser.name}</span>
+                  <span className="truncate text-xs text-muted-foreground">{authUser.role === 'admin' ? 'Administrator' : 'Staff'}</span>
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip="Keluar"
+                onClick={logout}
+                className="text-destructive hover:text-destructive"
+              >
+                <span className="text-xs">Keluar</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
       <SidebarRail />
     </Sidebar>
   )

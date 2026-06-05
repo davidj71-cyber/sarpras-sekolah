@@ -6,7 +6,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { useNavigationStore } from '@/lib/navigation-store'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { Store, FileText, PackagePlus, DoorOpen, Package } from 'lucide-react'
+import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog } from 'lucide-react'
 import type { StoreSubPage, RoomSubPage } from '@/lib/navigation-store'
 
 // Dynamic imports to reduce initial compilation memory usage
@@ -19,6 +19,8 @@ const RoomsPage = dynamic(() => import('@/components/pages/rooms').then(m => ({ 
 const OrdersPage = dynamic(() => import('@/components/pages/orders').then(m => ({ default: m.OrdersPage })), { ssr: false })
 const BarangMasukPage = dynamic(() => import('@/components/pages/barang-masuk').then(m => ({ default: m.BarangMasukPage })), { ssr: false })
 const RoomItemsPage = dynamic(() => import('@/components/pages/room-items').then(m => ({ default: m.RoomItemsPage })), { ssr: false })
+const AccountsPage = dynamic(() => import('@/components/pages/accounts').then(m => ({ default: m.AccountsPage })), { ssr: false })
+const LoginPage = dynamic(() => import('@/components/login-page').then(m => ({ default: m.LoginPage })), { ssr: false })
 
 const kibItems = [
   { type: 'A', label: 'KIB A - Tanah' },
@@ -115,6 +117,7 @@ function RoomNavbar() {
 const pageTitles: Record<string, string> = {
   dashboard: 'Dashboard',
   settings: 'Pengaturan',
+  accounts: 'Kelola Akun',
   stores: 'Toko',
   employees: 'Pegawai',
   kib: 'Kartu Inventaris Barang',
@@ -122,7 +125,12 @@ const pageTitles: Record<string, string> = {
 }
 
 export default function Home() {
-  const { currentPage, storeSubPage, roomSubPage } = useNavigationStore()
+  const { currentPage, storeSubPage, roomSubPage, isAuthenticated } = useNavigationStore()
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage />
+  }
 
   const showKibNavbar = currentPage === 'kib'
   const showStoreNavbar = currentPage === 'stores'
@@ -134,6 +142,8 @@ export default function Home() {
         return <DashboardPage />
       case 'settings':
         return <SettingsPage />
+      case 'accounts':
+        return <AccountsPage />
       case 'stores':
         switch (storeSubPage) {
           case 'orders':
@@ -167,9 +177,12 @@ export default function Home() {
           <div className="flex h-14 items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1 transition-colors" />
             <Separator orientation="vertical" className="mr-2 h-4" />
-            <h1 className="text-lg font-semibold tracking-tight">
-              {pageTitles[currentPage] || 'Sarana Prasarana Sekolah'}
-            </h1>
+            <div className="flex items-center gap-2">
+              {currentPage === 'accounts' && <UserCog className="size-5 text-primary" />}
+              <h1 className="text-lg font-semibold tracking-tight">
+                {pageTitles[currentPage] || 'Sarana Prasarana Sekolah'}
+              </h1>
+            </div>
           </div>
           {showStoreNavbar && (
             <div className="border-t px-4 py-2">

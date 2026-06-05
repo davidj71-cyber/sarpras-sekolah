@@ -7,10 +7,18 @@ export type Page =
   | 'employees'
   | 'kib'
   | 'rooms'
+  | 'accounts'
 
 export type StoreSubPage = 'stores' | 'orders' | 'barangMasuk'
 
 export type RoomSubPage = 'rooms' | 'allItems'
+
+interface AuthUser {
+  id: string
+  name: string
+  username: string
+  role: string
+}
 
 interface NavigationState {
   currentPage: Page
@@ -20,6 +28,10 @@ interface NavigationState {
   selectedRoomId: string | null
   selectedBilikId: string | null
   selectedLemariId: string | null
+  // Auth
+  authUser: AuthUser | null
+  isAuthenticated: boolean
+  // Setters
   setPage: (page: Page) => void
   setKibType: (type: string) => void
   setStoreSubPage: (sub: StoreSubPage) => void
@@ -27,6 +39,8 @@ interface NavigationState {
   setSelectedRoomId: (id: string | null) => void
   setSelectedBilikId: (id: string | null) => void
   setSelectedLemariId: (id: string | null) => void
+  login: (user: AuthUser) => void
+  logout: () => void
 }
 
 export const useNavigationStore = create<NavigationState>((set) => ({
@@ -37,6 +51,8 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   selectedRoomId: null,
   selectedBilikId: null,
   selectedLemariId: null,
+  authUser: null,
+  isAuthenticated: false,
   setPage: (page) => set({ currentPage: page }),
   setKibType: (type) => set({ kibType: type }),
   setStoreSubPage: (sub) => set({ storeSubPage: sub }),
@@ -44,4 +60,6 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   setSelectedRoomId: (id) => set({ selectedRoomId: id }),
   setSelectedBilikId: (id) => set({ selectedBilikId: id }),
   setSelectedLemariId: (id) => set({ selectedLemariId: id }),
+  login: (user) => set({ authUser: user, isAuthenticated: true }),
+  logout: () => set({ authUser: null, isAuthenticated: false, currentPage: 'dashboard' }),
 }))
