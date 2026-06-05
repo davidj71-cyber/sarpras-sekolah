@@ -161,6 +161,8 @@ export function BarangMasukPage() {
 
   // Print dialog
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
+  const [printDetailDialogOpen, setPrintDetailDialogOpen] = useState(false)
+  const [printDetailRecord, setPrintDetailRecord] = useState<BarangMasukData | null>(null)
 
   // Status change
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
@@ -540,7 +542,7 @@ export function BarangMasukPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => handlePrintDetail(record)} title="Cetak">
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => { setPrintDetailRecord(record); setPrintDetailDialogOpen(true) }} title="Cetak">
                             <Printer className="size-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(record)} title="Edit">
@@ -733,12 +735,21 @@ export function BarangMasukPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Print Dialog */}
+      {/* Print Dialog - List */}
       <PrintDialog
         open={printDialogOpen}
         onOpenChange={setPrintDialogOpen}
         onPrint={handlePrintList}
         title="Cetak Daftar Barang Masuk"
+      />
+
+      {/* Print Dialog - Detail */}
+      <PrintDialog
+        open={printDetailDialogOpen}
+        onOpenChange={(open) => { setPrintDetailDialogOpen(open); if (!open) setPrintDetailRecord(null) }}
+        onPrint={(orientation: PrintOrientation) => { if (printDetailRecord) handlePrintDetail(printDetailRecord, orientation) }}
+        title="Cetak Detail Barang Masuk"
+        description="Pilih orientasi halaman sebelum mencetak detail"
       />
     </div>
   )

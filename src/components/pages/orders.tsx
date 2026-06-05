@@ -770,12 +770,6 @@ export function OrdersPage() {
       : 'Cash (Tunai)'
 
     const bodyHtml = `
-      <style>
-        @page { size: A4 ${orientation === 'landscape' ? 'landscape' : 'portrait'}; margin: 20mm 25mm; }
-        body { font-size: 12pt; }
-        th { background-color: #e8e8e8; }
-      </style>
-
       <!-- KOP Surat -->
       ${kopHtml}
 

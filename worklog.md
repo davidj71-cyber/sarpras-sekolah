@@ -264,3 +264,23 @@ Stage Summary:
 - All pages render properly in browser
 - Database intact with all data preserved
 - Screenshots captured as visual backup
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix landscape orientation in all printing features
+
+Work Log:
+- Analyzed the print infrastructure: `print-utils.ts` (core), `print-dialog.tsx` (UI), and 8 page components with print handlers
+- Identified root cause: `@page { size: A4 landscape }` CSS is not supported by Chrome/Chromium, causing browser print dialog to always default to portrait
+- Fixed `openPrintWindow()` in `print-utils.ts`: When landscape is selected, shows a prominent instruction banner with "Cetak Sekarang" button instead of auto-printing, guiding users to select landscape in browser's print dialog
+- Fixed `orders.tsx`: Removed duplicate `@page` rule that was embedded in the body HTML (conflicted with head styles)
+- Fixed `barang-masuk.tsx`: Added PrintDialog for detail print button (previously bypassed orientation selection)
+- Verified all other page components (rooms, stores, employees, kib, dashboard, room-items) already use PrintDialog correctly
+- Tested via Agent Browser: landscape print preview shows banner with instruction and manual print button
+- Lint passes, dev server running without errors
+
+Stage Summary:
+- Modified: `src/lib/print-utils.ts`, `src/components/pages/orders.tsx`, `src/components/pages/barang-masuk.tsx`
+- Landscape printing now works with clear user guidance across all print features
+- Portrait printing continues to auto-print as before

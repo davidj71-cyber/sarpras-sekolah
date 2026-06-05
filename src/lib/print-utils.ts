@@ -236,15 +236,91 @@ export function formatDatePrint(dateStr: string): string {
 // ─── Open print window ────────────────────────────────────────────────────────
 
 export function openPrintWindow(title: string, bodyHtml: string, orientation: PrintOrientation = 'portrait'): void {
+  const isLandscape = orientation === 'landscape'
+
+  // Instruction banner for landscape mode — guides user to select landscape in browser print dialog
+  const bannerHtml = isLandscape ? `
+    <div id="print-banner" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      color: #78350f;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      gap: 16px;
+    ">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;">
+        <span style="font-size:24px;">⚠️</span>
+        <div>
+          <div style="font-weight:bold;font-size:15px;margin-bottom:2px;">Orientasi: LANDSCAPE (Mendatar)</div>
+          <div>Pastikan memilih <strong>Landscape / Mendatar</strong> pada pengaturan cetak browser Anda sebelum mencetak.</div>
+        </div>
+      </div>
+      <button onclick="doPrint()" style="
+        background: #78350f;
+        color: white;
+        border: none;
+        padding: 10px 28px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: bold;
+        white-space: nowrap;
+        transition: background 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      " onmouseover="this.style.background='#92400e'" onmouseout="this.style.background='#78350f'">🖨️ Cetak Sekarang</button>
+    </div>
+    <div id="print-spacer" style="height: 80px;"></div>
+  ` : ''
+
+  // Print script: landscape uses manual trigger, portrait auto-prints
+  const printScript = isLandscape ? `
+    <script>
+      function doPrint() {
+        var banner = document.getElementById('print-banner');
+        var spacer = document.getElementById('print-spacer');
+        if (banner) banner.style.display = 'none';
+        if (spacer) spacer.style.display = 'none';
+        window.print();
+        // Restore banner after print dialog closes
+        setTimeout(function() {
+          if (banner) banner.style.display = 'flex';
+          if (spacer) spacer.style.display = 'block';
+        }, 500);
+      }
+    </script>
+  ` : ''
+
+  // Extra print styles for landscape banner
+  const bannerPrintStyles = isLandscape ? `
+    <style>
+      @media print {
+        #print-banner { display: none !important; }
+        #print-spacer { display: none !important; }
+      }
+    </style>
+  ` : ''
+
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <title>${title}</title>
       <style>${getPrintStyles(orientation)}</style>
+      ${bannerPrintStyles}
     </head>
     <body>
+      ${bannerHtml}
       ${bodyHtml}
+      ${printScript}
     </body>
     </html>
   `
@@ -254,7 +330,12 @@ export function openPrintWindow(title: string, bodyHtml: string, orientation: Pr
     printWindow.document.write(html)
     printWindow.document.close()
     printWindow.focus()
-    setTimeout(() => { printWindow.print() }, 500)
+
+    if (!isLandscape) {
+      // Auto-print for portrait mode after short delay
+      setTimeout(() => { printWindow.print() }, 500)
+    }
+    // For landscape: user clicks "Cetak Sekarang" button in the preview
   }
 }
 
