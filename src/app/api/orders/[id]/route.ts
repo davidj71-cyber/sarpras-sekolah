@@ -54,6 +54,7 @@ export async function PUT(
         storeId: body.storeId,
         employeeId: body.employeeId ?? null,
         status: body.status,
+        paymentMethod: body.paymentMethod,
         notes: body.notes,
         totalAmount: body.totalAmount,
         items: body.items

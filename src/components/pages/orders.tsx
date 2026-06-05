@@ -106,6 +106,7 @@ interface OrderData {
   storeId: string
   employeeId: string | null
   status: string
+  paymentMethod: string
   notes: string
   totalAmount: number
   store?: StoreData
@@ -188,6 +189,11 @@ function OrderRowGroup({
             {order.status}
           </Badge>
         </TableCell>
+        <TableCell>
+          <Badge variant={order.paymentMethod === 'BON' ? 'outline' : 'default'}>
+            {order.paymentMethod || 'Cash'}
+          </Badge>
+        </TableCell>
         <TableCell>{formatRupiahPrint(order.totalAmount)}</TableCell>
         <TableCell>
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -207,7 +213,7 @@ function OrderRowGroup({
       {/* Expanded Items Row */}
       {isExpanded && (
         <TableRow>
-          <TableCell colSpan={8} className="p-0 border-0">
+          <TableCell colSpan={9} className="p-0 border-0">
             <div className="bg-muted/30 px-12 py-3">
               {items.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">Tidak ada item dalam pesanan ini</p>
@@ -316,6 +322,7 @@ export function OrdersPage() {
   const [storeId, setStoreId] = useState('')
   const [employeeId, setEmployeeId] = useState('')
   const [orderStatus, setOrderStatus] = useState('Draft')
+  const [paymentMethod, setPaymentMethod] = useState('Cash')
   const [orderNotes, setOrderNotes] = useState('')
   const [orderItems, setOrderItems] = useState<OrderItemForm[]>([
     { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0 },
@@ -404,6 +411,7 @@ export function OrdersPage() {
     setStoreId('')
     setEmployeeId('')
     setOrderStatus('Draft')
+    setPaymentMethod('Cash')
     setOrderNotes('')
     setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0 }])
     setDialogOpen(true)
@@ -419,6 +427,7 @@ export function OrdersPage() {
     setStoreId(order.storeId)
     setEmployeeId(order.employeeId || '')
     setOrderStatus(order.status)
+    setPaymentMethod(order.paymentMethod || 'Cash')
     setOrderNotes(order.notes)
     setOrderItems(
       order.items?.map((i) => ({
@@ -479,6 +488,7 @@ export function OrdersPage() {
         storeId,
         employeeId: employeeId || null,
         status: orderStatus,
+        paymentMethod,
         notes: orderNotes,
         totalAmount: getGrandTotal(),
         items: orderItems.map((i) => ({
@@ -625,6 +635,11 @@ export function OrdersPage() {
           <td style="border: none; padding: 2px 4px; vertical-align: top;">:</td>
           <td style="border: none; padding: 2px 0; font-weight: bold;">Pemesanan Barang</td>
         </tr>
+        <tr>
+          <td style="border: none; padding: 2px 8px 2px 0; vertical-align: top; white-space: nowrap;">Pembayaran</td>
+          <td style="border: none; padding: 2px 4px; vertical-align: top;">:</td>
+          <td style="border: none; padding: 2px 0; font-weight: bold;">${fullOrder.paymentMethod === 'BON' ? 'BON (Utang)' : 'Cash (Tunai)'}</td>
+        </tr>
       </table>
 
       <!-- Kepada -->
@@ -765,6 +780,7 @@ export function OrdersPage() {
                     <TableHead>Tanggal</TableHead>
                     <TableHead>Toko</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Pembayaran</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead className="w-[140px]">Aksi</TableHead>
                   </TableRow>
@@ -872,6 +888,16 @@ export function OrdersPage() {
                       <SelectItem value="Dikirim">Dikirim</SelectItem>
                       <SelectItem value="Diterima">Diterima</SelectItem>
                       <SelectItem value="Selesai">Selesai</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Metode Pembayaran</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cash">💵 Cash — Tunai</SelectItem>
+                      <SelectItem value="BON">📝 BON — Utang</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

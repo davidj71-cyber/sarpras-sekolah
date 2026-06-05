@@ -216,6 +216,7 @@ model Order {
   employeeId      String?  // Pegawai yang memesan
   employee        Employee? @relation(fields: [employeeId], references: [id])
   status          String   @default("Draft") // Draft, Dikirim, Diterima, Selesai
+  paymentMethod   String   @default("Cash") // Cash, BON
   notes           String   @default("")
   totalAmount     Float    @default(0)
   createdAt       DateTime @default(now())

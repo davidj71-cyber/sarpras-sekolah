@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
         data: {
           totalAmount: existingTotal + newItemsTotal,
           status: body.status ?? existingOrder.status,
+          paymentMethod: body.paymentMethod ?? existingOrder.paymentMethod,
           notes: body.notes ?? existingOrder.notes,
           items: newItems.length > 0
             ? {
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
         storeId: body.storeId,
         employeeId: body.employeeId ?? null,
         status: body.status ?? "Draft",
+        paymentMethod: body.paymentMethod ?? "Cash",
         notes: body.notes ?? "",
         totalAmount: body.totalAmount ?? 0,
         items: body.items
