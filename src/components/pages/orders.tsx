@@ -459,13 +459,28 @@ export function OrdersPage() {
 
       <!-- Tanda Tangan -->
       <div style="margin-top: 32px; font-size: 12pt;">
-        <div style="display: inline-block; min-width: 200px;">
-          <div>an. Kepala Sekolah</div>
-          <div style="padding-left: 4ch;">Bendahara ${settings.schoolName || 'Sekolah'}</div>
-          <div style="height: 60px; padding-left: 4ch;"></div>
-          <div style="text-decoration: underline; font-weight: bold; padding-left: 4ch;">${employee?.name || '____________________'}</div>
-          <div style="padding-left: 4ch;">${employee?.nip ? `NIP. ${employee.nip}` : '&nbsp;'}</div>
-        </div>
+        <table style="border: none; border-collapse: collapse; width: auto;">
+          <tr>
+            <td style="border: none; padding: 0; vertical-align: top; white-space: nowrap;">an.</td>
+            <td style="border: none; padding: 0 0 0 6px; vertical-align: top;">Kepala Sekolah</td>
+          </tr>
+          <tr>
+            <td style="border: none; padding: 0;"></td>
+            <td style="border: none; padding: 0 0 0 6px;">Bendahara ${settings.schoolName || 'Sekolah'}</td>
+          </tr>
+          <tr>
+            <td style="border: none; padding: 0;"></td>
+            <td style="border: none; padding: 0 0 0 6px; height: 60px;"></td>
+          </tr>
+          <tr>
+            <td style="border: none; padding: 0;"></td>
+            <td style="border: none; padding: 0 0 0 6px; text-decoration: underline; font-weight: bold;">${employee?.name || '____________________'}</td>
+          </tr>
+          <tr>
+            <td style="border: none; padding: 0;"></td>
+            <td style="border: none; padding: 0 0 0 6px;">${employee?.nip ? `NIP. ${employee.nip}` : '&nbsp;'}</td>
+          </tr>
+        </table>
       </div>
     `
 
