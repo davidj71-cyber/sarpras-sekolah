@@ -218,3 +218,25 @@ Stage Summary:
 - Can mark BON as paid with date tracking
 - Summary cards show real-time totals
 - Filter tabs correctly segment orders by payment type/status
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Make BON recording easier - add "Catat BON" button, make order number optional for BON
+
+Work Log:
+- Added "Catat BON" button alongside "Tambah Pesanan" - pre-fills BON method, BELUM_BAYAR status, Diterima status
+- Made order number optional for BON entries - when empty, auto-generates format: BON/[romanMonth]/[year]-[sequentialNo]
+- Updated order number label to show "(opsional untuk BON)" when BON is selected
+- Updated placeholder text to "Kosongkan untuk auto-generate" when BON selected
+- Added hint text showing auto-generate format when BON and no number entered
+- Changed table header from "Nomor Surat" to "Nomor / Kode" to accommodate BON entries
+- Updated edit dialog to handle BON auto-generated numbers (keeps existing BON/ number)
+- When editing BON with auto-number and no input, preserves the existing BON number
+- Changed "Tanggal Pesanan" label to "Tanggal Pembelian" with BON-specific hint "Isi tanggal ketika BON terjadi"
+
+Stage Summary:
+- Users can now easily record old BON debts by clicking "Catat BON" button
+- No surat pesanan number required for BON entries - auto-generated as BON/VI/2026-1 etc.
+- Verified via browser: BON/VI/2026-1 created successfully without order number
+- All 4 order types working: Cash, BON with surat, BON without surat (auto-number), BON Lunas

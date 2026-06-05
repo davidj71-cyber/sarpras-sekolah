@@ -492,9 +492,26 @@ export function OrdersPage() {
     setDialogOpen(true)
   }
 
+  function openAddBonDialog() {
+    setEditingOrder(null)
+    setOrderNumberInput('')
+    setOrderDate(new Date().toISOString().split('T')[0])
+    setStoreId('')
+    setEmployeeId('')
+    setOrderStatus('Diterima')
+    setPaymentMethod('BON')
+    setPaymentStatus('BELUM_BAYAR')
+    setPaidAt('')
+    setOrderNotes('')
+    setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0 }])
+    setDialogOpen(true)
+  }
+
   function openEditDialog(order: OrderData) {
     setEditingOrder(order)
-    const numPart = order.orderNumber.split('/PB/')[0] || order.orderNumber
+    // For BON auto-generated numbers, don't try to extract the number part
+    const isBonAutoNumber = order.orderNumber.startsWith('BON/')
+    const numPart = isBonAutoNumber ? '' : (order.orderNumber.split('/PB/')[0] || order.orderNumber)
     setOrderNumberInput(numPart)
     setOrderDate(order.orderDate ? new Date(order.orderDate).toISOString().split('T')[0] : '')
     setStoreId(order.storeId)
@@ -552,13 +569,36 @@ export function OrdersPage() {
     }
   }
 
-  async function handleSubmit() {
-    const fullOrderNumber = editingOrder
-      ? (orderNumberInput.includes('/PB/') ? orderNumberInput : generatedOrderNumber)
-      : generatedOrderNumber
+  // Generate BON number automatically
+  function generateBonNumber(): string {
+    const date = orderDate ? new Date(orderDate) : new Date()
+    const month = date.getMonth() + 1
+    const year = date.getFullYear()
+    const bonCount = orders.filter(o => o.orderNumber.startsWith('BON/')).length + 1
+    return `BON/${toRoman(month)}/${year}-${bonCount}`
+  }
 
-    if (!orderNumberInput.trim()) {
-      toast({ title: 'Validasi', description: 'Nomor surat pesanan wajib diisi', variant: 'destructive' })
+  async function handleSubmit() {
+    // For BON entries, order number is optional - auto-generate if empty
+    let fullOrderNumber: string
+    if (editingOrder) {
+      fullOrderNumber = orderNumberInput.includes('/PB/') ? orderNumberInput : generatedOrderNumber
+    } else {
+      fullOrderNumber = generatedOrderNumber
+    }
+
+    // If no order number and it's a BON, auto-generate
+    if (!orderNumberInput.trim() && paymentMethod === 'BON') {
+      fullOrderNumber = generateBonNumber()
+    }
+
+    // When editing BON with auto-generated number (no number input), keep the existing number
+    if (editingOrder && !orderNumberInput.trim() && editingOrder.orderNumber.startsWith('BON/')) {
+      fullOrderNumber = editingOrder.orderNumber
+    }
+
+    if (!fullOrderNumber) {
+      toast({ title: 'Validasi', description: 'Nomor surat pesanan wajib diisi (atau pilih metode BON)', variant: 'destructive' })
       return
     }
     if (!storeId) {
@@ -871,10 +911,16 @@ export function OrdersPage() {
           <h2 className="text-2xl font-bold tracking-tight">Pesanan</h2>
           <p className="text-muted-foreground">Manajemen surat pesanan dan pencatatan BON</p>
         </div>
-        <Button onClick={openAddDialog}>
-          <Plus className="size-4 mr-2" />
-          Tambah Pesanan
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={openAddBonDialog}>
+            <CreditCard className="size-4 mr-2" />
+            Catat BON
+          </Button>
+          <Button onClick={openAddDialog}>
+            <Plus className="size-4 mr-2" />
+            Tambah Pesanan
+          </Button>
+        </div>
       </div>
 
       {/* BON Summary Cards */}
@@ -991,7 +1037,7 @@ export function OrdersPage() {
                   <TableRow>
                     <TableHead className="w-[40px]"></TableHead>
                     <TableHead className="w-[50px]">No</TableHead>
-                    <TableHead>Nomor Surat</TableHead>
+                    <TableHead>Nomor / Kode</TableHead>
                     <TableHead>Tanggal</TableHead>
                     <TableHead>Toko</TableHead>
                     <TableHead>Status</TableHead>
@@ -1044,20 +1090,30 @@ export function OrdersPage() {
               {/* Order Info */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Nomor Surat Pesanan *</Label>
+                  <Label>
+                    Nomor Surat Pesanan
+                    {paymentMethod === 'BON' && (
+                      <span className="ml-1 text-xs font-normal text-muted-foreground">(opsional untuk BON)</span>
+                    )}
+                  </Label>
                   <Input
                     type="number"
                     min={1}
                     value={orderNumberInput}
                     onChange={(e) => setOrderNumberInput(e.target.value)}
-                    placeholder="Masukkan nomor surat (misal: 9)"
+                    placeholder={paymentMethod === 'BON' ? 'Kosongkan untuk auto-generate' : 'Masukkan nomor surat (misal: 9)'}
                   />
                   {generatedOrderNumber && (
                     <p className="text-xs text-muted-foreground">
                       Format lengkap: <span className="font-mono font-medium text-foreground">{generatedOrderNumber}</span>
                     </p>
                   )}
-                  {!generatedOrderNumber && settings?.schoolCode && (
+                  {paymentMethod === 'BON' && !orderNumberInput.trim() && (
+                    <p className="text-xs text-amber-600 font-medium">
+                      Nomor akan otomatis tergenerate (format: BON/[bulan]/[tahun]-[no])
+                    </p>
+                  )}
+                  {!generatedOrderNumber && paymentMethod !== 'BON' && settings?.schoolCode && (
                     <p className="text-xs text-muted-foreground">
                       Format: [No]/PB/{settings.schoolCode}-{settings.letterUnitCode}/[Bulan Romawi]/[Tahun]
                     </p>
@@ -1069,9 +1125,11 @@ export function OrdersPage() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Tanggal Pesanan</Label>
+                  <Label>Tanggal Pembelian</Label>
                   <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
-                  <p className="text-xs text-muted-foreground">Untuk BON lama, isi tanggal pesanan yang sesuai</p>
+                  {paymentMethod === 'BON' && (
+                    <p className="text-xs text-amber-600">Isi tanggal ketika BON terjadi</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Toko *</Label>
