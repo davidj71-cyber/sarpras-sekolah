@@ -69,6 +69,8 @@ import {
   Camera,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
+import type { PrintOrientation } from '@/lib/print-utils'
+import { PrintDialog } from '@/components/print-dialog'
 import { PhotoThumbnail } from '@/components/photo-thumbnail'
 import { PhotoGallery } from '@/components/photo-gallery'
 
@@ -189,6 +191,10 @@ export function RoomsPage() {
   const [deleteItemTarget, setDeleteItemTarget] = useState<{ id: string; name: string } | null>(null)
   const [deletingItem, setDeletingItem] = useState(false)
 
+  // Print dialog states
+  const [printListDialogOpen, setPrintListDialogOpen] = useState(false)
+  const [printDetailDialogOpen, setPrintDetailDialogOpen] = useState(false)
+
   function handleItemPhotosChange(itemId: string, newPhotos: string[]) {
     setItems(prev => prev.map(item => item.id === itemId ? { ...item, photos: newPhotos } : item))
   }
@@ -292,7 +298,7 @@ export function RoomsPage() {
 
   // ─── Print Room List ──────────────────────────────────────────────────────
 
-  async function handlePrintRoomList() {
+  async function handlePrintRoomList(orientation: PrintOrientation = 'portrait') {
     const tableRows = rooms.map((room, idx) => {
       const bilikCount = room.biliks?.length || 0
       const lemariCount = room.cabinets?.length || 0
@@ -337,12 +343,12 @@ export function RoomsPage() {
       </table>
     `
 
-    await printWithKop('DAFTAR RUANGAN', contentHtml)
+    await printWithKop('DAFTAR RUANGAN', contentHtml, orientation)
   }
 
   // ─── Print Room Detail ──────────────────────────────────────────────────
 
-  async function handlePrintRoomDetail() {
+  async function handlePrintRoomDetail(orientation: PrintOrientation = 'portrait') {
     if (!selectedRoomId || !currentRoom) return
 
     try {
@@ -473,7 +479,7 @@ export function RoomsPage() {
         </div>
       `
 
-      await printWithKop(`INVENTARIS RUANG ${currentRoom.name.toUpperCase()}`, contentHtml)
+      await printWithKop(`INVENTARIS RUANG ${currentRoom.name.toUpperCase()}`, contentHtml, orientation)
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak data ruangan', variant: 'destructive' })
     }
@@ -976,7 +982,7 @@ export function RoomsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handlePrintRoomDetail}>
+                <Button variant="outline" size="sm" onClick={() => setPrintDetailDialogOpen(true)}>
                   <Printer className="size-3.5 mr-1" /> Cetak
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => openEditRoom(currentRoom)}>
@@ -1307,7 +1313,7 @@ export function RoomsPage() {
         </div>
         {!selectedRoomId && (
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handlePrintRoomList} disabled={rooms.length === 0}>
+            <Button variant="outline" onClick={() => setPrintListDialogOpen(true)} disabled={rooms.length === 0}>
               <Printer className="size-4 mr-2" />
               Cetak
             </Button>
@@ -1559,6 +1565,19 @@ export function RoomsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrintDialog
+        open={printListDialogOpen}
+        onOpenChange={setPrintListDialogOpen}
+        onPrint={handlePrintRoomList}
+        title="Cetak Daftar Ruangan"
+      />
+      <PrintDialog
+        open={printDetailDialogOpen}
+        onOpenChange={setPrintDetailDialogOpen}
+        onPrint={handlePrintRoomDetail}
+        title="Cetak Detail Ruangan"
+      />
     </div>
   )
 }

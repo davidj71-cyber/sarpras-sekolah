@@ -51,6 +51,8 @@ import {
   Printer,
 } from 'lucide-react'
 import { printWithKop } from '@/lib/print-utils'
+import type { PrintOrientation } from '@/lib/print-utils'
+import { PrintDialog } from '@/components/print-dialog'
 
 interface StoreData {
   id: string
@@ -93,6 +95,7 @@ export function StoresPage() {
   const [formData, setFormData] = useState<FormData>({ ...emptyForm })
   const [saving, setSaving] = useState(false)
 
+  const [printDialogOpen, setPrintDialogOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteName, setDeleteName] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -180,7 +183,7 @@ export function StoresPage() {
     return s.name.toLowerCase().includes(q) || s.ownerName.toLowerCase().includes(q) || s.goodsType.toLowerCase().includes(q)
   })
 
-  async function handlePrint() {
+  async function handlePrint(orientation: PrintOrientation = 'portrait') {
     if (filteredStores.length === 0) {
       toast({ title: 'Info', description: 'Tidak ada data toko untuk dicetak' })
       return
@@ -222,7 +225,7 @@ export function StoresPage() {
         <strong>Total: ${filteredStores.length} toko/supplier</strong>
       </div>`
 
-    await printWithKop('DAFTAR TOKO DAN SUPPLIER', contentHtml)
+    await printWithKop('DAFTAR TOKO DAN SUPPLIER', contentHtml, orientation)
   }
 
   return (
@@ -233,7 +236,7 @@ export function StoresPage() {
           <p className="text-muted-foreground">Manajemen data toko dan supplier</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handlePrint} disabled={loading || filteredStores.length === 0}>
+          <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredStores.length === 0}>
             <Printer className="size-4 mr-2" />
             Cetak
           </Button>
@@ -376,6 +379,13 @@ export function StoresPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrintDialog
+        open={printDialogOpen}
+        onOpenChange={setPrintDialogOpen}
+        onPrint={handlePrint}
+        title="Cetak Daftar Toko"
+      />
     </div>
   )
 }

@@ -61,6 +61,8 @@ import {
   X,
 } from 'lucide-react'
 import { printWithKop, formatDatePrint } from '@/lib/print-utils'
+import type { PrintOrientation } from '@/lib/print-utils'
+import { PrintDialog } from '@/components/print-dialog'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -156,6 +158,9 @@ export function BarangMasukPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteName, setDeleteName] = useState('')
   const [deleting, setDeleting] = useState(false)
+
+  // Print dialog
+  const [printDialogOpen, setPrintDialogOpen] = useState(false)
 
   // Status change
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
@@ -319,7 +324,7 @@ export function BarangMasukPage() {
 
   // ─── Print handlers ───────────────────────────────────────────────────────
 
-  async function handlePrintList() {
+  async function handlePrintList(orientation: PrintOrientation = 'portrait') {
     if (filteredData.length === 0) {
       toast({ title: 'Info', description: 'Tidak ada data untuk dicetak' })
       return
@@ -361,10 +366,10 @@ export function BarangMasukPage() {
       </div>
     `
 
-    await printWithKop('DAFTAR BARANG MASUK', contentHtml)
+    await printWithKop('DAFTAR BARANG MASUK', contentHtml, orientation)
   }
 
-  async function handlePrintDetail(record: BarangMasukData) {
+  async function handlePrintDetail(record: BarangMasukData, orientation: PrintOrientation = 'portrait') {
     try {
       const res = await fetch(`/api/barang-masuk/${record.id}`)
       if (!res.ok) throw new Error('Gagal')
@@ -432,7 +437,7 @@ export function BarangMasukPage() {
         </div>
       `
 
-      await printWithKop(`LAPORAN BARANG MASUK - ${detail.documentNumber}`, contentHtml)
+      await printWithKop(`LAPORAN BARANG MASUK - ${detail.documentNumber}`, contentHtml, orientation)
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak detail barang masuk', variant: 'destructive' })
     }
@@ -458,7 +463,7 @@ export function BarangMasukPage() {
           <p className="text-muted-foreground">Pencatatan barang masuk dan penerimaan</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handlePrintList} disabled={loading || filteredData.length === 0}>
+          <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredData.length === 0}>
             <Printer className="size-4 mr-2" />
             Cetak
           </Button>
@@ -727,6 +732,14 @@ export function BarangMasukPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Print Dialog */}
+      <PrintDialog
+        open={printDialogOpen}
+        onOpenChange={setPrintDialogOpen}
+        onPrint={handlePrintList}
+        title="Cetak Daftar Barang Masuk"
+      />
     </div>
   )
 }

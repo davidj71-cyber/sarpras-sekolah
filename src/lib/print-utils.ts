@@ -1,6 +1,8 @@
 // ─── Shared Print Utilities ────────────────────────────────────────────────────
 // Provides KOP surat generation and common print styling for all print features.
 
+export type PrintOrientation = 'portrait' | 'landscape'
+
 interface KopLine {
   text: string
   style: 'header' | 'detail'
@@ -145,9 +147,13 @@ export function buildKopHtml(settings: PrintSettings): string {
 
 // ─── Common print styles ──────────────────────────────────────────────────────
 
-export function getPrintStyles(): string {
+export function getPrintStyles(orientation: PrintOrientation = 'portrait'): string {
+  const pageRule = orientation === 'landscape'
+    ? '@page { size: A4 landscape; margin: 20mm 20mm 20mm 25mm; }'
+    : '@page { size: A4 portrait; margin: 20mm 20mm 20mm 25mm; }'
+
   return `
-    @page { size: A4; margin: 20mm 20mm 20mm 25mm; }
+    ${pageRule}
     body {
       font-family: 'Times New Roman', serif;
       font-size: 11pt;
@@ -229,13 +235,13 @@ export function formatDatePrint(dateStr: string): string {
 
 // ─── Open print window ────────────────────────────────────────────────────────
 
-export function openPrintWindow(title: string, bodyHtml: string): void {
+export function openPrintWindow(title: string, bodyHtml: string, orientation: PrintOrientation = 'portrait'): void {
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <title>${title}</title>
-      <style>${getPrintStyles()}</style>
+      <style>${getPrintStyles(orientation)}</style>
     </head>
     <body>
       ${bodyHtml}
@@ -254,7 +260,7 @@ export function openPrintWindow(title: string, bodyHtml: string): void {
 
 // ─── Build complete print document with KOP ───────────────────────────────────
 
-export async function printWithKop(title: string, contentHtml: string): Promise<void> {
+export async function printWithKop(title: string, contentHtml: string, orientation: PrintOrientation = 'portrait'): Promise<void> {
   const settings = await fetchPrintSettings()
   const kopHtml = buildKopHtml(settings)
 
@@ -267,5 +273,5 @@ export async function printWithKop(title: string, contentHtml: string): Promise<
     </div>
   `
 
-  openPrintWindow(title, bodyHtml)
+  openPrintWindow(title, bodyHtml, orientation)
 }

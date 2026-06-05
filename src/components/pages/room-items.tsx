@@ -67,6 +67,8 @@ import {
   Trash2,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
+import type { PrintOrientation } from '@/lib/print-utils'
+import { PrintDialog } from '@/components/print-dialog'
 import { PhotoThumbnail } from '@/components/photo-thumbnail'
 import { PhotoGallery } from '@/components/photo-gallery'
 
@@ -351,8 +353,9 @@ export function RoomItemsPage() {
   // ─── Handle Print ──────────────────────────────────────────────────────
 
   const [printing, setPrinting] = useState(false)
+  const [printDialogOpen, setPrintDialogOpen] = useState(false)
 
-  async function handlePrint() {
+  async function handlePrint(orientation: PrintOrientation = 'portrait') {
     if (filteredItems.length === 0) {
       toast({ title: 'Info', description: 'Tidak ada data untuk dicetak' })
       return
@@ -441,7 +444,7 @@ export function RoomItemsPage() {
         </table>
       `
 
-      await printWithKop('DAFTAR BARANG INVENTARIS', contentHtml)
+      await printWithKop('DAFTAR BARANG INVENTARIS', contentHtml, orientation)
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak data', variant: 'destructive' })
     } finally {
@@ -471,7 +474,7 @@ export function RoomItemsPage() {
             <Plus className="size-4 mr-2" />
             Tambah Barang
           </Button>
-          <Button onClick={handlePrint} disabled={printing || filteredItems.length === 0} variant="outline" size="sm">
+          <Button onClick={() => setPrintDialogOpen(true)} disabled={printing || filteredItems.length === 0} variant="outline" size="sm">
             {printing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
             Cetak
           </Button>
@@ -820,6 +823,14 @@ export function RoomItemsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrintDialog
+        open={printDialogOpen}
+        onOpenChange={setPrintDialogOpen}
+        onPrint={handlePrint}
+        title="Cetak Daftar Barang Inventaris"
+        loading={printing}
+      />
     </div>
   )
 }

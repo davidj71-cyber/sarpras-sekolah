@@ -31,6 +31,8 @@ import {
   Printer,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-utils'
+import type { PrintOrientation } from '@/lib/print-utils'
+import { PrintDialog } from '@/components/print-dialog'
 import {
   ChartContainer,
   ChartTooltip,
@@ -197,6 +199,7 @@ export function DashboardPage() {
   const { setPage, setStoreSubPage, setRoomSubPage } = useNavigationStore()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [printDialogOpen, setPrintDialogOpen] = useState(false)
 
   useEffect(() => {
     async function fetchDashboard() {
@@ -246,7 +249,7 @@ export function DashboardPage() {
   const baikPercent = data.totalItems > 0 ? Math.round((data.itemsBaik / data.totalItems) * 100) : 0
   const placedPercent = data.totalItems > 0 ? Math.round(((data.totalItems - data.itemsWithoutRoom) / data.totalItems) * 100) : 0
 
-  const handlePrint = async () => {
+  const handlePrint = async (orientation: PrintOrientation = 'portrait') => {
     const placed = data.totalItems - data.itemsWithoutRoom
     const rrPercent = data.totalItems > 0 ? ((data.itemsRusakRingan / data.totalItems) * 100).toFixed(1) : '0'
     const rbPercent = data.totalItems > 0 ? ((data.itemsRusakBerat / data.totalItems) * 100).toFixed(1) : '0'
@@ -352,7 +355,7 @@ export function DashboardPage() {
 
     const contentHtml = section1 + section2 + section3 + section4 + section5 + section6
 
-    await printWithKop('LAPORAN DASHBOARD SARANA PRASARANA', contentHtml)
+    await printWithKop('LAPORAN DASHBOARD SARANA PRASARANA', contentHtml, orientation)
   }
 
   return (
@@ -368,7 +371,7 @@ export function DashboardPage() {
             <Sparkles className="size-3.5 text-primary" />
             {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setPrintDialogOpen(true)}>
             <Printer className="size-4" />
             Cetak Laporan
           </Button>
@@ -756,6 +759,13 @@ export function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      <PrintDialog
+        open={printDialogOpen}
+        onOpenChange={setPrintDialogOpen}
+        onPrint={handlePrint}
+        title="Cetak Laporan Dashboard"
+      />
     </div>
   )
 }

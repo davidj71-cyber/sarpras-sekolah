@@ -64,6 +64,8 @@ import {
   Camera,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-utils'
+import type { PrintOrientation } from '@/lib/print-utils'
+import { PrintDialog } from '@/components/print-dialog'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -382,6 +384,9 @@ export function KibPage() {
   // Photo dialog
   const [photoItem, setPhotoItem] = useState<Item | null>(null)
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
+
+  // Print dialog
+  const [printDialogOpen, setPrintDialogOpen] = useState(false)
 
   // ─── Fetch items ─────────────────────────────────────────────────────────
 
@@ -1050,7 +1055,7 @@ export function KibPage() {
 
   // ─── Print handler ───────────────────────────────────────────────────────
 
-  async function handlePrint() {
+  async function handlePrint(orientation: PrintOrientation = 'portrait') {
     const printCols = getPrintColumns(kibType)
     const title = `KARTU INVENTARIS BARANG (KIB ${kibType}) - ${label}`
 
@@ -1104,7 +1109,7 @@ export function KibPage() {
       </table>
     `
 
-    await printWithKop(title, contentHtml)
+    await printWithKop(title, contentHtml, orientation)
   }
 
   return (
@@ -1120,7 +1125,7 @@ export function KibPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handlePrint} disabled={filteredItems.length === 0}>
+          <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={filteredItems.length === 0}>
             <Printer className="size-4 mr-2" />
             Cetak
           </Button>
@@ -1317,6 +1322,13 @@ export function KibPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <PrintDialog
+        open={printDialogOpen}
+        onOpenChange={setPrintDialogOpen}
+        onPrint={handlePrint}
+        title="Cetak Kartu Inventaris Barang"
+      />
     </div>
   )
 }

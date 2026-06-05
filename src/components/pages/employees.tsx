@@ -51,6 +51,8 @@ import {
   Printer,
 } from 'lucide-react'
 import { printWithKop } from '@/lib/print-utils'
+import type { PrintOrientation } from '@/lib/print-utils'
+import { PrintDialog } from '@/components/print-dialog'
 
 interface EmployeeData {
   id: string
@@ -96,6 +98,7 @@ export function EmployeesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteName, setDeleteName] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [printDialogOpen, setPrintDialogOpen] = useState(false)
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true)
@@ -180,7 +183,7 @@ export function EmployeesPage() {
     return e.name.toLowerCase().includes(q) || e.nip.toLowerCase().includes(q) || e.position.toLowerCase().includes(q) || e.department.toLowerCase().includes(q)
   })
 
-  async function handlePrint() {
+  async function handlePrint(orientation: PrintOrientation = 'portrait') {
     if (filteredEmployees.length === 0) {
       toast({ title: 'Info', description: 'Tidak ada data pegawai untuk dicetak' })
       return
@@ -220,7 +223,7 @@ export function EmployeesPage() {
       </div>
     `
 
-    await printWithKop('DAFTAR PEGAWAI', contentHtml)
+    await printWithKop('DAFTAR PEGAWAI', contentHtml, orientation)
   }
 
   return (
@@ -231,7 +234,7 @@ export function EmployeesPage() {
           <p className="text-muted-foreground">Manajemen data pegawai sekolah</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handlePrint} disabled={loading || filteredEmployees.length === 0}>
+          <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredEmployees.length === 0}>
             <Printer className="size-4 mr-2" />
             Cetak
           </Button>
@@ -374,6 +377,13 @@ export function EmployeesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrintDialog
+        open={printDialogOpen}
+        onOpenChange={setPrintDialogOpen}
+        onPrint={handlePrint}
+        title="Cetak Daftar Pegawai"
+      />
     </div>
   )
 }

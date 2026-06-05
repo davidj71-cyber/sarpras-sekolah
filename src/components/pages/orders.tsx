@@ -75,6 +75,8 @@ import {
   formatDatePrint,
   formatNumberPrint,
 } from '@/lib/print-utils'
+import type { PrintOrientation } from '@/lib/print-utils'
+import { PrintDialog } from '@/components/print-dialog'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -402,6 +404,10 @@ export function OrdersPage() {
   const [paidDate, setPaidDate] = useState('')
   const [markingPaid, setMarkingPaid] = useState(false)
 
+  // Print dialog
+  const [printDialogOpen, setPrintDialogOpen] = useState(false)
+  const [printOrderId, setPrintOrderId] = useState<string | null>(null)
+
   // ─── Computed order number ─────────────────────────────────────────────
 
   const generatedOrderNumber = generateOrderNumber(
@@ -722,7 +728,7 @@ export function OrdersPage() {
 
   // ─── Print Surat Pesanan ────────────────────────────────────────────────
 
-  async function handlePrint(order: OrderData) {
+  async function handlePrint(order: OrderData, orientation: PrintOrientation = 'portrait') {
     const orderRes = await fetch(`/api/orders/${order.id}`)
     if (!orderRes.ok) {
       toast({ title: 'Error', description: 'Gagal mengambil data pesanan', variant: 'destructive' })
@@ -765,7 +771,7 @@ export function OrdersPage() {
 
     const bodyHtml = `
       <style>
-        @page { size: A4; margin: 20mm 25mm; }
+        @page { size: A4 ${orientation === 'landscape' ? 'landscape' : 'portrait'}; margin: 20mm 25mm; }
         body { font-size: 12pt; }
         th { background-color: #e8e8e8; }
       </style>
@@ -876,7 +882,7 @@ export function OrdersPage() {
       </div>
     `
 
-    openPrintWindow(`Surat Pesanan - ${fullOrder.orderNumber}`, bodyHtml)
+    openPrintWindow(`Surat Pesanan - ${fullOrder.orderNumber}`, bodyHtml, orientation)
   }
 
   // ─── Filter ────────────────────────────────────────────────────────────────
@@ -1064,7 +1070,7 @@ export function OrdersPage() {
                           setStatusDialogOpen(true)
                         }}
                         onEdit={openEditDialog}
-                        onPrint={handlePrint}
+                        onPrint={(order) => { setPrintOrderId(order.id); setPrintDialogOpen(true) }}
                         onDelete={(id, name) => { setDeleteId(id); setDeleteName(name) }}
                         onMarkAsPaid={openMarkAsPaidDialog}
                       />
@@ -1341,6 +1347,19 @@ export function OrdersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrintDialog
+        open={printDialogOpen}
+        onOpenChange={(open) => { setPrintDialogOpen(open); if (!open) setPrintOrderId(null) }}
+        onPrint={(orientation: PrintOrientation) => {
+          if (printOrderId) {
+            const order = orders.find(o => o.id === printOrderId)
+            if (order) handlePrint(order, orientation)
+          }
+          setPrintOrderId(null)
+        }}
+        title="Cetak Surat Pesanan"
+      />
     </div>
   )
 }
