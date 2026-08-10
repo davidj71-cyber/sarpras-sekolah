@@ -50,7 +50,13 @@ test
 prompt
 
 server.log
+
 # Skills directory
-/skills/# Database & uploads (user data, tidak di-push ke GitHub)
+/skills/
+
+# Database & uploads (user data, tidak di-push ke GitHub)
 db/
 public/uploads/
+
+# Worklog
+worklog.md
