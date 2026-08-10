@@ -765,10 +765,6 @@ export function OrdersPage() {
 
     const city = settings.address ? settings.address.split(',').pop()?.trim() || '___________' : '___________'
 
-    const paymentLabel = fullOrder.paymentMethod === 'BON'
-      ? `BON (Utang)${fullOrder.paymentStatus === 'LUNAS' ? ' — LUNAS' : ' — BELUM BAYAR'}`
-      : 'Cash (Tunai)'
-
     const bodyHtml = `
       <!-- KOP Surat -->
       ${kopHtml}
@@ -794,11 +790,6 @@ export function OrdersPage() {
           <td style="border: none; padding: 2px 8px 2px 0; vertical-align: top; white-space: nowrap;">Perihal</td>
           <td style="border: none; padding: 2px 4px; vertical-align: top;">:</td>
           <td style="border: none; padding: 2px 0; font-weight: bold;">Pemesanan Barang</td>
-        </tr>
-        <tr>
-          <td style="border: none; padding: 2px 8px 2px 0; vertical-align: top; white-space: nowrap;">Pembayaran</td>
-          <td style="border: none; padding: 2px 4px; vertical-align: top;">:</td>
-          <td style="border: none; padding: 2px 0; font-weight: bold;">${paymentLabel}</td>
         </tr>
       </table>
 
