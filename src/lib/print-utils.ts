@@ -7,6 +7,8 @@ interface KopLine {
   text: string
   style: 'header' | 'detail'
   bold: boolean
+  fontSize: number      // per-line font size in pt; 0 = inherit default (header: global fontSize, detail: 55% of global)
+  textTransform: string // '' = inherit (header: global transform, detail: none); 'none' | 'uppercase' | 'capitalize' | 'lowercase'
 }
 
 interface PrintSettings {
@@ -36,17 +38,22 @@ export function parseKopLines(raw: unknown): KopLine[] {
     if (!Array.isArray(parsed)) return []
     return parsed.map((item: unknown) => {
       if (typeof item === 'string') {
-        return { text: item, style: 'detail' as const, bold: false }
+        // Backward compat: old string lines become detail lines with inherited defaults
+        return { text: item, style: 'detail' as const, bold: false, fontSize: 0, textTransform: '' }
       }
       if (typeof item === 'object' && item !== null) {
         const obj = item as Record<string, unknown>
+        const transformRaw = typeof obj.textTransform === 'string' ? obj.textTransform : ''
+        const validTransform = ['none', 'uppercase', 'capitalize', 'lowercase'].includes(transformRaw) ? transformRaw : ''
         return {
           text: String(obj.text ?? ''),
           style: (obj.style === 'header' ? 'header' : 'detail') as 'header' | 'detail',
           bold: Boolean(obj.bold ?? false),
+          fontSize: typeof obj.fontSize === 'number' && obj.fontSize > 0 ? obj.fontSize : 0,
+          textTransform: validTransform,
         }
       }
-      return { text: '', style: 'detail' as const, bold: false }
+      return { text: '', style: 'detail' as const, bold: false, fontSize: 0, textTransform: '' }
     })
   } catch {
     return []
@@ -92,51 +99,56 @@ export function buildKopHtml(settings: PrintSettings): string {
   const logoWidthPx = settings.logoWidth * cmToPx
   const logoHeightPx = settings.logoHeight * cmToPx
 
-  let textTransformCSS = 'none'
+  // Global default text transform — used as fallback for header lines that don't specify their own
+  let globalTextTransformCSS = 'none'
   switch (settings.textTransform) {
-    case 'uppercase': textTransformCSS = 'uppercase'; break
-    case 'capitalize': textTransformCSS = 'capitalize'; break
-    case 'lowercase': textTransformCSS = 'lowercase'; break
+    case 'uppercase': globalTextTransformCSS = 'uppercase'; break
+    case 'capitalize': globalTextTransformCSS = 'capitalize'; break
+    case 'lowercase': globalTextTransformCSS = 'lowercase'; break
   }
 
-  const headerLinesHtml = headerLines.map(line => `
-    <div style="
-      font-family: '${settings.fontFamily}', serif;
-      font-size: ${settings.fontSize}pt;
-      font-weight: ${line.bold ? 'bold' : 'normal'};
-      text-transform: ${textTransformCSS};
-      line-height: 1.3;
-      margin-top: 1px;
-    ">${line.text}</div>
-  `).join('\n')
+  const detailDefaultSize = Math.max(Math.round(settings.fontSize * 0.55), 7)
 
-  const schoolNameHtml = `
-    <div style="
-      font-family: '${settings.fontFamily}', serif;
-      font-size: ${settings.fontSize}pt;
-      font-weight: ${settings.isBold ? 'bold' : 'normal'};
-      text-transform: ${textTransformCSS};
-      line-height: 1.3;
-      margin-top: ${headerLines.length > 0 ? '1px' : '0'};
-    ">${settings.schoolName || 'NAMA SEKOLAH'}</div>
-  `
+  const renderLine = (line: KopLine, isHeader: boolean): string => {
+    // Per-line font size; 0 means inherit style default
+    const effectiveFontSize = line.fontSize > 0
+      ? line.fontSize
+      : (isHeader ? settings.fontSize : detailDefaultSize)
 
-  const detailLinesHtml = detailLines.map(line => `
-    <div style="
-      font-family: Arial, sans-serif;
-      font-size: ${Math.max(Math.round(settings.fontSize * 0.55), 7)}pt;
-      font-weight: ${line.bold ? 'bold' : 'normal'};
-      line-height: 1.4;
-      margin-top: 1px;
-    ">${line.text}</div>
-  `).join('\n')
+    // Per-line text transform; '' means inherit (header: global, detail: none)
+    let lineTextTransformCSS = 'none'
+    if (line.textTransform) {
+      switch (line.textTransform) {
+        case 'uppercase': lineTextTransformCSS = 'uppercase'; break
+        case 'capitalize': lineTextTransformCSS = 'capitalize'; break
+        case 'lowercase': lineTextTransformCSS = 'lowercase'; break
+      }
+    } else if (isHeader) {
+      lineTextTransformCSS = globalTextTransformCSS
+    }
+
+    const fontFamily = isHeader ? `'${settings.fontFamily}', serif` : 'Arial, sans-serif'
+
+    return `
+      <div style="
+        font-family: ${fontFamily};
+        font-size: ${effectiveFontSize}pt;
+        font-weight: ${line.bold ? 'bold' : 'normal'};
+        text-transform: ${lineTextTransformCSS};
+        line-height: 1.3;
+        margin-top: 1px;
+      ">${line.text}</div>
+    `
+  }
+
+  const headerLinesHtml = headerLines.map(l => renderLine(l, true)).join('\n')
+  const detailLinesHtml = detailLines.map(l => renderLine(l, false)).join('\n')
 
   return `
     <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 2px;">
       ${settings.logo ? `<img src="${settings.logo}" style="width: ${logoWidthPx}px; height: ${logoHeightPx}px; object-fit: contain;" />` : `<div style="width: ${logoWidthPx}px; height: ${logoHeightPx}px;"></div>`}
       <div style="flex: 1; text-align: center;">
         ${headerLinesHtml}
-        ${schoolNameHtml}
         ${detailLinesHtml}
       </div>
       ${settings.logo ? `<div style="width: ${logoWidthPx}px;"></div>` : ''}

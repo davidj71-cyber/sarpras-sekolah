@@ -6,10 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Settings, Upload, Loader2, X, School, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -17,8 +15,10 @@ import { useToast } from '@/hooks/use-toast'
 
 interface KopLine {
   text: string
-  style: 'header' | 'detail'  // header = big font (above school name), detail = small font (below school name)
+  style: 'header' | 'detail'  // header = above (font big default), detail = below (font small default)
   bold: boolean
+  fontSize: number            // per-line font size in pt
+  textTransform: string       // 'none' | 'uppercase' | 'capitalize' | 'lowercase'
 }
 
 interface SchoolSettingsData {
@@ -78,26 +78,44 @@ const CM_TO_PX = 37.8
 
 // ─── Helper: parse kopLines from API response ────────────────────────────────
 
-function parseKopLines(raw: unknown): KopLine[] {
+function parseKopLines(raw: unknown, defaultFontSize: number, defaultTransform: string): KopLine[] {
   if (!raw) return []
+  const detailDefaultSize = Math.max(Math.round(defaultFontSize * 0.55), 7)
   try {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
     if (!Array.isArray(parsed)) return []
     return parsed.map((item: unknown) => {
-      // Backward compatibility: if item is a string, treat as detail line
+      // Backward compatibility: if item is a string, treat as detail line with default size
       if (typeof item === 'string') {
-        return { text: item, style: 'detail' as const, bold: false }
+        return {
+          text: item,
+          style: 'detail' as const,
+          bold: false,
+          fontSize: detailDefaultSize,
+          textTransform: 'none',
+        }
       }
       if (typeof item === 'object' && item !== null) {
         const obj = item as Record<string, unknown>
+        const isHeader = obj.style === 'header'
+        const transformRaw = typeof obj.textTransform === 'string' ? obj.textTransform : ''
+        const validTransform = ['none', 'uppercase', 'capitalize', 'lowercase'].includes(transformRaw)
+          ? transformRaw
+          : (isHeader ? defaultTransform : 'none')
+        const fontSizeNum = typeof obj.fontSize === 'number' ? obj.fontSize : parseFloat(String(obj.fontSize ?? '0'))
+        const effectiveFontSize = !isNaN(fontSizeNum) && fontSizeNum > 0
+          ? fontSizeNum
+          : (isHeader ? defaultFontSize : detailDefaultSize)
         return {
           text: String(obj.text ?? ''),
-          style: (obj.style === 'header' ? 'header' : 'detail') as 'header' | 'detail',
+          style: isHeader ? 'header' as const : 'detail' as const,
           bold: Boolean(obj.bold ?? false),
+          fontSize: effectiveFontSize,
+          textTransform: validTransform,
         }
       }
-      return { text: '', style: 'detail' as const, bold: false }
-    }).filter((l: KopLine) => l.text.trim() !== '' || true) // keep empty lines for editing
+      return { text: '', style: 'detail' as const, bold: false, fontSize: detailDefaultSize, textTransform: 'none' }
+    })
   } catch {
     return []
   }
@@ -119,6 +137,8 @@ export function SettingsPage() {
         const res = await fetch('/api/settings')
         if (!res.ok) throw new Error('Gagal mengambil pengaturan')
         const data = await res.json()
+        const globalFontSize = data.fontSize ?? 14
+        const globalTransform = data.textTransform ?? 'none'
         setSettings({
           schoolName: data.schoolName ?? '',
           npsn: data.npsn ?? '',
@@ -131,12 +151,12 @@ export function SettingsPage() {
           logoWidth: data.logoWidth ?? 3.0,
           logoHeight: data.logoHeight ?? 3.0,
           fontFamily: data.fontFamily ?? 'Times New Roman',
-          fontSize: data.fontSize ?? 14,
+          fontSize: globalFontSize,
           isBold: data.isBold ?? false,
-          textTransform: data.textTransform ?? 'none',
+          textTransform: globalTransform,
           underlineThickness: data.underlineThickness ?? 1.0,
           underlineWidth: data.underlineWidth ?? 100.0,
-          kopLines: parseKopLines(data.kopLines),
+          kopLines: parseKopLines(data.kopLines, globalFontSize, globalTransform),
         })
       } catch {
         toast({
@@ -161,10 +181,17 @@ export function SettingsPage() {
   // ─── KOP Lines handlers ────────────────────────────────────────────────────
 
   const addKopLine = useCallback((style: 'header' | 'detail') => {
-    setSettings(prev => ({
-      ...prev,
-      kopLines: [...prev.kopLines, { text: '', style, bold: style === 'header' }],
-    }))
+    setSettings(prev => {
+      const detailDefaultSize = Math.max(Math.round(prev.fontSize * 0.55), 7)
+      const newLine: KopLine = {
+        text: '',
+        style,
+        bold: style === 'header',
+        fontSize: style === 'header' ? prev.fontSize : detailDefaultSize,
+        textTransform: style === 'header' ? prev.textTransform : 'none',
+      }
+      return { ...prev, kopLines: [...prev.kopLines, newLine] }
+    })
   }, [])
 
   const removeKopLine = useCallback((index: number) => {
@@ -174,7 +201,7 @@ export function SettingsPage() {
     }))
   }, [])
 
-  const updateKopLine = useCallback((index: number, field: keyof KopLine, value: string | boolean) => {
+  const updateKopLine = useCallback((index: number, field: keyof KopLine, value: string | boolean | number) => {
     setSettings(prev => ({
       ...prev,
       kopLines: prev.kopLines.map((line, i) =>
@@ -491,7 +518,7 @@ export function SettingsPage() {
               <div>
                 <Label>Baris Identitas KOP</Label>
                 <p className="text-xs text-muted-foreground">
-                  Baris Header tampil di atas nama sekolah (font besar), baris Detail tampil di bawah (font kecil)
+                  Baris Header tampil di atas (font besar default), baris Detail tampil di bawah (font kecil default). Ukuran & kapitalisasi tiap baris bisa diatur sendiri.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -522,7 +549,7 @@ export function SettingsPage() {
                   Belum ada baris identitas. Klik &quot;Header&quot; atau &quot;Detail&quot; untuk menambahkan.
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Contoh Header: PEMERINTAH PROVINSI..., DINAS PENDIDIKAN
+                  Contoh Header: PEMERINTAH PROVINSI..., DINAS PENDIDIKAN, NAMA SEKOLAH
                   <br />
                   Contoh Detail: Alamat, No. Telepon, Email, Website
                 </p>
@@ -530,82 +557,128 @@ export function SettingsPage() {
             ) : (
               <div className="space-y-2">
                 {settings.kopLines.map((line, index) => (
-                  <div key={index} className="flex items-center gap-2 rounded-md border p-2">
-                    {/* Move buttons */}
-                    <div className="flex flex-col gap-0.5">
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
-                        onClick={() => moveKopLine(index, 'up')}
-                        disabled={index === 0}
-                        title="Pindah ke atas"
+                  <div key={index} className="space-y-2 rounded-md border p-2">
+                    {/* Row 1: move, style, text, bold, delete */}
+                    <div className="flex items-center gap-2">
+                      {/* Move buttons */}
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                          onClick={() => moveKopLine(index, 'up')}
+                          disabled={index === 0}
+                          title="Pindah ke atas"
+                        >
+                          <ChevronUp className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                          onClick={() => moveKopLine(index, 'down')}
+                          disabled={index === settings.kopLines.length - 1}
+                          title="Pindah ke bawah"
+                        >
+                          <ChevronDown className="size-4" />
+                        </button>
+                      </div>
+
+                      {/* Style selector */}
+                      <Select
+                        value={line.style}
+                        onValueChange={(value) => updateKopLine(index, 'style', value)}
                       >
-                        <ChevronUp className="size-4" />
-                      </button>
-                      <button
+                        <SelectTrigger className="w-[110px] shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="header">
+                            <span className="text-xs font-semibold uppercase">Header</span>
+                          </SelectItem>
+                          <SelectItem value="detail">
+                            <span className="text-xs lowercase">Detail</span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {/* Text input */}
+                      <Input
+                        value={line.text}
+                        onChange={(e) => updateKopLine(index, 'text', e.target.value)}
+                        placeholder={
+                          line.style === 'header'
+                            ? 'Contoh: DINAS PENDIDIKAN'
+                            : 'Contoh: Jl. Pendidikan No. 1, Jakarta'
+                        }
+                        className="flex-1"
+                      />
+
+                      {/* Bold toggle (mainly for header lines) */}
+                      <Button
                         type="button"
-                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
-                        onClick={() => moveKopLine(index, 'down')}
-                        disabled={index === settings.kopLines.length - 1}
-                        title="Pindah ke bawah"
+                        variant={line.bold ? 'default' : 'outline'}
+                        size="icon"
+                        className="size-9 shrink-0 font-bold"
+                        onClick={() => updateKopLine(index, 'bold', !line.bold)}
+                        title={line.bold ? 'Nonaktifkan tebal' : 'Aktifkan tebal'}
                       >
-                        <ChevronDown className="size-4" />
-                      </button>
+                        B
+                      </Button>
+
+                      {/* Delete button */}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-9 shrink-0 text-destructive hover:text-destructive"
+                        onClick={() => removeKopLine(index)}
+                        title="Hapus baris"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
                     </div>
 
-                    {/* Style selector */}
-                    <Select
-                      value={line.style}
-                      onValueChange={(value) => updateKopLine(index, 'style', value)}
-                    >
-                      <SelectTrigger className="w-[110px] shrink-0">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="header">
-                          <span className="text-xs font-semibold uppercase">Header</span>
-                        </SelectItem>
-                        <SelectItem value="detail">
-                          <span className="text-xs lowercase">Detail</span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {/* Row 2: font size + text transform per line */}
+                    <div className="flex flex-wrap items-center gap-3 pl-8 sm:pl-[52px]">
+                      <div className="flex items-center gap-1.5">
+                        <Label htmlFor={`fs-${index}`} className="text-xs text-muted-foreground whitespace-nowrap">
+                          Ukuran
+                        </Label>
+                        <Input
+                          id={`fs-${index}`}
+                          type="number"
+                          min={6}
+                          max={72}
+                          step={0.5}
+                          value={line.fontSize}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value)
+                            if (!isNaN(val)) {
+                              updateKopLine(index, 'fontSize', Math.min(72, Math.max(6, val)))
+                            }
+                          }}
+                          className="h-8 w-[72px]"
+                        />
+                        <span className="text-xs text-muted-foreground">pt</span>
+                      </div>
 
-                    {/* Text input */}
-                    <Input
-                      value={line.text}
-                      onChange={(e) => updateKopLine(index, 'text', e.target.value)}
-                      placeholder={
-                        line.style === 'header'
-                          ? 'Contoh: DINAS PENDIDIKAN'
-                          : 'Contoh: Jl. Pendidikan No. 1, Jakarta'
-                      }
-                      className="flex-1"
-                    />
-
-                    {/* Bold toggle (mainly for header lines) */}
-                    <Button
-                      type="button"
-                      variant={line.bold ? 'default' : 'outline'}
-                      size="icon"
-                      className="size-9 shrink-0 font-bold"
-                      onClick={() => updateKopLine(index, 'bold', !line.bold)}
-                      title={line.bold ? 'Nonaktifkan tebal' : 'Aktifkan tebal'}
-                    >
-                      B
-                    </Button>
-
-                    {/* Delete button */}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-9 shrink-0 text-destructive hover:text-destructive"
-                      onClick={() => removeKopLine(index)}
-                      title="Hapus baris"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs text-muted-foreground whitespace-nowrap">Kapitalisasi</Label>
+                        <Select
+                          value={line.textTransform}
+                          onValueChange={(value) => updateKopLine(index, 'textTransform', value)}
+                        >
+                          <SelectTrigger className="h-8 w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Normal</SelectItem>
+                            <SelectItem value="uppercase">KAPITAL SEMUA</SelectItem>
+                            <SelectItem value="capitalize">Title Case</SelectItem>
+                            <SelectItem value="lowercase">kecil semua</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -636,9 +709,9 @@ export function SettingsPage() {
 
           <Separator />
 
-          {/* Ukuran Huruf */}
+          {/* Ukuran Huruf Default */}
           <div className="space-y-2">
-            <Label htmlFor="fontSize">Ukuran Huruf Nama Sekolah (pt)</Label>
+            <Label htmlFor="fontSize">Ukuran Huruf Default Baris Header (pt)</Label>
             <Input
               id="fontSize"
               type="number"
@@ -652,50 +725,7 @@ export function SettingsPage() {
                 }
               }}
             />
-            <p className="text-xs text-muted-foreground">Rentang: 8 - 72 pt. Baris header otomatis menggunakan ukuran ini. Baris detail menggunakan ukuran yang lebih kecil.</p>
-          </div>
-
-          <Separator />
-
-          {/* Tebal (Bold) */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Tebal Nama Sekolah (Bold)</Label>
-              <p className="text-xs text-muted-foreground">Aktifkan teks tebal pada nama sekolah</p>
-            </div>
-            <Switch
-              checked={settings.isBold}
-              onCheckedChange={(checked) => updateSettings('isBold', checked)}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Kapitalisasi Huruf */}
-          <div className="space-y-3">
-            <Label>Kapitalisasi Huruf</Label>
-            <RadioGroup
-              value={settings.textTransform}
-              onValueChange={(value) => updateSettings('textTransform', value)}
-              className="grid gap-2 sm:grid-cols-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="none" id="transform-none" />
-                <Label htmlFor="transform-none" className="cursor-pointer font-normal">Normal</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="uppercase" id="transform-uppercase" />
-                <Label htmlFor="transform-uppercase" className="cursor-pointer font-normal">Huruf Kapital</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="capitalize" id="transform-capitalize" />
-                <Label htmlFor="transform-capitalize" className="cursor-pointer font-normal">Huruf Besar Per Kata</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="lowercase" id="transform-lowercase" />
-                <Label htmlFor="transform-lowercase" className="cursor-pointer font-normal">Huruf Kecil</Label>
-              </div>
-            </RadioGroup>
+            <p className="text-xs text-muted-foreground">Rentang: 8 - 72 pt. Digunakan sebagai default saat menambah baris Header baru. Baris detail default-nya 55% dari nilai ini. Ukuran tiap baris bisa diatur masing-masing pada editor baris di atas.</p>
           </div>
 
           <Separator />
@@ -794,18 +824,18 @@ export function SettingsPage() {
                   </div>
                 )}
 
-                {/* School Info - Centered */}
+                {/* KOP Lines - Centered */}
                 <div className="flex-1 text-center">
-                  {/* Header lines (above school name) */}
+                  {/* Header lines */}
                   {headerLines.filter(l => l.text.trim()).map((line, idx) => (
                     <p
                       key={`h-${idx}`}
                       className="text-black"
                       style={{
                         fontFamily: settings.fontFamily,
-                        fontSize: `${settings.fontSize}pt`,
+                        fontSize: `${line.fontSize}pt`,
                         fontWeight: line.bold ? 'bold' : 'normal',
-                        textTransform: getTextTransform(settings.textTransform),
+                        textTransform: getTextTransform(line.textTransform),
                         lineHeight: 1.3,
                         marginTop: idx === 0 ? 0 : '2px',
                       }}
@@ -814,22 +844,7 @@ export function SettingsPage() {
                     </p>
                   ))}
 
-                  {/* School Name (main) */}
-                  <h3
-                    className="text-black"
-                    style={{
-                      fontFamily: settings.fontFamily,
-                      fontSize: `${settings.fontSize}pt`,
-                      fontWeight: settings.isBold ? 'bold' : 'normal',
-                      textTransform: getTextTransform(settings.textTransform),
-                      lineHeight: 1.3,
-                      marginTop: headerLines.length > 0 ? '2px' : 0,
-                    }}
-                  >
-                    {settings.schoolName || 'Nama Sekolah'}
-                  </h3>
-
-                  {/* Detail lines (below school name) */}
+                  {/* Detail lines */}
                   {detailLines.filter(l => l.text.trim()).length > 0 ? (
                     detailLines.filter(l => l.text.trim()).map((line, idx) => (
                       <p
@@ -837,8 +852,9 @@ export function SettingsPage() {
                         className="text-black"
                         style={{
                           fontFamily: 'Arial, sans-serif',
-                          fontSize: `${Math.max(Math.round(settings.fontSize * 0.55), 7)}pt`,
+                          fontSize: `${line.fontSize}pt`,
                           fontWeight: line.bold ? 'bold' : 'normal',
+                          textTransform: getTextTransform(line.textTransform),
                           lineHeight: 1.4,
                           marginTop: idx === 0 ? '4px' : '1px',
                         }}
@@ -847,16 +863,18 @@ export function SettingsPage() {
                       </p>
                     ))
                   ) : (
-                    <p
-                      className="mt-2 text-gray-400 italic"
-                      style={{
-                        fontFamily: 'Arial, sans-serif',
-                        fontSize: `${Math.max(Math.round(settings.fontSize * 0.55), 7)}pt`,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      Baris detail akan tampil di sini
-                    </p>
+                    headerLines.filter(l => l.text.trim()).length === 0 && (
+                      <p
+                        className="mt-2 text-gray-400 italic"
+                        style={{
+                          fontFamily: 'Arial, sans-serif',
+                          fontSize: `${Math.max(Math.round(settings.fontSize * 0.55), 7)}pt`,
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        Tambahkan baris Header atau Detail untuk melihat pratinjau KOP
+                      </p>
+                    )
                   )}
                 </div>
 

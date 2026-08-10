@@ -46,45 +46,36 @@ export async function POST(request: NextRequest) {
     const existing = await db.schoolSettings.findFirst();
 
     // Ensure kopLines is a valid JSON string
-    // Support both old format (string[]) and new format ({text, style, bold}[])
+    // Each item normalized to: { text, style, bold, fontSize, textTransform }
+    const normalizeItem = (item: unknown) => {
+      if (typeof item === 'string') {
+        return { text: item, style: 'detail', bold: false, fontSize: 0, textTransform: '' }
+      }
+      if (typeof item === 'object' && item !== null) {
+        const obj = item as Record<string, unknown>
+        const transformRaw = typeof obj.textTransform === 'string' ? obj.textTransform : ''
+        const validTransform = ['none', 'uppercase', 'capitalize', 'lowercase'].includes(transformRaw) ? transformRaw : ''
+        const fontSizeNum = typeof obj.fontSize === 'number' ? obj.fontSize : parseFloat(String(obj.fontSize ?? '0'))
+        return {
+          text: String(obj.text ?? ''),
+          style: obj.style === 'header' ? 'header' : 'detail',
+          bold: Boolean(obj.bold ?? false),
+          fontSize: !isNaN(fontSizeNum) && fontSizeNum > 0 ? fontSizeNum : 0,
+          textTransform: validTransform,
+        }
+      }
+      return { text: '', style: 'detail', bold: false, fontSize: 0, textTransform: '' }
+    }
+
     let kopLines: string;
     if (Array.isArray(body.kopLines)) {
-      // Normalize: ensure each item is an object with text, style, bold
-      const normalized = body.kopLines.map((item: unknown) => {
-        if (typeof item === 'string') {
-          return { text: item, style: 'detail', bold: false };
-        }
-        if (typeof item === 'object' && item !== null) {
-          const obj = item as Record<string, unknown>;
-          return {
-            text: String(obj.text ?? ''),
-            style: obj.style === 'header' ? 'header' : 'detail',
-            bold: Boolean(obj.bold ?? false),
-          };
-        }
-        return { text: '', style: 'detail', bold: false };
-      });
-      kopLines = JSON.stringify(normalized);
+      kopLines = JSON.stringify(body.kopLines.map(normalizeItem));
     } else if (typeof body.kopLines === 'string') {
       // Try to parse and re-normalize
       try {
         const parsed = JSON.parse(body.kopLines);
         if (Array.isArray(parsed)) {
-          const normalized = parsed.map((item: unknown) => {
-            if (typeof item === 'string') {
-              return { text: item, style: 'detail', bold: false };
-            }
-            if (typeof item === 'object' && item !== null) {
-              const obj = item as Record<string, unknown>;
-              return {
-                text: String(obj.text ?? ''),
-                style: obj.style === 'header' ? 'header' : 'detail',
-                bold: Boolean(obj.bold ?? false),
-              };
-            }
-            return { text: '', style: 'detail', bold: false };
-          });
-          kopLines = JSON.stringify(normalized);
+          kopLines = JSON.stringify(parsed.map(normalizeItem));
         } else {
           kopLines = "[]";
         }
