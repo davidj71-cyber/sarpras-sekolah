@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Settings, Upload, Loader2, X, School, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { Settings, Upload, Loader2, X, School, Plus, Trash2, ChevronUp, ChevronDown, UserCheck } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -39,6 +39,11 @@ interface SchoolSettingsData {
   underlineThickness: number
   underlineWidth: number
   kopLines: KopLine[]
+  // Penandatangan laporan (sinkronisasi)
+  principalName: string
+  principalNip: string
+  treasurerName: string
+  treasurerNip: string
 }
 
 const defaultSettings: SchoolSettingsData = {
@@ -59,6 +64,10 @@ const defaultSettings: SchoolSettingsData = {
   underlineThickness: 1.0,
   underlineWidth: 100.0,
   kopLines: [],
+  principalName: '',
+  principalNip: '',
+  treasurerName: '',
+  treasurerNip: '',
 }
 
 const fontOptions = [
@@ -157,6 +166,10 @@ export function SettingsPage() {
           underlineThickness: data.underlineThickness ?? 1.0,
           underlineWidth: data.underlineWidth ?? 100.0,
           kopLines: parseKopLines(data.kopLines, globalFontSize, globalTransform),
+          principalName: data.principalName ?? '',
+          principalNip: data.principalNip ?? '',
+          treasurerName: data.treasurerName ?? '',
+          treasurerNip: data.treasurerNip ?? '',
         })
       } catch {
         toast({
@@ -409,6 +422,84 @@ export function SettingsPage() {
                 />
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 1.5: Penandatangan Laporan (Sinkronisasi) */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <UserCheck className="size-5" />
+            <CardTitle>Penandatangan Laporan</CardTitle>
+          </div>
+          <CardDescription>
+            Nama dan NIP di bawah akan disinkronisasi ke semua pos penandatangan pada hasil cetak laporan di seluruh fitur (Gedung, Ruang, KIB, Pesanan, Barang Masuk, dll).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Kepala Sekolah */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-semibold">Kepala Sekolah</h4>
+              <span className="text-xs text-muted-foreground">— Mengetahui / Menyetujui</span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="principalName">Nama Lengkap</Label>
+                <Input
+                  id="principalName"
+                  placeholder="Misal: Drs. Budi Santoso, M.M."
+                  value={settings.principalName}
+                  onChange={(e) => updateSettings('principalName', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="principalNip">NIP</Label>
+                <Input
+                  id="principalNip"
+                  placeholder="Misal: 19651210 198803 1 008"
+                  value={settings.principalNip}
+                  onChange={(e) => updateSettings('principalNip', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Bendahara Pengurus Barang */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-semibold">Bendahara Pengurus Barang</h4>
+              <span className="text-xs text-muted-foreground">— Pembuat / Pelaksana</span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="treasurerName">Nama Lengkap</Label>
+                <Input
+                  id="treasurerName"
+                  placeholder="Misal: Siti Aminah, S.Pd."
+                  value={settings.treasurerName}
+                  onChange={(e) => updateSettings('treasurerName', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="treasurerNip">NIP</Label>
+                <Input
+                  id="treasurerNip"
+                  placeholder="Misal: 19800315 200501 2 003"
+                  value={settings.treasurerNip}
+                  onChange={(e) => updateSettings('treasurerNip', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Info box */}
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+            <strong>Catatan sinkronisasi:</strong> Nama dan NIP yang diatur di sini akan otomatis
+            muncul di semua hasil cetak laporan. Pastikan data sudah benar sebelum mencetak.
           </div>
         </CardContent>
       </Card>

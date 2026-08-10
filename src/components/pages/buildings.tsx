@@ -345,7 +345,7 @@ export function BuildingsPage() {
         <strong>Total: ${filtered.length} gedung</strong>
       </div>`
 
-    await printWithKop('DAFTAR GEDUNG', contentHtml, 'landscape')
+    await printWithKop('DAFTAR GEDUNG', contentHtml, 'landscape', { appendSignature: true })
   }
 
   return (

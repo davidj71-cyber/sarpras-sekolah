@@ -60,7 +60,7 @@ import {
   Printer,
   X,
 } from 'lucide-react'
-import { printWithKop, formatDatePrint } from '@/lib/print-utils'
+import { printWithKop, formatDatePrint, fetchPrintSettings } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
@@ -369,7 +369,7 @@ export function BarangMasukPage() {
       </div>
     `
 
-    await printWithKop('DAFTAR BARANG MASUK', contentHtml, orientation)
+    await printWithKop('DAFTAR BARANG MASUK', contentHtml, orientation, { appendSignature: true })
   }
 
   async function handlePrintDetail(record: BarangMasukData, orientation: PrintOrientation = 'portrait') {
@@ -377,6 +377,30 @@ export function BarangMasukPage() {
       const res = await fetch(`/api/barang-masuk/${record.id}`)
       if (!res.ok) throw new Error('Gagal')
       const detail: BarangMasukData = await res.json()
+
+      const settings = await fetchPrintSettings()
+      const penerimaName = detail.employee?.name || 'Pegawai'
+      const penerimaNip = detail.employee?.nip || ''
+      const signatureHtml = `
+        <div class="signature-block">
+          <div style="display: flex; justify-content: space-between; margin-top: 24px;">
+            <div style="text-align: center; width: 45%;">
+              <div>Mengetahui,</div>
+              <div style="margin-top: 4px;">Kepala Sekolah</div>
+              <div style="height: 60px;"></div>
+              <div style="text-decoration: underline; font-weight: bold;">${settings.principalName || '________________________'}</div>
+              <div>NIP. ${settings.principalNip || '________________________'}</div>
+            </div>
+            <div style="text-align: center; width: 45%;">
+              <div>Penerima,</div>
+              <div style="margin-top: 4px;">${penerimaName}</div>
+              <div style="height: 60px;"></div>
+              <div style="text-decoration: underline; font-weight: bold;">________________________</div>
+              <div>NIP. ${penerimaNip}</div>
+            </div>
+          </div>
+        </div>
+      `
 
       const itemsHtml = (detail.items || []).map((item, idx) => `
         <tr>
@@ -422,22 +446,7 @@ export function BarangMasukPage() {
           <strong>Total:</strong> ${detail.items?.length || 0} jenis barang, ${totalQuantity} unit
         </div>
 
-        <div class="signature-block">
-          <div style="display: flex; justify-content: space-between; margin-top: 24px;">
-            <div style="text-align: center; width: 200px;">
-              <div>Mengetahui,</div>
-              <div style="margin-top: 4px;">Kepala Sekolah</div>
-              <div style="margin-top: 60px;">________________________</div>
-              <div>NIP.</div>
-            </div>
-            <div style="text-align: center; width: 200px;">
-              <div>Penerima,</div>
-              <div style="margin-top: 4px;">${detail.employee?.name || 'Pegawai'}</div>
-              <div style="margin-top: 60px;">________________________</div>
-              <div>NIP. ${detail.employee?.nip || ''}</div>
-            </div>
-          </div>
-        </div>
+        ${signatureHtml}
       `
 
       await printWithKop(`LAPORAN BARANG MASUK - ${detail.documentNumber}`, contentHtml, orientation)

@@ -27,6 +27,11 @@ interface PrintSettings {
   email: string | null
   npsn: string | null
   kopLines: string | KopLine[]
+  // Penandatangan laporan (disinkronisasi)
+  principalName: string
+  principalNip: string
+  treasurerName: string
+  treasurerNip: string
 }
 
 // ─── Parse kopLines from API response ─────────────────────────────────────────
@@ -66,7 +71,28 @@ export async function fetchPrintSettings(): Promise<PrintSettings> {
   try {
     const res = await fetch('/api/settings')
     if (!res.ok) throw new Error('Gagal')
-    return await res.json()
+    const data = await res.json()
+    return {
+      schoolName: data.schoolName ?? '',
+      logo: data.logo ?? null,
+      logoWidth: data.logoWidth ?? 3,
+      logoHeight: data.logoHeight ?? 3,
+      fontFamily: data.fontFamily ?? 'Times New Roman',
+      fontSize: data.fontSize ?? 14,
+      isBold: data.isBold ?? false,
+      textTransform: data.textTransform ?? 'none',
+      underlineThickness: data.underlineThickness ?? 1,
+      underlineWidth: data.underlineWidth ?? 100,
+      address: data.address ?? null,
+      phone: data.phone ?? null,
+      email: data.email ?? null,
+      npsn: data.npsn ?? null,
+      kopLines: data.kopLines ?? [],
+      principalName: data.principalName ?? '',
+      principalNip: data.principalNip ?? '',
+      treasurerName: data.treasurerName ?? '',
+      treasurerNip: data.treasurerNip ?? '',
+    }
   } catch {
     return {
       schoolName: '',
@@ -84,6 +110,10 @@ export async function fetchPrintSettings(): Promise<PrintSettings> {
       email: null,
       npsn: null,
       kopLines: [],
+      principalName: '',
+      principalNip: '',
+      treasurerName: '',
+      treasurerNip: '',
     }
   }
 }
@@ -155,6 +185,80 @@ export function buildKopHtml(settings: PrintSettings): string {
       ${settings.logo ? `<div style="width: ${logoWidthPx}px; flex-shrink: 0;"></div>` : ''}
     </div>
     <div style="border-bottom: ${settings.underlineThickness}px solid black; width: ${settings.underlineWidth}%; margin: 6px auto 0;"></div>
+  `
+}
+
+// ─── Build synced signature block ────────────────────────────────────────────
+// Renders a 2-column signature block (Kepala Sekolah | Bendahara Pengurus Barang)
+// using data from SchoolSettings so it stays synchronized across all reports.
+
+export interface SignatureBlockOptions {
+  /** Label for left column header (default: "Mengetahui,") */
+  leftIntro?: string
+  /** Position title for left column (default: "Kepala Sekolah") */
+  leftTitle?: string
+  /** Position title for right column (default: "Bendahara Pengurus Barang") */
+  rightTitle?: string
+  /** Override city for right column date line (default: derived from settings.address) */
+  city?: string
+  /** Override date string for right column (default: today's date in id-ID) */
+  dateStr?: string
+  /** Show only one column (e.g. for letters that already have issuer signature) */
+  singleColumn?: 'left' | 'right' | null
+}
+
+export function buildSyncedSignatureBlock(
+  settings: PrintSettings,
+  options: SignatureBlockOptions = {}
+): string {
+  const {
+    leftIntro = 'Mengetahui,',
+    leftTitle = 'Kepala Sekolah',
+    rightTitle = 'Bendahara Pengurus Barang',
+    city,
+    dateStr,
+    singleColumn = null,
+  } = options
+
+  // Derive city from address (last comma-separated chunk) or fallback
+  const derivedCity = city || (settings.address
+    ? (settings.address.split(',').pop()?.trim() || '_____________')
+    : '_____________')
+  const derivedDate = dateStr || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  const principalNameDisplay = settings.principalName || '________________________'
+  const principalNipDisplay = settings.principalNip ? `NIP. ${settings.principalNip}` : 'NIP. ________________________'
+  const treasurerNameDisplay = settings.treasurerName || '________________________'
+  const treasurerNipDisplay = settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : 'NIP. ________________________'
+
+  const renderColumn = (intro: string, title: string, name: string, nip: string) => `
+    <div style="text-align:center; width: 45%;">
+      <div>${intro}</div>
+      <div style="margin-top: 2px;">${title}</div>
+      <div style="height: 60px;"></div>
+      <div style="text-decoration: underline; font-weight: bold;">${name}</div>
+      <div>${nip}</div>
+    </div>
+  `
+
+  let inner: string
+  if (singleColumn === 'left') {
+    inner = `<div style="display:flex; justify-content:flex-start;">${renderColumn(leftIntro, leftTitle, principalNameDisplay, principalNipDisplay)}</div>`
+  } else if (singleColumn === 'right') {
+    inner = `<div style="display:flex; justify-content:flex-end;">${renderColumn(`${derivedCity}, ${derivedDate}`, rightTitle, treasurerNameDisplay, treasurerNipDisplay)}</div>`
+  } else {
+    inner = `
+      <div style="display:flex; justify-content:space-between; margin-top: 24px;">
+        ${renderColumn(leftIntro, leftTitle, principalNameDisplay, principalNipDisplay)}
+        ${renderColumn(`${derivedCity}, ${derivedDate}`, rightTitle, treasurerNameDisplay, treasurerNipDisplay)}
+      </div>
+    `
+  }
+
+  return `
+    <div class="signature-block">
+      ${inner}
+    </div>
   `
 }
 
@@ -356,14 +460,29 @@ export function openPrintWindow(title: string, bodyHtml: string, orientation: Pr
 
 // ─── Build complete print document with KOP ───────────────────────────────────
 
-export async function printWithKop(title: string, contentHtml: string, orientation: PrintOrientation = 'portrait'): Promise<void> {
+export interface PrintWithKopOptions {
+  /** Auto-append synced signature block (Kepala Sekolah + Bendahara) before footer */
+  appendSignature?: boolean
+  /** Options forwarded to buildSyncedSignatureBlock when appendSignature is true */
+  signatureOptions?: SignatureBlockOptions
+}
+
+export async function printWithKop(
+  title: string,
+  contentHtml: string,
+  orientation: PrintOrientation = 'portrait',
+  options: PrintWithKopOptions = {}
+): Promise<void> {
+  const { appendSignature = false, signatureOptions } = options
   const settings = await fetchPrintSettings()
   const kopHtml = buildKopHtml(settings)
+  const signatureHtml = appendSignature ? buildSyncedSignatureBlock(settings, signatureOptions) : ''
 
   const bodyHtml = `
     ${kopHtml}
     <div class="title">${title}</div>
     ${contentHtml}
+    ${signatureHtml}
     <div class="footer-info">
       Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
     </div>

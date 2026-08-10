@@ -226,7 +226,7 @@ export function StoresPage() {
         <strong>Total: ${filteredStores.length} toko/supplier</strong>
       </div>`
 
-    await printWithKop('DAFTAR TOKO DAN SUPPLIER', contentHtml, orientation)
+    await printWithKop('DAFTAR TOKO DAN SUPPLIER', contentHtml, orientation, { appendSignature: true })
   }
 
   return (

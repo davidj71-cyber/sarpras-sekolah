@@ -850,7 +850,7 @@ export function OrdersPage() {
           </tr>
           <tr>
             <td style="border: none; padding: 0;"></td>
-            <td style="border: none; padding: 0 0 0 6px;">Bendahara ${settings.schoolName || 'Sekolah'}</td>
+            <td style="border: none; padding: 0 0 0 6px;">Bendahara Pengurus Barang</td>
           </tr>
           <tr>
             <td style="border: none; padding: 0;"></td>
@@ -858,11 +858,11 @@ export function OrdersPage() {
           </tr>
           <tr>
             <td style="border: none; padding: 0;"></td>
-            <td style="border: none; padding: 0 0 0 6px; text-decoration: underline; font-weight: bold;">${employee?.name || '____________________'}</td>
+            <td style="border: none; padding: 0 0 0 6px; text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</td>
           </tr>
           <tr>
             <td style="border: none; padding: 0;"></td>
-            <td style="border: none; padding: 0 0 0 6px;">${employee?.nip ? `NIP. ${employee.nip}` : '&nbsp;'}</td>
+            <td style="border: none; padding: 0 0 0 6px;">${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</td>
           </tr>
         </table>
       </div>

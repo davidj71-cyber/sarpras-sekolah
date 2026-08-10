@@ -26,6 +26,11 @@ model SchoolSettings {
   schoolCode        String  @default("") // Kode sekolah untuk format nomor surat (misal: SMAN1TLD)
   letterUnitCode    String  @default("TU") // Kode unit untuk format nomor surat (misal: TU = Tata Usaha)
   kopLines          String  @default("[]") // JSON array of strings for KOP identity lines
+  // Penandatangan laporan (disinkronisasi ke semua hasil cetak)
+  principalName     String  @default("") // Nama Kepala Sekolah
+  principalNip      String  @default("") // NIP Kepala Sekolah
+  treasurerName     String  @default("") // Nama Bendahara Pengurus Barang
+  treasurerNip      String  @default("") // NIP Bendahara Pengurus Barang
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

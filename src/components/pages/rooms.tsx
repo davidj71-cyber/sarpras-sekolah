@@ -480,7 +480,7 @@ export function RoomsPage() {
       </table>
     `
 
-    await printWithKop('DAFTAR RUANGAN', contentHtml, orientation)
+    await printWithKop('DAFTAR RUANGAN', contentHtml, orientation, { appendSignature: true })
   }
 
   // ─── Print Room Detail ──────────────────────────────────────────────────
@@ -607,28 +607,9 @@ export function RoomsPage() {
             ${tableRows || '<tr><td colspan="10" class="text-center">Tidak ada barang</td></tr>'}
           </tbody>
         </table>
-
-        <div class="signature-block">
-          <div style="display:flex;justify-content:space-between;">
-            <div style="text-align:center;">
-              <p>Mengetahui,</p>
-              <p>Kepala Sekolah</p>
-              <br/><br/><br/><br/>
-              <p style="text-decoration:underline;font-weight:bold;">________________________</p>
-              <p>NIP. ________________________</p>
-            </div>
-            <div style="text-align:center;">
-              <p>........................, 20.....</p>
-              <p>Pengelola Barang</p>
-              <br/><br/><br/><br/>
-              <p style="text-decoration:underline;font-weight:bold;">________________________</p>
-              <p>NIP. ________________________</p>
-            </div>
-          </div>
-        </div>
       `
 
-      await printWithKop(`INVENTARIS RUANG ${currentRoom.name.toUpperCase()}`, contentHtml, orientation)
+      await printWithKop(`INVENTARIS RUANG ${currentRoom.name.toUpperCase()}`, contentHtml, orientation, { appendSignature: true })
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak data ruangan', variant: 'destructive' })
     }

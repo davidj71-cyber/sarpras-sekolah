@@ -1103,7 +1103,7 @@ export function KibPage() {
       </table>
     `
 
-    await printWithKop(title, contentHtml, orientation)
+    await printWithKop(title, contentHtml, orientation, { appendSignature: true })
   }
 
   return (

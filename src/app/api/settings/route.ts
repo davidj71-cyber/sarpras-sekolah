@@ -19,6 +19,10 @@ const defaultSettings = {
   schoolCode: "",
   letterUnitCode: "TU",
   kopLines: "[]",
+  principalName: "",
+  principalNip: "",
+  treasurerName: "",
+  treasurerNip: "",
 };
 
 export async function GET() {
@@ -109,6 +113,10 @@ export async function POST(request: NextRequest) {
           schoolCode: body.schoolCode,
           letterUnitCode: body.letterUnitCode,
           kopLines,
+          principalName: body.principalName ?? "",
+          principalNip: body.principalNip ?? "",
+          treasurerName: body.treasurerName ?? "",
+          treasurerNip: body.treasurerNip ?? "",
         },
       });
     } else {
@@ -131,6 +139,10 @@ export async function POST(request: NextRequest) {
           schoolCode: body.schoolCode ?? "",
           letterUnitCode: body.letterUnitCode ?? "TU",
           kopLines,
+          principalName: body.principalName ?? "",
+          principalNip: body.principalNip ?? "",
+          treasurerName: body.treasurerName ?? "",
+          treasurerNip: body.treasurerNip ?? "",
         },
       });
     }

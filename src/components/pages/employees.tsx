@@ -224,7 +224,7 @@ export function EmployeesPage() {
       </div>
     `
 
-    await printWithKop('DAFTAR PEGAWAI', contentHtml, orientation)
+    await printWithKop('DAFTAR PEGAWAI', contentHtml, orientation, { appendSignature: true })
   }
 
   return (
