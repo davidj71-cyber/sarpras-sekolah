@@ -94,6 +94,19 @@ interface BuildingData {
   acquisitionYear: number | null
   acquisitionPrice: number
   sumberDana: string
+  // ── Dimensi fisik ──
+  length: number
+  width: number
+  height: number
+  area: number
+  volume: number
+  landArea: number
+  // ── Metadata aset ──
+  registrationNumber: string
+  documentNumber: string
+  responsiblePerson: string
+  usefulLife: number | null
+  notes: string
   createdAt: string
   rooms: BuildingRoomCount[]
   _count: { rooms: number }
@@ -108,6 +121,17 @@ interface FormData {
   acquisitionYear: number | string
   acquisitionPrice: number | string
   sumberDana: string
+  length: number | string
+  width: number | string
+  height: number | string
+  area: number | string
+  volume: number | string
+  landArea: number | string
+  registrationNumber: string
+  documentNumber: string
+  responsiblePerson: string
+  usefulLife: number | string
+  notes: string
 }
 
 const emptyForm: FormData = {
@@ -119,6 +143,17 @@ const emptyForm: FormData = {
   acquisitionYear: '',
   acquisitionPrice: 0,
   sumberDana: '',
+  length: 0,
+  width: 0,
+  height: 0,
+  area: 0,
+  volume: 0,
+  landArea: 0,
+  registrationNumber: '',
+  documentNumber: '',
+  responsiblePerson: '',
+  usefulLife: '',
+  notes: '',
 }
 
 export function BuildingsPage() {
@@ -170,6 +205,17 @@ export function BuildingsPage() {
       acquisitionYear: b.acquisitionYear ?? '',
       acquisitionPrice: b.acquisitionPrice ?? 0,
       sumberDana: b.sumberDana || '',
+      length: b.length ?? 0,
+      width: b.width ?? 0,
+      height: b.height ?? 0,
+      area: b.area ?? 0,
+      volume: b.volume ?? 0,
+      landArea: b.landArea ?? 0,
+      registrationNumber: b.registrationNumber || '',
+      documentNumber: b.documentNumber || '',
+      responsiblePerson: b.responsiblePerson || '',
+      usefulLife: b.usefulLife ?? '',
+      notes: b.notes || '',
     })
     setDialogOpen(true)
   }
@@ -190,6 +236,17 @@ export function BuildingsPage() {
         acquisitionYear: formData.acquisitionYear ? Number(formData.acquisitionYear) : null,
         acquisitionPrice: Number(formData.acquisitionPrice) || 0,
         sumberDana: formData.sumberDana,
+        length: Number(formData.length) || 0,
+        width: Number(formData.width) || 0,
+        height: Number(formData.height) || 0,
+        area: Number(formData.area) || 0,
+        volume: Number(formData.volume) || 0,
+        landArea: Number(formData.landArea) || 0,
+        registrationNumber: formData.registrationNumber,
+        documentNumber: formData.documentNumber,
+        responsiblePerson: formData.responsiblePerson,
+        usefulLife: formData.usefulLife ? Number(formData.usefulLife) : null,
+        notes: formData.notes,
       }
       const url = editing ? `/api/inventory/buildings/${editing.id}` : '/api/inventory/buildings'
       const method = editing ? 'PUT' : 'POST'
@@ -232,7 +289,7 @@ export function BuildingsPage() {
     return b.name.toLowerCase().includes(q) || b.code.toLowerCase().includes(q)
   })
 
-  async function handlePrint(orientation: PrintOrientation = 'portrait') {
+  async function handlePrint(_orientation: PrintOrientation = 'portrait') {
     if (filtered.length === 0) {
       toast({ title: 'Info', description: 'Tidak ada data gedung untuk dicetak' })
       return
@@ -248,8 +305,13 @@ export function BuildingsPage() {
           <td class="text-center">${b.floors}</td>
           <td class="text-center">${b._count?.rooms ?? 0}</td>
           <td class="text-center">${b.condition || '-'}</td>
+          <td class="text-center">${b.length || 0} × ${b.width || 0} × ${b.height || 0} m</td>
+          <td class="text-center">${b.area ? b.area + ' m²' : '-'}</td>
+          <td class="text-center">${b.landArea ? b.landArea + ' m²' : '-'}</td>
           <td class="text-center">${b.acquisitionYear || '-'}</td>
           <td class="text-right">${b.acquisitionPrice ? formatRupiahPrint(b.acquisitionPrice) : '-'}</td>
+          <td>${b.registrationNumber || '-'}</td>
+          <td>${b.responsiblePerson || '-'}</td>
           <td>${b.description || '-'}</td>
         </tr>`
       )
@@ -262,11 +324,16 @@ export function BuildingsPage() {
             <th>No</th>
             <th>Nama Gedung</th>
             <th>Kode</th>
-            <th>Jml Lantai</th>
-            <th>Jml Ruang</th>
+            <th>Lantai</th>
+            <th>Ruang</th>
             <th>Keadaan</th>
+            <th>P × L × T (m)</th>
+            <th>Luas Bangunan</th>
+            <th>Luas Tanah</th>
             <th>Tahun</th>
-            <th>Nilai</th>
+            <th>Nilai Aset</th>
+            <th>No. Registrasi</th>
+            <th>Penanggung Jawab</th>
             <th>Deskripsi</th>
           </tr>
         </thead>
@@ -278,7 +345,7 @@ export function BuildingsPage() {
         <strong>Total: ${filtered.length} gedung</strong>
       </div>`
 
-    await printWithKop('DAFTAR GEDUNG', contentHtml, orientation)
+    await printWithKop('DAFTAR GEDUNG', contentHtml, 'landscape')
   }
 
   return (
@@ -338,6 +405,8 @@ export function BuildingsPage() {
                     <TableHead className="text-center">Lantai</TableHead>
                     <TableHead className="text-center">Jml Ruang</TableHead>
                     <TableHead className="text-center">Keadaan</TableHead>
+                    <TableHead className="text-center">Luas Bangunan</TableHead>
+                    <TableHead className="text-center">Luas Tanah</TableHead>
                     <TableHead className="text-right">Nilai Aset</TableHead>
                     <TableHead className="max-w-[200px]">Deskripsi</TableHead>
                     <TableHead className="w-[100px]">Aksi</TableHead>
@@ -353,6 +422,13 @@ export function BuildingsPage() {
                       <TableCell className="text-center">{b._count?.rooms ?? 0}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant={conditionBadge[b.condition] || 'secondary'} className="text-xs">{b.condition || 'Baik'}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center text-xs whitespace-nowrap">
+                        {b.area ? `${b.area} m²` : '-'}
+                        {b.length || b.width ? <div className="text-[10px] text-muted-foreground">{b.length || 0}×{b.width || 0} m</div> : null}
+                      </TableCell>
+                      <TableCell className="text-center text-xs whitespace-nowrap">
+                        {b.landArea ? `${b.landArea} m²` : '-'}
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
                         {b.acquisitionPrice ? <span className="text-xs">{formatRupiah(b.acquisitionPrice)}</span> : '-'}
@@ -436,6 +512,62 @@ export function BuildingsPage() {
                 onChange={(val) => setFormData({ ...formData, sumberDana: val })}
                 placeholder="Pilih sumber dana"
               />
+            </div>
+
+            {/* Section: Dimensi Fisik */}
+            <div className="sm:col-span-2 mt-2">
+              <p className="text-sm font-semibold text-foreground">Dimensi Fisik</p>
+              <p className="text-xs text-muted-foreground">Ukuran fisik gedung (meter) dan luas (m²)</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-length">Panjang (m)</Label>
+              <Input id="building-length" type="number" min={0} step="any" value={formData.length} onChange={(e) => setFormData({ ...formData, length: e.target.value })} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-width">Lebar (m)</Label>
+              <Input id="building-width" type="number" min={0} step="any" value={formData.width} onChange={(e) => setFormData({ ...formData, width: e.target.value })} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-height">Tinggi (m)</Label>
+              <Input id="building-height" type="number" min={0} step="any" value={formData.height} onChange={(e) => setFormData({ ...formData, height: e.target.value })} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-area">Luas Bangunan (m²)</Label>
+              <Input id="building-area" type="number" min={0} step="any" value={formData.area} onChange={(e) => setFormData({ ...formData, area: e.target.value })} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-volume">Volume (m³)</Label>
+              <Input id="building-volume" type="number" min={0} step="any" value={formData.volume} onChange={(e) => setFormData({ ...formData, volume: e.target.value })} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-land">Luas Tanah (m²)</Label>
+              <Input id="building-land" type="number" min={0} step="any" value={formData.landArea} onChange={(e) => setFormData({ ...formData, landArea: e.target.value })} placeholder="0" />
+            </div>
+
+            {/* Section: Metadata Aset */}
+            <div className="sm:col-span-2 mt-2">
+              <p className="text-sm font-semibold text-foreground">Metadata Aset</p>
+              <p className="text-xs text-muted-foreground">Informasi administratif & dokumentasi aset</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-reg">No. Registrasi / Kode Aset</Label>
+              <Input id="building-reg" value={formData.registrationNumber} onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })} placeholder="Misal: BMD-001/GED-A" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-doc">No. Dokumen Perolehan</Label>
+              <Input id="building-doc" value={formData.documentNumber} onChange={(e) => setFormData({ ...formData, documentNumber: e.target.value })} placeholder="Misal: No. Kontrak/STN" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-pj">Penanggung Jawab</Label>
+              <Input id="building-pj" value={formData.responsiblePerson} onChange={(e) => setFormData({ ...formData, responsiblePerson: e.target.value })} placeholder="Nama penanggung jawab aset" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-life">Masa Manfaat (tahun)</Label>
+              <Input id="building-life" type="number" min={0} step={1} value={formData.usefulLife} onChange={(e) => setFormData({ ...formData, usefulLife: e.target.value })} placeholder="Misal: 50" />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="building-notes">Catatan</Label>
+              <Textarea id="building-notes" value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Catatan tambahan (opsional)" rows={2} />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="building-desc">Deskripsi</Label>

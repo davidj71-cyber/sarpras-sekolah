@@ -53,6 +53,19 @@ export async function PUT(
         acquisitionYear: body.acquisitionYear ? Number(body.acquisitionYear) : null,
         acquisitionPrice: body.acquisitionPrice ? Number(body.acquisitionPrice) : 0,
         sumberDana: body.sumberDana ?? "",
+        // Dimensi fisik
+        length: Number(body.length ?? 0),
+        width: Number(body.width ?? 0),
+        height: Number(body.height ?? 0),
+        area: Number(body.area ?? 0),
+        volume: Number(body.volume ?? 0),
+        capacity: Number(body.capacity ?? 0),
+        // Metadata aset
+        registrationNumber: body.registrationNumber ?? "",
+        documentNumber: body.documentNumber ?? "",
+        responsiblePerson: body.responsiblePerson ?? "",
+        usefulLife: body.usefulLife ? Number(body.usefulLife) : null,
+        notes: body.notes ?? "",
       },
       include: { building: true },
     });

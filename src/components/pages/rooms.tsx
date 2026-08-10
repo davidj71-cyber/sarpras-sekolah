@@ -88,6 +88,16 @@ interface BilikData {
   acquisitionYear: number | null
   acquisitionPrice: number
   sumberDana: string
+  length: number
+  width: number
+  height: number
+  area: number
+  volume: number
+  registrationNumber: string
+  documentNumber: string
+  responsiblePerson: string
+  usefulLife: number | null
+  notes: string
   items?: InventoryItemData[]
 }
 
@@ -103,6 +113,16 @@ interface CabinetData {
   acquisitionYear: number | null
   acquisitionPrice: number
   sumberDana: string
+  length: number
+  width: number
+  height: number
+  area: number
+  volume: number
+  registrationNumber: string
+  documentNumber: string
+  responsiblePerson: string
+  usefulLife: number | null
+  notes: string
   items?: InventoryItemData[]
 }
 
@@ -127,6 +147,17 @@ interface RoomData {
   acquisitionYear: number | null
   acquisitionPrice: number
   sumberDana: string
+  length: number
+  width: number
+  height: number
+  area: number
+  volume: number
+  capacity: number
+  registrationNumber: string
+  documentNumber: string
+  responsiblePerson: string
+  usefulLife: number | null
+  notes: string
   createdAt: string
 }
 
@@ -183,6 +214,17 @@ export function RoomsPage() {
     acquisitionYear: '' as number | string,
     acquisitionPrice: 0 as number | string,
     sumberDana: '',
+    length: 0 as number | string,
+    width: 0 as number | string,
+    height: 0 as number | string,
+    area: 0 as number | string,
+    volume: 0 as number | string,
+    capacity: 0 as number | string,
+    registrationNumber: '',
+    documentNumber: '',
+    responsiblePerson: '',
+    usefulLife: '' as number | string,
+    notes: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -197,6 +239,16 @@ export function RoomsPage() {
     acquisitionYear: '' as number | string,
     acquisitionPrice: 0 as number | string,
     sumberDana: '',
+    length: 0 as number | string,
+    width: 0 as number | string,
+    height: 0 as number | string,
+    area: 0 as number | string,
+    volume: 0 as number | string,
+    registrationNumber: '',
+    documentNumber: '',
+    responsiblePerson: '',
+    usefulLife: '' as number | string,
+    notes: '',
   })
 
   // Lemari/Cabinet dialog (UI shows "Lemari", API uses "cabinet")
@@ -210,6 +262,16 @@ export function RoomsPage() {
     acquisitionYear: '' as number | string,
     acquisitionPrice: 0 as number | string,
     sumberDana: '',
+    length: 0 as number | string,
+    width: 0 as number | string,
+    height: 0 as number | string,
+    area: 0 as number | string,
+    volume: 0 as number | string,
+    registrationNumber: '',
+    documentNumber: '',
+    responsiblePerson: '',
+    usefulLife: '' as number | string,
+    notes: '',
   })
 
   // Buildings (Gedung) list for room form dropdown
@@ -376,6 +438,8 @@ export function RoomsPage() {
         <td class="text-center">${room.condition || '-'}</td>
         <td class="text-center">${room.acquisitionYear || '-'}</td>
         <td class="text-right">${room.acquisitionPrice ? formatRupiahPrint(room.acquisitionPrice) : '-'}</td>
+        <td class="text-center">${room.area ? room.area : '-'}</td>
+        <td class="text-center">${room.capacity ? room.capacity : '-'}</td>
         <td class="text-center">${bilikCount}</td>
         <td class="text-center">${lemariCount}</td>
         <td class="text-center">${itemCount}</td>
@@ -397,6 +461,8 @@ export function RoomsPage() {
             <th>Keadaan</th>
             <th>Tahun</th>
             <th>Nilai Aset</th>
+            <th>Luas (m²)</th>
+            <th>Kapasitas</th>
             <th>Jumlah Bilik</th>
             <th>Jumlah Lemari</th>
             <th>Jumlah Barang</th>
@@ -405,7 +471,7 @@ export function RoomsPage() {
         <tbody>
           ${tableRows}
           <tr>
-            <td colspan="7" class="font-bold text-right">Total</td>
+            <td colspan="9" class="font-bold text-right">Total</td>
             <td class="text-center font-bold">${totalBilikPrint}</td>
             <td class="text-center font-bold">${totalLemariPrint}</td>
             <td class="text-center font-bold">${totalItemsPrint}</td>
@@ -502,6 +568,14 @@ export function RoomsPage() {
           <tr><td class="font-bold">Tahun Perolehan</td><td>: ${currentRoom.acquisitionYear || '-'}</td></tr>
           <tr><td class="font-bold">Nilai Perolehan</td><td>: ${currentRoom.acquisitionPrice ? formatRupiahPrint(currentRoom.acquisitionPrice) : '-'}</td></tr>
           <tr><td class="font-bold">Sumber Dana</td><td>: ${currentRoom.sumberDana || '-'}</td></tr>
+          <tr><td class="font-bold">Panjang × Lebar × Tinggi</td><td>: ${currentRoom.length || currentRoom.width || currentRoom.height ? `${currentRoom.length || '-'} × ${currentRoom.width || '-'} × ${currentRoom.height || '-'} m` : '-'}</td></tr>
+          <tr><td class="font-bold">Luas</td><td>: ${currentRoom.area ? `${currentRoom.area} m²` : '-'}</td></tr>
+          <tr><td class="font-bold">Volume</td><td>: ${currentRoom.volume ? `${currentRoom.volume} m³` : '-'}</td></tr>
+          <tr><td class="font-bold">Kapasitas</td><td>: ${currentRoom.capacity ? `${currentRoom.capacity} orang` : '-'}</td></tr>
+          <tr><td class="font-bold">No. Registrasi</td><td>: ${currentRoom.registrationNumber || '-'}</td></tr>
+          <tr><td class="font-bold">Penanggung Jawab</td><td>: ${currentRoom.responsiblePerson || '-'}</td></tr>
+          <tr><td class="font-bold">Masa Manfaat</td><td>: ${currentRoom.usefulLife ? `${currentRoom.usefulLife} tahun` : '-'}</td></tr>
+          <tr><td class="font-bold">Catatan</td><td>: ${currentRoom.notes || '-'}</td></tr>
           ${currentRoom.description ? `<tr><td class="font-bold">Deskripsi</td><td>: ${currentRoom.description}</td></tr>` : ''}
         </table>
 
@@ -573,6 +647,17 @@ export function RoomsPage() {
       acquisitionYear: '',
       acquisitionPrice: 0,
       sumberDana: '',
+      length: 0,
+      width: 0,
+      height: 0,
+      area: 0,
+      volume: 0,
+      capacity: 0,
+      registrationNumber: '',
+      documentNumber: '',
+      responsiblePerson: '',
+      usefulLife: '',
+      notes: '',
     })
     fetchBuildings()
     setRoomDialogOpen(true)
@@ -589,6 +674,17 @@ export function RoomsPage() {
       acquisitionYear: room.acquisitionYear ?? '',
       acquisitionPrice: room.acquisitionPrice ?? 0,
       sumberDana: room.sumberDana || '',
+      length: room.length ?? 0,
+      width: room.width ?? 0,
+      height: room.height ?? 0,
+      area: room.area ?? 0,
+      volume: room.volume ?? 0,
+      capacity: room.capacity ?? 0,
+      registrationNumber: room.registrationNumber || '',
+      documentNumber: room.documentNumber || '',
+      responsiblePerson: room.responsiblePerson || '',
+      usefulLife: room.usefulLife ?? '',
+      notes: room.notes || '',
     })
     fetchBuildings()
     setRoomDialogOpen(true)
@@ -610,6 +706,17 @@ export function RoomsPage() {
         acquisitionYear: roomForm.acquisitionYear ? Number(roomForm.acquisitionYear) : null,
         acquisitionPrice: Number(roomForm.acquisitionPrice) || 0,
         sumberDana: roomForm.sumberDana,
+        length: Number(roomForm.length) || 0,
+        width: Number(roomForm.width) || 0,
+        height: Number(roomForm.height) || 0,
+        area: Number(roomForm.area) || 0,
+        volume: Number(roomForm.volume) || 0,
+        capacity: Number(roomForm.capacity) || 0,
+        registrationNumber: roomForm.registrationNumber,
+        documentNumber: roomForm.documentNumber,
+        responsiblePerson: roomForm.responsiblePerson,
+        usefulLife: roomForm.usefulLife ? Number(roomForm.usefulLife) : null,
+        notes: roomForm.notes,
       }
       const url = editingRoom ? `/api/inventory/rooms/${editingRoom.id}` : '/api/inventory/rooms'
       const method = editingRoom ? 'PUT' : 'POST'
@@ -637,6 +744,16 @@ export function RoomsPage() {
       acquisitionYear: '',
       acquisitionPrice: 0,
       sumberDana: '',
+      length: 0,
+      width: 0,
+      height: 0,
+      area: 0,
+      volume: 0,
+      registrationNumber: '',
+      documentNumber: '',
+      responsiblePerson: '',
+      usefulLife: '',
+      notes: '',
     })
     setBilikDialogOpen(true)
   }
@@ -651,6 +768,16 @@ export function RoomsPage() {
       acquisitionYear: bilik.acquisitionYear ?? '',
       acquisitionPrice: bilik.acquisitionPrice ?? 0,
       sumberDana: bilik.sumberDana || '',
+      length: bilik.length ?? 0,
+      width: bilik.width ?? 0,
+      height: bilik.height ?? 0,
+      area: bilik.area ?? 0,
+      volume: bilik.volume ?? 0,
+      registrationNumber: bilik.registrationNumber || '',
+      documentNumber: bilik.documentNumber || '',
+      responsiblePerson: bilik.responsiblePerson || '',
+      usefulLife: bilik.usefulLife ?? '',
+      notes: bilik.notes || '',
     })
     setBilikDialogOpen(true)
   }
@@ -667,6 +794,16 @@ export function RoomsPage() {
         acquisitionYear: bilikForm.acquisitionYear ? Number(bilikForm.acquisitionYear) : null,
         acquisitionPrice: Number(bilikForm.acquisitionPrice) || 0,
         sumberDana: bilikForm.sumberDana,
+        length: Number(bilikForm.length) || 0,
+        width: Number(bilikForm.width) || 0,
+        height: Number(bilikForm.height) || 0,
+        area: Number(bilikForm.area) || 0,
+        volume: Number(bilikForm.volume) || 0,
+        registrationNumber: bilikForm.registrationNumber,
+        documentNumber: bilikForm.documentNumber,
+        responsiblePerson: bilikForm.responsiblePerson,
+        usefulLife: bilikForm.usefulLife ? Number(bilikForm.usefulLife) : null,
+        notes: bilikForm.notes,
         roomId: selectedRoomId,
       }
       const url = editingBilik ? `/api/inventory/biliks/${editingBilik.id}` : '/api/inventory/biliks'
@@ -702,6 +839,16 @@ export function RoomsPage() {
       acquisitionYear: '',
       acquisitionPrice: 0,
       sumberDana: '',
+      length: 0,
+      width: 0,
+      height: 0,
+      area: 0,
+      volume: 0,
+      registrationNumber: '',
+      documentNumber: '',
+      responsiblePerson: '',
+      usefulLife: '',
+      notes: '',
     })
     setLemariDialogOpen(true)
   }
@@ -716,6 +863,16 @@ export function RoomsPage() {
       acquisitionYear: cab.acquisitionYear ?? '',
       acquisitionPrice: cab.acquisitionPrice ?? 0,
       sumberDana: cab.sumberDana || '',
+      length: cab.length ?? 0,
+      width: cab.width ?? 0,
+      height: cab.height ?? 0,
+      area: cab.area ?? 0,
+      volume: cab.volume ?? 0,
+      registrationNumber: cab.registrationNumber || '',
+      documentNumber: cab.documentNumber || '',
+      responsiblePerson: cab.responsiblePerson || '',
+      usefulLife: cab.usefulLife ?? '',
+      notes: cab.notes || '',
     })
     setLemariDialogOpen(true)
   }
@@ -732,6 +889,16 @@ export function RoomsPage() {
         acquisitionYear: lemariForm.acquisitionYear ? Number(lemariForm.acquisitionYear) : null,
         acquisitionPrice: Number(lemariForm.acquisitionPrice) || 0,
         sumberDana: lemariForm.sumberDana,
+        length: Number(lemariForm.length) || 0,
+        width: Number(lemariForm.width) || 0,
+        height: Number(lemariForm.height) || 0,
+        area: Number(lemariForm.area) || 0,
+        volume: Number(lemariForm.volume) || 0,
+        registrationNumber: lemariForm.registrationNumber,
+        documentNumber: lemariForm.documentNumber,
+        responsiblePerson: lemariForm.responsiblePerson,
+        usefulLife: lemariForm.usefulLife ? Number(lemariForm.usefulLife) : null,
+        notes: lemariForm.notes,
         roomId: selectedRoomId,
       }
       const url = editingLemari ? `/api/inventory/cabinets/${editingLemari.id}` : '/api/inventory/cabinets'
@@ -897,6 +1064,43 @@ export function RoomsPage() {
       default:
         return <Badge variant="secondary">{condition}</Badge>
     }
+  }
+
+  // ─── Asset dimension + metadata helper (cards) ─────────────────────────
+
+  function renderAssetMeta(entity: {
+    length?: number | null
+    width?: number | null
+    height?: number | null
+    area?: number | null
+    volume?: number | null
+    capacity?: number | null
+    registrationNumber?: string | null
+    responsiblePerson?: string | null
+  }) {
+    const dimParts: string[] = []
+    const dims: string[] = []
+    if (entity.length) dims.push(`P: ${entity.length}m`)
+    if (entity.width) dims.push(`L: ${entity.width}m`)
+    if (entity.height) dims.push(`T: ${entity.height}m`)
+    if (dims.length) dimParts.push(dims.join(' × '))
+    if (entity.area) dimParts.push(`Luas: ${entity.area} m²`)
+    if (entity.volume) dimParts.push(`Volume: ${entity.volume} m³`)
+    if (entity.capacity) dimParts.push(`Kapasitas: ${entity.capacity} orang`)
+    const dimLine = dimParts.join(' · ')
+
+    const pjParts: string[] = []
+    if (entity.registrationNumber) pjParts.push(`No. Reg: ${entity.registrationNumber}`)
+    if (entity.responsiblePerson) pjParts.push(`PJ: ${entity.responsiblePerson}`)
+    const pjLine = pjParts.join(' · ')
+
+    if (!dimLine && !pjLine) return null
+    return (
+      <div className="text-[11px] text-muted-foreground mb-2 space-y-0.5">
+        {dimLine && <p>{dimLine}</p>}
+        {pjLine && <p>{pjLine}</p>}
+      </div>
+    )
   }
 
   // ─── Breadcrumb ──────────────────────────────────────────────────────────
@@ -1087,6 +1291,7 @@ export function RoomsPage() {
                         Nilai Aset: {formatRupiahPrint(room.acquisitionPrice)}{room.acquisitionYear ? ` · Th. ${room.acquisitionYear}` : ''}{room.sumberDana ? ` · ${room.sumberDana}` : ''}
                       </p>
                     ) : null}
+                    {renderAssetMeta(room)}
                     {itemCount > 0 && (
                       <div className="flex gap-2 text-xs">
                         <span className="flex items-center gap-1 text-emerald-600">
@@ -1229,6 +1434,7 @@ export function RoomsPage() {
                           {bilik.acquisitionPrice ? (
                             <p className="text-xs text-muted-foreground mt-1">Nilai: {formatRupiahPrint(bilik.acquisitionPrice)}{bilik.acquisitionYear ? ` · Th. ${bilik.acquisitionYear}` : ''}</p>
                           ) : null}
+                          {renderAssetMeta(bilik)}
                         </div>
                       </div>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -1298,6 +1504,7 @@ export function RoomsPage() {
                           {cab.acquisitionPrice ? (
                             <p className="text-xs text-muted-foreground mt-1">Nilai: {formatRupiahPrint(cab.acquisitionPrice)}{cab.acquisitionYear ? ` · Th. ${cab.acquisitionYear}` : ''}</p>
                           ) : null}
+                          {renderAssetMeta(cab)}
                         </div>
                       </div>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -1514,7 +1721,7 @@ export function RoomsPage() {
 
       {/* Room Dialog */}
       <Dialog open={roomDialogOpen} onOpenChange={setRoomDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingRoom ? 'Edit Ruang' : 'Tambah Ruang'}</DialogTitle>
             <DialogDescription>{editingRoom ? 'Perbarui data ruangan' : 'Isi data ruangan baru'}</DialogDescription>
@@ -1576,6 +1783,62 @@ export function RoomsPage() {
                 placeholder="Pilih sumber dana"
               />
             </div>
+            {/* Dimensi Fisik */}
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-muted-foreground">Dimensi Fisik</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="room-length" className="text-xs">Panjang (m)</Label>
+                  <Input id="room-length" type="number" min={0} step="any" value={roomForm.length} onChange={(e) => setRoomForm({ ...roomForm, length: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="room-width" className="text-xs">Lebar (m)</Label>
+                  <Input id="room-width" type="number" min={0} step="any" value={roomForm.width} onChange={(e) => setRoomForm({ ...roomForm, width: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="room-height" className="text-xs">Tinggi (m)</Label>
+                  <Input id="room-height" type="number" min={0} step="any" value={roomForm.height} onChange={(e) => setRoomForm({ ...roomForm, height: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="room-area" className="text-xs">Luas (m²)</Label>
+                  <Input id="room-area" type="number" min={0} step="any" value={roomForm.area} onChange={(e) => setRoomForm({ ...roomForm, area: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="room-volume" className="text-xs">Volume (m³)</Label>
+                  <Input id="room-volume" type="number" min={0} step="any" value={roomForm.volume} onChange={(e) => setRoomForm({ ...roomForm, volume: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="room-capacity" className="text-xs">Kapasitas (orang)</Label>
+                  <Input id="room-capacity" type="number" min={0} step={1} value={roomForm.capacity} onChange={(e) => setRoomForm({ ...roomForm, capacity: e.target.value })} placeholder="0" />
+                </div>
+              </div>
+            </div>
+            {/* Metadata Aset */}
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-muted-foreground">Metadata Aset</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="room-reg" className="text-xs">No. Registrasi / Kode Aset</Label>
+                  <Input id="room-reg" value={roomForm.registrationNumber} onChange={(e) => setRoomForm({ ...roomForm, registrationNumber: e.target.value })} placeholder="Misal: R.001" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="room-doc" className="text-xs">No. Dokumen Perolehan</Label>
+                  <Input id="room-doc" value={roomForm.documentNumber} onChange={(e) => setRoomForm({ ...roomForm, documentNumber: e.target.value })} placeholder="Misal: 123/ABC/2024" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="room-pj" className="text-xs">Penanggung Jawab</Label>
+                  <Input id="room-pj" value={roomForm.responsiblePerson} onChange={(e) => setRoomForm({ ...roomForm, responsiblePerson: e.target.value })} placeholder="Nama penanggung jawab" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="room-useful" className="text-xs">Masa Manfaat (tahun)</Label>
+                  <Input id="room-useful" type="number" min={0} step={1} value={roomForm.usefulLife} onChange={(e) => setRoomForm({ ...roomForm, usefulLife: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="room-notes" className="text-xs">Catatan</Label>
+                  <Textarea id="room-notes" value={roomForm.notes} onChange={(e) => setRoomForm({ ...roomForm, notes: e.target.value })} placeholder="Catatan tambahan" rows={2} />
+                </div>
+              </div>
+            </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="room-desc">Deskripsi</Label>
               <Textarea id="room-desc" value={roomForm.description} onChange={(e) => setRoomForm({ ...roomForm, description: e.target.value })} placeholder="Deskripsi ruangan" rows={2} />
@@ -1593,7 +1856,7 @@ export function RoomsPage() {
 
       {/* Bilik Dialog */}
       <Dialog open={bilikDialogOpen} onOpenChange={setBilikDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingBilik ? 'Edit Bilik' : 'Tambah Bilik'}</DialogTitle>
             <DialogDescription>{editingBilik ? 'Perbarui data bilik' : 'Isi data bilik baru'}</DialogDescription>
@@ -1636,6 +1899,58 @@ export function RoomsPage() {
                 placeholder="Pilih sumber dana"
               />
             </div>
+            {/* Dimensi Fisik */}
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-muted-foreground">Dimensi Fisik</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="bilik-length" className="text-xs">Panjang (m)</Label>
+                  <Input id="bilik-length" type="number" min={0} step="any" value={bilikForm.length} onChange={(e) => setBilikForm({ ...bilikForm, length: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="bilik-width" className="text-xs">Lebar (m)</Label>
+                  <Input id="bilik-width" type="number" min={0} step="any" value={bilikForm.width} onChange={(e) => setBilikForm({ ...bilikForm, width: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="bilik-height" className="text-xs">Tinggi (m)</Label>
+                  <Input id="bilik-height" type="number" min={0} step="any" value={bilikForm.height} onChange={(e) => setBilikForm({ ...bilikForm, height: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="bilik-area" className="text-xs">Luas (m²)</Label>
+                  <Input id="bilik-area" type="number" min={0} step="any" value={bilikForm.area} onChange={(e) => setBilikForm({ ...bilikForm, area: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="bilik-volume" className="text-xs">Volume (m³)</Label>
+                  <Input id="bilik-volume" type="number" min={0} step="any" value={bilikForm.volume} onChange={(e) => setBilikForm({ ...bilikForm, volume: e.target.value })} placeholder="0" />
+                </div>
+              </div>
+            </div>
+            {/* Metadata Aset */}
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-muted-foreground">Metadata Aset</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="bilik-reg" className="text-xs">No. Registrasi / Kode Aset</Label>
+                  <Input id="bilik-reg" value={bilikForm.registrationNumber} onChange={(e) => setBilikForm({ ...bilikForm, registrationNumber: e.target.value })} placeholder="Misal: B.001" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="bilik-doc" className="text-xs">No. Dokumen Perolehan</Label>
+                  <Input id="bilik-doc" value={bilikForm.documentNumber} onChange={(e) => setBilikForm({ ...bilikForm, documentNumber: e.target.value })} placeholder="Misal: 123/ABC/2024" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="bilik-pj" className="text-xs">Penanggung Jawab</Label>
+                  <Input id="bilik-pj" value={bilikForm.responsiblePerson} onChange={(e) => setBilikForm({ ...bilikForm, responsiblePerson: e.target.value })} placeholder="Nama penanggung jawab" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="bilik-useful" className="text-xs">Masa Manfaat (tahun)</Label>
+                  <Input id="bilik-useful" type="number" min={0} step={1} value={bilikForm.usefulLife} onChange={(e) => setBilikForm({ ...bilikForm, usefulLife: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="bilik-notes" className="text-xs">Catatan</Label>
+                  <Textarea id="bilik-notes" value={bilikForm.notes} onChange={(e) => setBilikForm({ ...bilikForm, notes: e.target.value })} placeholder="Catatan tambahan" rows={2} />
+                </div>
+              </div>
+            </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="bilik-desc">Deskripsi</Label>
               <Textarea id="bilik-desc" value={bilikForm.description} onChange={(e) => setBilikForm({ ...bilikForm, description: e.target.value })} placeholder="Deskripsi bilik" rows={2} />
@@ -1653,7 +1968,7 @@ export function RoomsPage() {
 
       {/* Lemari/Cabinet Dialog */}
       <Dialog open={lemariDialogOpen} onOpenChange={setLemariDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingLemari ? 'Edit Lemari' : 'Tambah Lemari'}</DialogTitle>
             <DialogDescription>{editingLemari ? 'Perbarui data lemari' : 'Isi data lemari baru'}</DialogDescription>
@@ -1708,6 +2023,58 @@ export function RoomsPage() {
                 onChange={(val) => setLemariForm({ ...lemariForm, sumberDana: val })}
                 placeholder="Pilih sumber dana"
               />
+            </div>
+            {/* Dimensi Fisik */}
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-muted-foreground">Dimensi Fisik</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="lemari-length" className="text-xs">Panjang (m)</Label>
+                  <Input id="lemari-length" type="number" min={0} step="any" value={lemariForm.length} onChange={(e) => setLemariForm({ ...lemariForm, length: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="lemari-width" className="text-xs">Lebar (m)</Label>
+                  <Input id="lemari-width" type="number" min={0} step="any" value={lemariForm.width} onChange={(e) => setLemariForm({ ...lemariForm, width: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="lemari-height" className="text-xs">Tinggi (m)</Label>
+                  <Input id="lemari-height" type="number" min={0} step="any" value={lemariForm.height} onChange={(e) => setLemariForm({ ...lemariForm, height: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="lemari-area" className="text-xs">Luas (m²)</Label>
+                  <Input id="lemari-area" type="number" min={0} step="any" value={lemariForm.area} onChange={(e) => setLemariForm({ ...lemariForm, area: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="lemari-volume" className="text-xs">Volume (m³)</Label>
+                  <Input id="lemari-volume" type="number" min={0} step="any" value={lemariForm.volume} onChange={(e) => setLemariForm({ ...lemariForm, volume: e.target.value })} placeholder="0" />
+                </div>
+              </div>
+            </div>
+            {/* Metadata Aset */}
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-muted-foreground">Metadata Aset</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="lemari-reg" className="text-xs">No. Registrasi / Kode Aset</Label>
+                  <Input id="lemari-reg" value={lemariForm.registrationNumber} onChange={(e) => setLemariForm({ ...lemariForm, registrationNumber: e.target.value })} placeholder="Misal: L.001" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="lemari-doc" className="text-xs">No. Dokumen Perolehan</Label>
+                  <Input id="lemari-doc" value={lemariForm.documentNumber} onChange={(e) => setLemariForm({ ...lemariForm, documentNumber: e.target.value })} placeholder="Misal: 123/ABC/2024" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="lemari-pj" className="text-xs">Penanggung Jawab</Label>
+                  <Input id="lemari-pj" value={lemariForm.responsiblePerson} onChange={(e) => setLemariForm({ ...lemariForm, responsiblePerson: e.target.value })} placeholder="Nama penanggung jawab" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="lemari-useful" className="text-xs">Masa Manfaat (tahun)</Label>
+                  <Input id="lemari-useful" type="number" min={0} step={1} value={lemariForm.usefulLife} onChange={(e) => setLemariForm({ ...lemariForm, usefulLife: e.target.value })} placeholder="0" />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="lemari-notes" className="text-xs">Catatan</Label>
+                  <Textarea id="lemari-notes" value={lemariForm.notes} onChange={(e) => setLemariForm({ ...lemariForm, notes: e.target.value })} placeholder="Catatan tambahan" rows={2} />
+                </div>
+              </div>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="lemari-desc">Deskripsi</Label>

@@ -107,6 +107,19 @@ model InventoryBuilding {
   acquisitionYear  Int?     // Tahun perolehan / dibangun
   acquisitionPrice Float    @default(0) // Nilai perolehan aset
   sumberDana       String   @default("") // Sumber dana pengadaan
+  // ── Dimensi fisik ──
+  length           Float    @default(0) // Panjang (m)
+  width            Float    @default(0) // Lebar (m)
+  height           Float    @default(0) // Tinggi (m)
+  area             Float    @default(0) // Luas bangunan (m²)
+  volume           Float    @default(0) // Volume (m³)
+  landArea         Float    @default(0) // Luas tanah (m²)
+  // ── Metadata aset ──
+  registrationNumber String @default("") // Nomor Registrasi / Kode Aset BMD
+  documentNumber   String   @default("") // No. Dokumen Perolehan (kontrak/STN)
+  responsiblePerson String  @default("") // Penanggung Jawab
+  usefulLife       Int?     // Masa Manfaat (tahun)
+  notes            String   @default("") // Catatan tambahan
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   rooms            InventoryRoom[]
@@ -124,6 +137,19 @@ model InventoryRoom {
   acquisitionYear  Int?     // Tahun perolehan
   acquisitionPrice Float    @default(0) // Nilai perolehan aset
   sumberDana       String   @default("") // Sumber dana pengadaan
+  // ── Dimensi fisik ──
+  length           Float    @default(0) // Panjang (m)
+  width            Float    @default(0) // Lebar (m)
+  height           Float    @default(0) // Tinggi (m)
+  area             Float    @default(0) // Luas ruangan (m²)
+  volume           Float    @default(0) // Volume (m³)
+  capacity         Int      @default(0) // Kapasitas (jumlah orang)
+  // ── Metadata aset ──
+  registrationNumber String @default("") // Nomor Registrasi / Kode Aset
+  documentNumber   String   @default("") // No. Dokumen Perolehan
+  responsiblePerson String  @default("") // Penanggung Jawab
+  usefulLife       Int?     // Masa Manfaat (tahun)
+  notes            String   @default("") // Catatan tambahan
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   biliks           InventoryBilik[]
@@ -143,6 +169,18 @@ model InventoryBilik {
   acquisitionYear  Int?     // Tahun perolehan
   acquisitionPrice Float    @default(0) // Nilai perolehan aset
   sumberDana       String   @default("") // Sumber dana pengadaan
+  // ── Dimensi fisik ──
+  length           Float    @default(0) // Panjang (m)
+  width            Float    @default(0) // Lebar (m)
+  height           Float    @default(0) // Tinggi (m)
+  area             Float    @default(0) // Luas (m²)
+  volume           Float    @default(0) // Volume (m³)
+  // ── Metadata aset ──
+  registrationNumber String @default("") // Nomor Registrasi / Kode Aset
+  documentNumber   String   @default("") // No. Dokumen Perolehan
+  responsiblePerson String  @default("") // Penanggung Jawab
+  usefulLife       Int?     // Masa Manfaat (tahun)
+  notes            String   @default("") // Catatan tambahan
   items            InventoryItem[]
   cabinets         InventoryCabinet[]
   createdAt        DateTime @default(now())
@@ -162,6 +200,18 @@ model InventoryCabinet {
   acquisitionYear  Int?     // Tahun perolehan
   acquisitionPrice Float    @default(0) // Nilai perolehan aset
   sumberDana       String   @default("") // Sumber dana pengadaan
+  // ── Dimensi fisik ──
+  length           Float    @default(0) // Panjang (m)
+  width            Float    @default(0) // Lebar (m)
+  height           Float    @default(0) // Tinggi (m)
+  area             Float    @default(0) // Luas alas (m²)
+  volume           Float    @default(0) // Volume (m³)
+  // ── Metadata aset ──
+  registrationNumber String @default("") // Nomor Registrasi / Kode Aset
+  documentNumber   String   @default("") // No. Dokumen Perolehan
+  responsiblePerson String  @default("") // Penanggung Jawab
+  usefulLife       Int?     // Masa Manfaat (tahun)
+  notes            String   @default("") // Catatan tambahan
   items            InventoryItem[]
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
