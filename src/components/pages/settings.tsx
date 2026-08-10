@@ -792,11 +792,11 @@ export function SettingsPage() {
               style={{
                 width: '210mm',
                 minHeight: '80mm',
-                padding: '15mm 20mm 10mm',
+                padding: '10mm 10mm 10mm 12mm',
                 maxWidth: '100%',
               }}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start justify-center gap-2">
                 {/* Logo */}
                 {settings.logo ? (
                   <div
@@ -825,7 +825,7 @@ export function SettingsPage() {
                 )}
 
                 {/* KOP Lines - Centered */}
-                <div className="flex-1 text-center">
+                <div className="flex-1 text-center" style={{ minWidth: 0 }}>
                   {/* Header lines */}
                   {headerLines.filter(l => l.text.trim()).map((line, idx) => (
                     <p
@@ -838,6 +838,7 @@ export function SettingsPage() {
                         textTransform: getTextTransform(line.textTransform),
                         lineHeight: 1.3,
                         marginTop: idx === 0 ? 0 : '2px',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {line.text}
@@ -857,6 +858,7 @@ export function SettingsPage() {
                           textTransform: getTextTransform(line.textTransform),
                           lineHeight: 1.4,
                           marginTop: idx === 0 ? '4px' : '1px',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {line.text}

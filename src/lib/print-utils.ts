@@ -137,6 +137,7 @@ export function buildKopHtml(settings: PrintSettings): string {
         text-transform: ${lineTextTransformCSS};
         line-height: 1.3;
         margin-top: 1px;
+        white-space: nowrap;
       ">${line.text}</div>
     `
   }
@@ -145,13 +146,13 @@ export function buildKopHtml(settings: PrintSettings): string {
   const detailLinesHtml = detailLines.map(l => renderLine(l, false)).join('\n')
 
   return `
-    <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 2px;">
-      ${settings.logo ? `<img src="${settings.logo}" style="width: ${logoWidthPx}px; height: ${logoHeightPx}px; object-fit: contain;" />` : `<div style="width: ${logoWidthPx}px; height: ${logoHeightPx}px;"></div>`}
-      <div style="flex: 1; text-align: center;">
+    <div style="display: flex; align-items: flex-start; justify-content: center; gap: 8px; margin-bottom: 2px;">
+      ${settings.logo ? `<img src="${settings.logo}" style="width: ${logoWidthPx}px; height: ${logoHeightPx}px; object-fit: contain; flex-shrink: 0;" />` : `<div style="width: ${logoWidthPx}px; height: ${logoHeightPx}px; flex-shrink: 0;"></div>`}
+      <div style="flex: 1; text-align: center; min-width: 0;">
         ${headerLinesHtml}
         ${detailLinesHtml}
       </div>
-      ${settings.logo ? `<div style="width: ${logoWidthPx}px;"></div>` : ''}
+      ${settings.logo ? `<div style="width: ${logoWidthPx}px; flex-shrink: 0;"></div>` : ''}
     </div>
     <div style="border-bottom: ${settings.underlineThickness}px solid black; width: ${settings.underlineWidth}%; margin: 6px auto 0;"></div>
   `
@@ -160,9 +161,11 @@ export function buildKopHtml(settings: PrintSettings): string {
 // ─── Common print styles ──────────────────────────────────────────────────────
 
 export function getPrintStyles(orientation: PrintOrientation = 'portrait'): string {
+  // Reduced margins (10mm sides, 12mm left for hole-punch clearance) so KOP lines have more width
+  // and won't wrap. A4 portrait = 210mm wide → usable ~186mm.
   const pageRule = orientation === 'landscape'
-    ? '@page { size: A4 landscape; margin: 20mm 20mm 20mm 25mm; }'
-    : '@page { size: A4 portrait; margin: 20mm 20mm 20mm 25mm; }'
+    ? '@page { size: A4 landscape; margin: 10mm 10mm 10mm 12mm; }'
+    : '@page { size: A4 portrait; margin: 10mm 10mm 10mm 12mm; }'
 
   return `
     ${pageRule}
