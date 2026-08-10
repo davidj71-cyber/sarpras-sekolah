@@ -83,6 +83,11 @@ interface BilikData {
   number: string
   description: string
   roomId: string
+  // ── Aset fields ──
+  condition: string
+  acquisitionYear: number | null
+  acquisitionPrice: number
+  sumberDana: string
   items?: InventoryItemData[]
 }
 
@@ -93,6 +98,11 @@ interface CabinetData {
   roomId: string
   bilikId: string | null
   bilik?: { id: string; name: string; number: string } | null
+  // ── Aset fields ──
+  condition: string
+  acquisitionYear: number | null
+  acquisitionPrice: number
+  sumberDana: string
   items?: InventoryItemData[]
 }
 
@@ -112,6 +122,11 @@ interface RoomData {
   biliks: BilikData[]
   cabinets: CabinetData[]
   items?: InventoryItemData[]
+  // ── Aset fields ──
+  condition: string
+  acquisitionYear: number | null
+  acquisitionPrice: number
+  sumberDana: string
   createdAt: string
 }
 
@@ -159,18 +174,43 @@ export function RoomsPage() {
   // Room dialog
   const [roomDialogOpen, setRoomDialogOpen] = useState(false)
   const [editingRoom, setEditingRoom] = useState<RoomData | null>(null)
-  const [roomForm, setRoomForm] = useState({ name: '', buildingId: '', floor: '', description: '' })
+  const [roomForm, setRoomForm] = useState({
+    name: '',
+    buildingId: '',
+    floor: '',
+    description: '',
+    condition: 'Baik' as string,
+    acquisitionYear: '' as number | string,
+    acquisitionPrice: 0 as number | string,
+    sumberDana: '',
+  })
   const [saving, setSaving] = useState(false)
 
   // Bilik dialog
   const [bilikDialogOpen, setBilikDialogOpen] = useState(false)
   const [editingBilik, setEditingBilik] = useState<BilikData | null>(null)
-  const [bilikForm, setBilikForm] = useState({ name: '', number: '', description: '' })
+  const [bilikForm, setBilikForm] = useState({
+    name: '',
+    number: '',
+    description: '',
+    condition: 'Baik' as string,
+    acquisitionYear: '' as number | string,
+    acquisitionPrice: 0 as number | string,
+    sumberDana: '',
+  })
 
   // Lemari/Cabinet dialog (UI shows "Lemari", API uses "cabinet")
   const [lemariDialogOpen, setLemariDialogOpen] = useState(false)
   const [editingLemari, setEditingLemari] = useState<CabinetData | null>(null)
-  const [lemariForm, setLemariForm] = useState({ number: '', description: '', bilikId: '' })
+  const [lemariForm, setLemariForm] = useState({
+    number: '',
+    description: '',
+    bilikId: '',
+    condition: 'Baik' as string,
+    acquisitionYear: '' as number | string,
+    acquisitionPrice: 0 as number | string,
+    sumberDana: '',
+  })
 
   // Buildings (Gedung) list for room form dropdown
   const [buildings, setBuildings] = useState<BuildingRef[]>([])
@@ -333,6 +373,9 @@ export function RoomsPage() {
         <td>${room.name}</td>
         <td>${room.building?.name || '-'}</td>
         <td class="text-center">${room.floor || '-'}</td>
+        <td class="text-center">${room.condition || '-'}</td>
+        <td class="text-center">${room.acquisitionYear || '-'}</td>
+        <td class="text-right">${room.acquisitionPrice ? formatRupiahPrint(room.acquisitionPrice) : '-'}</td>
         <td class="text-center">${bilikCount}</td>
         <td class="text-center">${lemariCount}</td>
         <td class="text-center">${itemCount}</td>
@@ -351,6 +394,9 @@ export function RoomsPage() {
             <th>Nama Ruang</th>
             <th>Gedung</th>
             <th>Lantai</th>
+            <th>Keadaan</th>
+            <th>Tahun</th>
+            <th>Nilai Aset</th>
             <th>Jumlah Bilik</th>
             <th>Jumlah Lemari</th>
             <th>Jumlah Barang</th>
@@ -359,7 +405,7 @@ export function RoomsPage() {
         <tbody>
           ${tableRows}
           <tr>
-            <td colspan="4" class="font-bold text-right">Total</td>
+            <td colspan="7" class="font-bold text-right">Total</td>
             <td class="text-center font-bold">${totalBilikPrint}</td>
             <td class="text-center font-bold">${totalLemariPrint}</td>
             <td class="text-center font-bold">${totalItemsPrint}</td>
@@ -452,6 +498,10 @@ export function RoomsPage() {
           <tr><td class="font-bold" style="width:120px">Nama Ruang</td><td>: ${currentRoom.name}</td></tr>
           <tr><td class="font-bold">Gedung</td><td>: ${currentRoom.building?.name || '-'}</td></tr>
           <tr><td class="font-bold">Lantai</td><td>: ${currentRoom.floor || '-'}</td></tr>
+          <tr><td class="font-bold">Keadaan</td><td>: ${currentRoom.condition || 'Baik'}</td></tr>
+          <tr><td class="font-bold">Tahun Perolehan</td><td>: ${currentRoom.acquisitionYear || '-'}</td></tr>
+          <tr><td class="font-bold">Nilai Perolehan</td><td>: ${currentRoom.acquisitionPrice ? formatRupiahPrint(currentRoom.acquisitionPrice) : '-'}</td></tr>
+          <tr><td class="font-bold">Sumber Dana</td><td>: ${currentRoom.sumberDana || '-'}</td></tr>
           ${currentRoom.description ? `<tr><td class="font-bold">Deskripsi</td><td>: ${currentRoom.description}</td></tr>` : ''}
         </table>
 
@@ -514,14 +564,32 @@ export function RoomsPage() {
 
   function openAddRoom() {
     setEditingRoom(null)
-    setRoomForm({ name: '', buildingId: '', floor: '', description: '' })
+    setRoomForm({
+      name: '',
+      buildingId: '',
+      floor: '',
+      description: '',
+      condition: 'Baik',
+      acquisitionYear: '',
+      acquisitionPrice: 0,
+      sumberDana: '',
+    })
     fetchBuildings()
     setRoomDialogOpen(true)
   }
 
   function openEditRoom(room: RoomData) {
     setEditingRoom(room)
-    setRoomForm({ name: room.name, buildingId: room.buildingId || '', floor: room.floor, description: room.description })
+    setRoomForm({
+      name: room.name,
+      buildingId: room.buildingId || '',
+      floor: room.floor,
+      description: room.description,
+      condition: room.condition || 'Baik',
+      acquisitionYear: room.acquisitionYear ?? '',
+      acquisitionPrice: room.acquisitionPrice ?? 0,
+      sumberDana: room.sumberDana || '',
+    })
     fetchBuildings()
     setRoomDialogOpen(true)
   }
@@ -533,9 +601,19 @@ export function RoomsPage() {
     }
     setSaving(true)
     try {
+      const payload = {
+        name: roomForm.name.trim(),
+        buildingId: roomForm.buildingId,
+        floor: roomForm.floor,
+        description: roomForm.description,
+        condition: roomForm.condition,
+        acquisitionYear: roomForm.acquisitionYear ? Number(roomForm.acquisitionYear) : null,
+        acquisitionPrice: Number(roomForm.acquisitionPrice) || 0,
+        sumberDana: roomForm.sumberDana,
+      }
       const url = editingRoom ? `/api/inventory/rooms/${editingRoom.id}` : '/api/inventory/rooms'
       const method = editingRoom ? 'PUT' : 'POST'
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(roomForm) })
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: editingRoom ? 'Ruang berhasil diperbarui' : 'Ruang berhasil ditambahkan' })
       setRoomDialogOpen(false)
@@ -551,13 +629,29 @@ export function RoomsPage() {
 
   function openAddBilik() {
     setEditingBilik(null)
-    setBilikForm({ name: '', number: '', description: '' })
+    setBilikForm({
+      name: '',
+      number: '',
+      description: '',
+      condition: 'Baik',
+      acquisitionYear: '',
+      acquisitionPrice: 0,
+      sumberDana: '',
+    })
     setBilikDialogOpen(true)
   }
 
   function openEditBilik(bilik: BilikData) {
     setEditingBilik(bilik)
-    setBilikForm({ name: bilik.name, number: bilik.number, description: bilik.description })
+    setBilikForm({
+      name: bilik.name,
+      number: bilik.number,
+      description: bilik.description,
+      condition: bilik.condition || 'Baik',
+      acquisitionYear: bilik.acquisitionYear ?? '',
+      acquisitionPrice: bilik.acquisitionPrice ?? 0,
+      sumberDana: bilik.sumberDana || '',
+    })
     setBilikDialogOpen(true)
   }
 
@@ -565,12 +659,22 @@ export function RoomsPage() {
     if (!bilikForm.name.trim() || !selectedRoomId) return
     setSaving(true)
     try {
+      const payload = {
+        name: bilikForm.name.trim(),
+        number: bilikForm.number,
+        description: bilikForm.description,
+        condition: bilikForm.condition,
+        acquisitionYear: bilikForm.acquisitionYear ? Number(bilikForm.acquisitionYear) : null,
+        acquisitionPrice: Number(bilikForm.acquisitionPrice) || 0,
+        sumberDana: bilikForm.sumberDana,
+        roomId: selectedRoomId,
+      }
       const url = editingBilik ? `/api/inventory/biliks/${editingBilik.id}` : '/api/inventory/biliks'
       const method = editingBilik ? 'PUT' : 'POST'
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...bilikForm, roomId: selectedRoomId }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: editingBilik ? 'Bilik berhasil diperbarui' : 'Bilik berhasil ditambahkan' })
@@ -590,13 +694,29 @@ export function RoomsPage() {
   function openAddLemari() {
     setEditingLemari(null)
     // pre-select bilik if user is currently viewing a bilik
-    setLemariForm({ number: '', description: '', bilikId: selectedBilikId || '' })
+    setLemariForm({
+      number: '',
+      description: '',
+      bilikId: selectedBilikId || '',
+      condition: 'Baik',
+      acquisitionYear: '',
+      acquisitionPrice: 0,
+      sumberDana: '',
+    })
     setLemariDialogOpen(true)
   }
 
   function openEditLemari(cab: CabinetData) {
     setEditingLemari(cab)
-    setLemariForm({ number: cab.number, description: cab.description, bilikId: cab.bilikId || '' })
+    setLemariForm({
+      number: cab.number,
+      description: cab.description,
+      bilikId: cab.bilikId || '',
+      condition: cab.condition || 'Baik',
+      acquisitionYear: cab.acquisitionYear ?? '',
+      acquisitionPrice: cab.acquisitionPrice ?? 0,
+      sumberDana: cab.sumberDana || '',
+    })
     setLemariDialogOpen(true)
   }
 
@@ -604,12 +724,22 @@ export function RoomsPage() {
     if (!lemariForm.number.trim() || !selectedRoomId) return
     setSaving(true)
     try {
+      const payload = {
+        number: lemariForm.number.trim(),
+        description: lemariForm.description,
+        bilikId: lemariForm.bilikId || null,
+        condition: lemariForm.condition,
+        acquisitionYear: lemariForm.acquisitionYear ? Number(lemariForm.acquisitionYear) : null,
+        acquisitionPrice: Number(lemariForm.acquisitionPrice) || 0,
+        sumberDana: lemariForm.sumberDana,
+        roomId: selectedRoomId,
+      }
       const url = editingLemari ? `/api/inventory/cabinets/${editingLemari.id}` : '/api/inventory/cabinets'
       const method = editingLemari ? 'PUT' : 'POST'
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...lemariForm, roomId: selectedRoomId }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: editingLemari ? 'Lemari berhasil diperbarui' : 'Lemari berhasil ditambahkan' })
@@ -950,7 +1080,13 @@ export function RoomsPage() {
                       <Badge variant="outline" className="text-xs">
                         <Package className="size-3 mr-1" />{itemCount} Barang
                       </Badge>
+                      {conditionBadge(room.condition || 'Baik')}
                     </div>
+                    {room.acquisitionPrice ? (
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Nilai Aset: {formatRupiahPrint(room.acquisitionPrice)}{room.acquisitionYear ? ` · Th. ${room.acquisitionYear}` : ''}{room.sumberDana ? ` · ${room.sumberDana}` : ''}
+                      </p>
+                    ) : null}
                     {itemCount > 0 && (
                       <div className="flex gap-2 text-xs">
                         <span className="flex items-center gap-1 text-emerald-600">
@@ -1086,7 +1222,13 @@ export function RoomsPage() {
                           <p className="font-medium">{bilik.name}</p>
                           <p className="text-sm text-muted-foreground">No: {bilik.number || '-'}</p>
                           {bilik.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{bilik.description}</p>}
-                          <Badge variant="outline" className="mt-2 text-xs">{bilik.items?.length || 0} Barang</Badge>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            <Badge variant="outline" className="text-xs">{bilik.items?.length || 0} Barang</Badge>
+                            {conditionBadge(bilik.condition || 'Baik')}
+                          </div>
+                          {bilik.acquisitionPrice ? (
+                            <p className="text-xs text-muted-foreground mt-1">Nilai: {formatRupiahPrint(bilik.acquisitionPrice)}{bilik.acquisitionYear ? ` · Th. ${bilik.acquisitionYear}` : ''}</p>
+                          ) : null}
                         </div>
                       </div>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -1149,7 +1291,13 @@ export function RoomsPage() {
                             </span>
                           )}
                           {cab.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{cab.description}</p>}
-                          <Badge variant="outline" className="mt-2 text-xs">{cab.items?.length || 0} Barang</Badge>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            <Badge variant="outline" className="text-xs">{cab.items?.length || 0} Barang</Badge>
+                            {conditionBadge(cab.condition || 'Baik')}
+                          </div>
+                          {cab.acquisitionPrice ? (
+                            <p className="text-xs text-muted-foreground mt-1">Nilai: {formatRupiahPrint(cab.acquisitionPrice)}{cab.acquisitionYear ? ` · Th. ${cab.acquisitionYear}` : ''}</p>
+                          ) : null}
                         </div>
                       </div>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -1399,6 +1547,35 @@ export function RoomsPage() {
               <Label htmlFor="floor">Lantai</Label>
               <Input id="floor" value={roomForm.floor} onChange={(e) => setRoomForm({ ...roomForm, floor: e.target.value })} placeholder="Nomor lantai" />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="room-condition">Keadaan</Label>
+              <Select value={roomForm.condition} onValueChange={(val) => setRoomForm({ ...roomForm, condition: val })}>
+                <SelectTrigger id="room-condition"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Baik">Baik</SelectItem>
+                  <SelectItem value="Rusak Ringan">Rusak Ringan</SelectItem>
+                  <SelectItem value="Rusak Berat">Rusak Berat</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="room-year">Tahun Perolehan</Label>
+              <Input id="room-year" type="number" min={1900} max={2100} value={roomForm.acquisitionYear} onChange={(e) => setRoomForm({ ...roomForm, acquisitionYear: e.target.value })} placeholder="Misal: 2020" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="room-price">Nilai Perolehan (Rp)</Label>
+              <Input id="room-price" type="number" min={0} value={roomForm.acquisitionPrice} onChange={(e) => setRoomForm({ ...roomForm, acquisitionPrice: e.target.value })} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="room-sumber">Sumber Dana</Label>
+              <MasterCombobox
+                id="room-sumber"
+                category="sumberDana"
+                value={roomForm.sumberDana}
+                onChange={(val) => setRoomForm({ ...roomForm, sumberDana: val })}
+                placeholder="Pilih sumber dana"
+              />
+            </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="room-desc">Deskripsi</Label>
               <Textarea id="room-desc" value={roomForm.description} onChange={(e) => setRoomForm({ ...roomForm, description: e.target.value })} placeholder="Deskripsi ruangan" rows={2} />
@@ -1430,6 +1607,35 @@ export function RoomsPage() {
               <Label htmlFor="bilik-number">Nomor Bilik</Label>
               <Input id="bilik-number" value={bilikForm.number} onChange={(e) => setBilikForm({ ...bilikForm, number: e.target.value })} placeholder="Nomor bilik" />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="bilik-condition">Keadaan</Label>
+              <Select value={bilikForm.condition} onValueChange={(val) => setBilikForm({ ...bilikForm, condition: val })}>
+                <SelectTrigger id="bilik-condition"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Baik">Baik</SelectItem>
+                  <SelectItem value="Rusak Ringan">Rusak Ringan</SelectItem>
+                  <SelectItem value="Rusak Berat">Rusak Berat</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bilik-year">Tahun Perolehan</Label>
+              <Input id="bilik-year" type="number" min={1900} max={2100} value={bilikForm.acquisitionYear} onChange={(e) => setBilikForm({ ...bilikForm, acquisitionYear: e.target.value })} placeholder="Misal: 2020" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bilik-price">Nilai Perolehan (Rp)</Label>
+              <Input id="bilik-price" type="number" min={0} value={bilikForm.acquisitionPrice} onChange={(e) => setBilikForm({ ...bilikForm, acquisitionPrice: e.target.value })} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bilik-sumber">Sumber Dana</Label>
+              <MasterCombobox
+                id="bilik-sumber"
+                category="sumberDana"
+                value={bilikForm.sumberDana}
+                onChange={(val) => setBilikForm({ ...bilikForm, sumberDana: val })}
+                placeholder="Pilih sumber dana"
+              />
+            </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="bilik-desc">Deskripsi</Label>
               <Textarea id="bilik-desc" value={bilikForm.description} onChange={(e) => setBilikForm({ ...bilikForm, description: e.target.value })} placeholder="Deskripsi bilik" rows={2} />
@@ -1452,7 +1658,7 @@ export function RoomsPage() {
             <DialogTitle>{editingLemari ? 'Edit Lemari' : 'Tambah Lemari'}</DialogTitle>
             <DialogDescription>{editingLemari ? 'Perbarui data lemari' : 'Isi data lemari baru'}</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="lemari-number">Nomor Lemari *</Label>
               <Input id="lemari-number" value={lemariForm.number} onChange={(e) => setLemariForm({ ...lemariForm, number: e.target.value })} placeholder="Nomor lemari" />
@@ -1475,6 +1681,35 @@ export function RoomsPage() {
               <p className="text-xs text-muted-foreground">Pilih bilik jika lemari berada di dalam bilik tertentu.</p>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="lemari-condition">Keadaan</Label>
+              <Select value={lemariForm.condition} onValueChange={(val) => setLemariForm({ ...lemariForm, condition: val })}>
+                <SelectTrigger id="lemari-condition"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Baik">Baik</SelectItem>
+                  <SelectItem value="Rusak Ringan">Rusak Ringan</SelectItem>
+                  <SelectItem value="Rusak Berat">Rusak Berat</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lemari-year">Tahun Perolehan</Label>
+              <Input id="lemari-year" type="number" min={1900} max={2100} value={lemariForm.acquisitionYear} onChange={(e) => setLemariForm({ ...lemariForm, acquisitionYear: e.target.value })} placeholder="Misal: 2020" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lemari-price">Nilai Perolehan (Rp)</Label>
+              <Input id="lemari-price" type="number" min={0} value={lemariForm.acquisitionPrice} onChange={(e) => setLemariForm({ ...lemariForm, acquisitionPrice: e.target.value })} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lemari-sumber">Sumber Dana</Label>
+              <MasterCombobox
+                id="lemari-sumber"
+                category="sumberDana"
+                value={lemariForm.sumberDana}
+                onChange={(val) => setLemariForm({ ...lemariForm, sumberDana: val })}
+                placeholder="Pilih sumber dana"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="lemari-desc">Deskripsi</Label>
               <Textarea id="lemari-desc" value={lemariForm.description} onChange={(e) => setLemariForm({ ...lemariForm, description: e.target.value })} placeholder="Deskripsi lemari" rows={2} />
             </div>

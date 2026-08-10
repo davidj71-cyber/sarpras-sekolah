@@ -53,6 +53,10 @@ export async function PUT(
         code: body.code ?? "",
         floors: Number(body.floors ?? 1),
         description: body.description ?? "",
+        condition: body.condition ?? "Baik",
+        acquisitionYear: body.acquisitionYear ? Number(body.acquisitionYear) : null,
+        acquisitionPrice: body.acquisitionPrice ? Number(body.acquisitionPrice) : 0,
+        sumberDana: body.sumberDana ?? "",
       },
     });
 

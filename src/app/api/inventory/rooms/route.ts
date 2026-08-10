@@ -37,6 +37,10 @@ export async function POST(request: NextRequest) {
         buildingId: body.buildingId || null,
         floor: body.floor ?? "",
         description: body.description ?? "",
+        condition: body.condition ?? "Baik",
+        acquisitionYear: body.acquisitionYear ? Number(body.acquisitionYear) : null,
+        acquisitionPrice: body.acquisitionPrice ? Number(body.acquisitionPrice) : 0,
+        sumberDana: body.sumberDana ?? "",
       },
       include: { building: true },
     });

@@ -97,54 +97,74 @@ model Lemari {
 // ─── Inventaris Models (completely independent from KIB) ────────────────────
 
 model InventoryBuilding {
-  id          String   @id @default(cuid())
-  name        String
-  code        String   @default("") // Kode gedung (misal: A, B, GED-A)
-  floors      Int      @default(1) // Jumlah lantai
-  description String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  rooms       InventoryRoom[]
+  id               String   @id @default(cuid())
+  name             String
+  code             String   @default("") // Kode gedung (misal: A, B, GED-A)
+  floors           Int      @default(1) // Jumlah lantai
+  description      String   @default("")
+  // ── Aset fields ──
+  condition        String   @default("Baik") // Keadaan: Baik, Rusak Ringan, Rusak Berat
+  acquisitionYear  Int?     // Tahun perolehan / dibangun
+  acquisitionPrice Float    @default(0) // Nilai perolehan aset
+  sumberDana       String   @default("") // Sumber dana pengadaan
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  rooms            InventoryRoom[]
 }
 
 model InventoryRoom {
-  id          String   @id @default(cuid())
-  name        String
-  buildingId  String?
-  building    InventoryBuilding? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
-  floor       String   @default("")
-  description String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  biliks      InventoryBilik[]
-  cabinets    InventoryCabinet[]
-  items       InventoryItem[]
+  id               String   @id @default(cuid())
+  name             String
+  buildingId       String?
+  building         InventoryBuilding? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  floor            String   @default("")
+  description      String   @default("")
+  // ── Aset fields ──
+  condition        String   @default("Baik") // Keadaan: Baik, Rusak Ringan, Rusak Berat
+  acquisitionYear  Int?     // Tahun perolehan
+  acquisitionPrice Float    @default(0) // Nilai perolehan aset
+  sumberDana       String   @default("") // Sumber dana pengadaan
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  biliks           InventoryBilik[]
+  cabinets         InventoryCabinet[]
+  items            InventoryItem[]
 }
 
 model InventoryBilik {
-  id          String   @id @default(cuid())
-  name        String
-  number      String   @default("")
-  description String   @default("")
-  roomId      String
-  room        InventoryRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  items       InventoryItem[]
-  cabinets    InventoryCabinet[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  number           String   @default("")
+  description      String   @default("")
+  roomId           String
+  room             InventoryRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  // ── Aset fields ──
+  condition        String   @default("Baik") // Keadaan: Baik, Rusak Ringan, Rusak Berat
+  acquisitionYear  Int?     // Tahun perolehan
+  acquisitionPrice Float    @default(0) // Nilai perolehan aset
+  sumberDana       String   @default("") // Sumber dana pengadaan
+  items            InventoryItem[]
+  cabinets         InventoryCabinet[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model InventoryCabinet {
-  id          String   @id @default(cuid())
-  number      String
-  description String   @default("")
-  roomId      String
-  room        InventoryRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  bilikId     String?
-  bilik       InventoryBilik? @relation(fields: [bilikId], references: [id], onDelete: SetNull)
-  items       InventoryItem[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  number           String
+  description      String   @default("")
+  roomId           String
+  room             InventoryRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bilikId          String?
+  bilik            InventoryBilik? @relation(fields: [bilikId], references: [id], onDelete: SetNull)
+  // ── Aset fields ──
+  condition        String   @default("Baik") // Keadaan: Baik, Rusak Ringan, Rusak Berat
+  acquisitionYear  Int?     // Tahun perolehan
+  acquisitionPrice Float    @default(0) // Nilai perolehan aset
+  sumberDana       String   @default("") // Sumber dana pengadaan
+  items            InventoryItem[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model InventoryItem {

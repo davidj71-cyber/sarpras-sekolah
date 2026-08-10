@@ -41,6 +41,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import {
   Plus,
   Pencil,
   Trash2,
@@ -51,9 +59,23 @@ import {
   Layers,
   Printer,
 } from 'lucide-react'
-import { printWithKop } from '@/lib/print-utils'
+import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
+import { MasterCombobox } from '@/components/ui/master-combobox'
+
+const conditionOptions = ['Baik', 'Rusak Ringan', 'Rusak Berat'] as const
+
+const conditionBadge: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  'Baik': 'default',
+  'Rusak Ringan': 'secondary',
+  'Rusak Berat': 'destructive',
+}
+
+function formatRupiah(v: number): string {
+  if (!v) return '-'
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v)
+}
 
 interface BuildingRoomCount {
   id: string
@@ -67,6 +89,11 @@ interface BuildingData {
   code: string
   floors: number
   description: string
+  // ── Aset fields ──
+  condition: string
+  acquisitionYear: number | null
+  acquisitionPrice: number
+  sumberDana: string
   createdAt: string
   rooms: BuildingRoomCount[]
   _count: { rooms: number }
@@ -77,6 +104,10 @@ interface FormData {
   code: string
   floors: number | string
   description: string
+  condition: string
+  acquisitionYear: number | string
+  acquisitionPrice: number | string
+  sumberDana: string
 }
 
 const emptyForm: FormData = {
@@ -84,6 +115,10 @@ const emptyForm: FormData = {
   code: '',
   floors: 1,
   description: '',
+  condition: 'Baik',
+  acquisitionYear: '',
+  acquisitionPrice: 0,
+  sumberDana: '',
 }
 
 export function BuildingsPage() {
@@ -131,6 +166,10 @@ export function BuildingsPage() {
       code: b.code,
       floors: b.floors,
       description: b.description,
+      condition: b.condition || 'Baik',
+      acquisitionYear: b.acquisitionYear ?? '',
+      acquisitionPrice: b.acquisitionPrice ?? 0,
+      sumberDana: b.sumberDana || '',
     })
     setDialogOpen(true)
   }
@@ -147,6 +186,10 @@ export function BuildingsPage() {
         code: formData.code.trim(),
         floors: Number(formData.floors) || 1,
         description: formData.description,
+        condition: formData.condition,
+        acquisitionYear: formData.acquisitionYear ? Number(formData.acquisitionYear) : null,
+        acquisitionPrice: Number(formData.acquisitionPrice) || 0,
+        sumberDana: formData.sumberDana,
       }
       const url = editing ? `/api/inventory/buildings/${editing.id}` : '/api/inventory/buildings'
       const method = editing ? 'PUT' : 'POST'
@@ -204,6 +247,9 @@ export function BuildingsPage() {
           <td class="text-center">${b.code || '-'}</td>
           <td class="text-center">${b.floors}</td>
           <td class="text-center">${b._count?.rooms ?? 0}</td>
+          <td class="text-center">${b.condition || '-'}</td>
+          <td class="text-center">${b.acquisitionYear || '-'}</td>
+          <td class="text-right">${b.acquisitionPrice ? formatRupiahPrint(b.acquisitionPrice) : '-'}</td>
           <td>${b.description || '-'}</td>
         </tr>`
       )
@@ -218,6 +264,9 @@ export function BuildingsPage() {
             <th>Kode</th>
             <th>Jml Lantai</th>
             <th>Jml Ruang</th>
+            <th>Keadaan</th>
+            <th>Tahun</th>
+            <th>Nilai</th>
             <th>Deskripsi</th>
           </tr>
         </thead>
@@ -288,7 +337,9 @@ export function BuildingsPage() {
                     <TableHead>Kode</TableHead>
                     <TableHead className="text-center">Lantai</TableHead>
                     <TableHead className="text-center">Jml Ruang</TableHead>
-                    <TableHead>Deskripsi</TableHead>
+                    <TableHead className="text-center">Keadaan</TableHead>
+                    <TableHead className="text-right">Nilai Aset</TableHead>
+                    <TableHead className="max-w-[200px]">Deskripsi</TableHead>
                     <TableHead className="w-[100px]">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -300,6 +351,13 @@ export function BuildingsPage() {
                       <TableCell>{b.code || '-'}</TableCell>
                       <TableCell className="text-center">{b.floors}</TableCell>
                       <TableCell className="text-center">{b._count?.rooms ?? 0}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={conditionBadge[b.condition] || 'secondary'} className="text-xs">{b.condition || 'Baik'}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        {b.acquisitionPrice ? <span className="text-xs">{formatRupiah(b.acquisitionPrice)}</span> : '-'}
+                        {b.acquisitionYear && <div className="text-[10px] text-muted-foreground">Th. {b.acquisitionYear}</div>}
+                      </TableCell>
                       <TableCell className="max-w-[220px] truncate">{b.description || '-'}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -333,7 +391,7 @@ export function BuildingsPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Gedung' : 'Tambah Gedung'}</DialogTitle>
             <DialogDescription>{editing ? 'Perbarui data gedung' : 'Isi data gedung baru'}</DialogDescription>
@@ -350,6 +408,34 @@ export function BuildingsPage() {
             <div className="space-y-2">
               <Label htmlFor="building-floors">Jumlah Lantai</Label>
               <Input id="building-floors" type="number" min={1} value={formData.floors} onChange={(e) => setFormData({ ...formData, floors: e.target.value })} placeholder="1" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-condition">Keadaan</Label>
+              <Select value={formData.condition} onValueChange={(val) => setFormData({ ...formData, condition: val })}>
+                <SelectTrigger id="building-condition"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {conditionOptions.map((opt) => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-year">Tahun Perolehan</Label>
+              <Input id="building-year" type="number" min={1900} max={2100} value={formData.acquisitionYear} onChange={(e) => setFormData({ ...formData, acquisitionYear: e.target.value })} placeholder="Misal: 2020" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-price">Nilai Perolehan (Rp)</Label>
+              <Input id="building-price" type="number" min={0} value={formData.acquisitionPrice} onChange={(e) => setFormData({ ...formData, acquisitionPrice: e.target.value })} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building-sumber">Sumber Dana</Label>
+              <MasterCombobox
+                category="sumberDana"
+                value={formData.sumberDana}
+                onChange={(val) => setFormData({ ...formData, sumberDana: val })}
+                placeholder="Pilih sumber dana"
+              />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="building-desc">Deskripsi</Label>

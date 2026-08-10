@@ -48,6 +48,10 @@ export async function PUT(
         description: body.description ?? "",
         roomId: body.roomId,
         bilikId: body.bilikId || null,
+        condition: body.condition ?? "Baik",
+        acquisitionYear: body.acquisitionYear ? Number(body.acquisitionYear) : null,
+        acquisitionPrice: body.acquisitionPrice ? Number(body.acquisitionPrice) : 0,
+        sumberDana: body.sumberDana ?? "",
       },
       include: { room: true, bilik: true },
     });
