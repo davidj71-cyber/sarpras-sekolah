@@ -63,6 +63,7 @@ import {
 import { printWithKop, formatDatePrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
+import { MasterCombobox } from '@/components/ui/master-combobox'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -608,7 +609,12 @@ export function BarangMasukPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Sumber Barang</Label>
-                  <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Pembelian, Donasi, Hibah, dll." />
+                  <MasterCombobox
+                    category="sumberBarang"
+                    value={source}
+                    onChange={setSource}
+                    placeholder="Pembelian, Donasi, Hibah, dll."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Status</Label>
@@ -648,7 +654,13 @@ export function BarangMasukPage() {
                     </div>
                     <div className="col-span-3 sm:col-span-2 space-y-1">
                       <Label className="text-xs">Satuan</Label>
-                      <Input value={item.unit} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="h-9" />
+                      <MasterCombobox
+                        category="satuan"
+                        value={item.unit}
+                        onChange={(val) => updateItem(idx, 'unit', val)}
+                        placeholder="Satuan"
+                        className="h-9"
+                      />
                     </div>
                     <div className="col-span-4 sm:col-span-3 space-y-1">
                       <Label className="text-xs">Kondisi</Label>

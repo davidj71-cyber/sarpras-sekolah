@@ -66,6 +66,7 @@ import {
 import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
+import { MasterCombobox } from '@/components/ui/master-combobox'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -687,40 +688,33 @@ export function KibPage() {
 
           <div className="space-y-2">
             <Label htmlFor="unit">Satuan</Label>
-            <Input
-              id="unit"
+            <MasterCombobox
+              category="satuan"
               value={formData.unit}
-              onChange={(e) => handleFieldChange('unit', e.target.value)}
+              onChange={(val) => handleFieldChange('unit', val)}
               placeholder="Satuan"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="origin">Asal Usul</Label>
-            <Input
-              id="origin"
+            <MasterCombobox
+              category="asalUsul"
               value={formData.origin}
-              onChange={(e) => handleFieldChange('origin', e.target.value)}
+              onChange={(val) => handleFieldChange('origin', val)}
               placeholder="Asal usul barang"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="sumberDana">Sumber Dana</Label>
-            <Select value={formData.sumberDana || '_none_'} onValueChange={(val) => handleFieldChange('sumberDana', val === '_none_' ? '' : val)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Pilih sumber dana" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_none_">— Tidak Ditentukan —</SelectItem>
-                <SelectItem value="APBN">APBN</SelectItem>
-                <SelectItem value="APBD">APBD</SelectItem>
-                <SelectItem value="BOS">BOS</SelectItem>
-                <SelectItem value="Donasi">Donasi</SelectItem>
-                <SelectItem value="Hibah">Hibah</SelectItem>
-                <SelectItem value="Lainnya">Lainnya</SelectItem>
-              </SelectContent>
-            </Select>
+            <MasterCombobox
+              category="sumberDana"
+              value={formData.sumberDana}
+              onChange={(val) => handleFieldChange('sumberDana', val)}
+              placeholder="Pilih sumber dana"
+              allowClear
+            />
           </div>
 
           <div className="space-y-2">
@@ -831,10 +825,10 @@ export function KibPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mt-4 pt-4 border-t">
         <div className="space-y-2">
           <Label htmlFor="brand">Merk</Label>
-          <Input
-            id="brand"
+          <MasterCombobox
+            category="merk"
             value={formData.brand}
-            onChange={(e) => handleFieldChange('brand', e.target.value)}
+            onChange={(val) => handleFieldChange('brand', val)}
             placeholder="Merk barang"
           />
         </div>
@@ -858,10 +852,10 @@ export function KibPage() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="material">Bahan</Label>
-          <Input
-            id="material"
+          <MasterCombobox
+            category="bahan"
             value={formData.material}
-            onChange={(e) => handleFieldChange('material', e.target.value)}
+            onChange={(val) => handleFieldChange('material', val)}
             placeholder="Bahan"
           />
         </div>
@@ -987,10 +981,10 @@ export function KibPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mt-4 pt-4 border-t">
         <div className="space-y-2">
           <Label htmlFor="brand">Merk</Label>
-          <Input
-            id="brand-e"
+          <MasterCombobox
+            category="merk"
             value={formData.brand}
-            onChange={(e) => handleFieldChange('brand', e.target.value)}
+            onChange={(val) => handleFieldChange('brand', val)}
             placeholder="Merk barang"
           />
         </div>

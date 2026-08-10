@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { MasterCombobox } from '@/components/ui/master-combobox'
 import {
   Card,
   CardContent,
@@ -340,7 +341,12 @@ export function StoresPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="goodsType">Jenis Barang</Label>
-              <Input id="goodsType" value={formData.goodsType} onChange={(e) => setFormData({ ...formData, goodsType: e.target.value })} placeholder="Misal: ATK, Elektronik" />
+              <MasterCombobox
+                category="jenisBarang"
+                value={formData.goodsType}
+                onChange={(val) => setFormData({ ...formData, goodsType: val })}
+                placeholder="Misal: ATK, Elektronik"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="store-phone">No HP</Label>

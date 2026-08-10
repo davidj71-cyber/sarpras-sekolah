@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { MasterCombobox } from '@/components/ui/master-combobox'
 import {
   Card,
   CardContent,
@@ -334,11 +335,21 @@ export function EmployeesPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="position">Jabatan</Label>
-              <Input id="position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} placeholder="Jabatan" />
+              <MasterCombobox
+                category="jabatan"
+                value={formData.position}
+                onChange={(val) => setFormData({ ...formData, position: val })}
+                placeholder="Jabatan"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="department">Unit Kerja</Label>
-              <Input id="department" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} placeholder="Unit kerja" />
+              <MasterCombobox
+                category="unitKerja"
+                value={formData.department}
+                onChange={(val) => setFormData({ ...formData, department: val })}
+                placeholder="Unit kerja"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="emp-phone">No HP</Label>

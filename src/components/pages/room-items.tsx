@@ -38,6 +38,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { MasterCombobox } from '@/components/ui/master-combobox'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -726,7 +727,12 @@ export function RoomItemsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-brand">Merk</Label>
-              <Input id="item-brand" value={itemForm.brand} onChange={(e) => setItemForm({ ...itemForm, brand: e.target.value })} placeholder="Merk barang" />
+              <MasterCombobox
+                category="merk"
+                value={itemForm.brand}
+                onChange={(val) => setItemForm({ ...itemForm, brand: val })}
+                placeholder="Merk barang"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-condition">Kondisi</Label>
@@ -747,7 +753,12 @@ export function RoomItemsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-unit">Satuan</Label>
-              <Input id="item-unit" value={itemForm.unit} onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })} placeholder="Satuan" />
+              <MasterCombobox
+                category="satuan"
+                value={itemForm.unit}
+                onChange={(val) => setItemForm({ ...itemForm, unit: val })}
+                placeholder="Satuan"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-price">Harga (Rp)</Label>
@@ -755,20 +766,13 @@ export function RoomItemsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-sumber-dana">Sumber Dana</Label>
-              <Select value={itemForm.sumberDana || '_none_'} onValueChange={(val) => setItemForm({ ...itemForm, sumberDana: val === '_none_' ? '' : val })}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Pilih sumber dana" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none_">— Tidak Ditentukan —</SelectItem>
-                  <SelectItem value="APBN">APBN</SelectItem>
-                  <SelectItem value="APBD">APBD</SelectItem>
-                  <SelectItem value="BOS">BOS</SelectItem>
-                  <SelectItem value="Donasi">Donasi</SelectItem>
-                  <SelectItem value="Hibah">Hibah</SelectItem>
-                  <SelectItem value="Lainnya">Lainnya</SelectItem>
-                </SelectContent>
-              </Select>
+              <MasterCombobox
+                category="sumberDana"
+                value={itemForm.sumberDana}
+                onChange={(val) => setItemForm({ ...itemForm, sumberDana: val })}
+                placeholder="Pilih sumber dana"
+                allowClear
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-tahun-pengadaan">Tahun Pengadaan</Label>
