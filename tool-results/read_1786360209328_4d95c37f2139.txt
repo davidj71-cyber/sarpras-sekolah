@@ -1,0 +1,910 @@
+     1→'use client'
+     2→
+     3→import { useCallback, useEffect, useRef, useState } from 'react'
+     4→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+     5→import { Input } from '@/components/ui/input'
+     6→import { Label } from '@/components/ui/label'
+     7→import { Textarea } from '@/components/ui/textarea'
+     8→import { Button } from '@/components/ui/button'
+     9→import { Switch } from '@/components/ui/switch'
+    10→import { Separator } from '@/components/ui/separator'
+    11→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    12→import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+    13→import { Settings, Upload, Loader2, X, School, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+    14→import { useToast } from '@/hooks/use-toast'
+    15→
+    16→// ─── Types ────────────────────────────────────────────────────────────────────
+    17→
+    18→interface KopLine {
+    19→  text: string
+    20→  style: 'header' | 'detail'  // header = big font (above school name), detail = small font (below school name)
+    21→  bold: boolean
+    22→}
+    23→
+    24→interface SchoolSettingsData {
+    25→  schoolName: string
+    26→  npsn: string | null
+    27→  address: string | null
+    28→  phone: string | null
+    29→  email: string | null
+    30→  schoolCode: string
+    31→  letterUnitCode: string
+    32→  logo: string | null
+    33→  logoWidth: number
+    34→  logoHeight: number
+    35→  fontFamily: string
+    36→  fontSize: number
+    37→  isBold: boolean
+    38→  textTransform: string
+    39→  underlineThickness: number
+    40→  underlineWidth: number
+    41→  kopLines: KopLine[]
+    42→}
+    43→
+    44→const defaultSettings: SchoolSettingsData = {
+    45→  schoolName: '',
+    46→  npsn: '',
+    47→  address: '',
+    48→  phone: '',
+    49→  email: '',
+    50→  schoolCode: '',
+    51→  letterUnitCode: 'TU',
+    52→  logo: null,
+    53→  logoWidth: 3.0,
+    54→  logoHeight: 3.0,
+    55→  fontFamily: 'Times New Roman',
+    56→  fontSize: 14,
+    57→  isBold: false,
+    58→  textTransform: 'none',
+    59→  underlineThickness: 1.0,
+    60→  underlineWidth: 100.0,
+    61→  kopLines: [],
+    62→}
+    63→
+    64→const fontOptions = [
+    65→  'Times New Roman',
+    66→  'Arial',
+    67→  'Courier New',
+    68→  'Georgia',
+    69→  'Verdana',
+    70→  'Tahoma',
+    71→  'Comic Sans MS',
+    72→  'Impact',
+    73→  'Trebuchet MS',
+    74→  'Palatino Linotype',
+    75→]
+    76→
+    77→const CM_TO_PX = 37.8
+    78→
+    79→// ─── Helper: parse kopLines from API response ────────────────────────────────
+    80→
+    81→function parseKopLines(raw: unknown): KopLine[] {
+    82→  if (!raw) return []
+    83→  try {
+    84→    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    85→    if (!Array.isArray(parsed)) return []
+    86→    return parsed.map((item: unknown) => {
+    87→      // Backward compatibility: if item is a string, treat as detail line
+    88→      if (typeof item === 'string') {
+    89→        return { text: item, style: 'detail' as const, bold: false }
+    90→      }
+    91→      if (typeof item === 'object' && item !== null) {
+    92→        const obj = item as Record<string, unknown>
+    93→        return {
+    94→          text: String(obj.text ?? ''),
+    95→          style: (obj.style === 'header' ? 'header' : 'detail') as 'header' | 'detail',
+    96→          bold: Boolean(obj.bold ?? false),
+    97→        }
+    98→      }
+    99→      return { text: '', style: 'detail' as const, bold: false }
+   100→    }).filter((l: KopLine) => l.text.trim() !== '' || true) // keep empty lines for editing
+   101→  } catch {
+   102→    return []
+   103→  }
+   104→}
+   105→
+   106→// ─── Component ────────────────────────────────────────────────────────────────
+   107→
+   108→export function SettingsPage() {
+   109→  const { toast } = useToast()
+   110→  const [settings, setSettings] = useState<SchoolSettingsData>(defaultSettings)
+   111→  const [isLoading, setIsLoading] = useState(true)
+   112→  const [isSaving, setIsSaving] = useState(false)
+   113→  const fileInputRef = useRef<HTMLInputElement>(null)
+   114→
+   115→  // Fetch settings on mount
+   116→  useEffect(() => {
+   117→    async function fetchSettings() {
+   118→      try {
+   119→        const res = await fetch('/api/settings')
+   120→        if (!res.ok) throw new Error('Gagal mengambil pengaturan')
+   121→        const data = await res.json()
+   122→        setSettings({
+   123→          schoolName: data.schoolName ?? '',
+   124→          npsn: data.npsn ?? '',
+   125→          address: data.address ?? '',
+   126→          phone: data.phone ?? '',
+   127→          email: data.email ?? '',
+   128→          schoolCode: data.schoolCode ?? '',
+   129→          letterUnitCode: data.letterUnitCode ?? 'TU',
+   130→          logo: data.logo ?? null,
+   131→          logoWidth: data.logoWidth ?? 3.0,
+   132→          logoHeight: data.logoHeight ?? 3.0,
+   133→          fontFamily: data.fontFamily ?? 'Times New Roman',
+   134→          fontSize: data.fontSize ?? 14,
+   135→          isBold: data.isBold ?? false,
+   136→          textTransform: data.textTransform ?? 'none',
+   137→          underlineThickness: data.underlineThickness ?? 1.0,
+   138→          underlineWidth: data.underlineWidth ?? 100.0,
+   139→          kopLines: parseKopLines(data.kopLines),
+   140→        })
+   141→      } catch {
+   142→        toast({
+   143→          title: 'Error',
+   144→          description: 'Gagal memuat pengaturan sekolah',
+   145→          variant: 'destructive',
+   146→        })
+   147→      } finally {
+   148→        setIsLoading(false)
+   149→      }
+   150→    }
+   151→    fetchSettings()
+   152→  }, [toast])
+   153→
+   154→  const updateSettings = useCallback(<K extends keyof SchoolSettingsData>(
+   155→    key: K,
+   156→    value: SchoolSettingsData[K]
+   157→  ) => {
+   158→    setSettings(prev => ({ ...prev, [key]: value }))
+   159→  }, [])
+   160→
+   161→  // ─── KOP Lines handlers ────────────────────────────────────────────────────
+   162→
+   163→  const addKopLine = useCallback((style: 'header' | 'detail') => {
+   164→    setSettings(prev => ({
+   165→      ...prev,
+   166→      kopLines: [...prev.kopLines, { text: '', style, bold: style === 'header' }],
+   167→    }))
+   168→  }, [])
+   169→
+   170→  const removeKopLine = useCallback((index: number) => {
+   171→    setSettings(prev => ({
+   172→      ...prev,
+   173→      kopLines: prev.kopLines.filter((_, i) => i !== index),
+   174→    }))
+   175→  }, [])
+   176→
+   177→  const updateKopLine = useCallback((index: number, field: keyof KopLine, value: string | boolean) => {
+   178→    setSettings(prev => ({
+   179→      ...prev,
+   180→      kopLines: prev.kopLines.map((line, i) =>
+   181→        i === index ? { ...line, [field]: value } : line
+   182→      ),
+   183→    }))
+   184→  }, [])
+   185→
+   186→  const moveKopLine = useCallback((fromIndex: number, direction: 'up' | 'down') => {
+   187→    setSettings(prev => {
+   188→      const lines = [...prev.kopLines]
+   189→      const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1
+   190→      if (toIndex < 0 || toIndex >= lines.length) return prev
+   191→      const temp = lines[fromIndex]
+   192→      lines[fromIndex] = lines[toIndex]
+   193→      lines[toIndex] = temp
+   194→      return { ...prev, kopLines: lines }
+   195→    })
+   196→  }, [])
+   197→
+   198→  // ─── Logo handlers ────────────────────────────────────────────────────────
+   199→
+   200→  const handleLogoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+   201→    const file = e.target.files?.[0]
+   202→    if (!file) return
+   203→
+   204→    if (!file.type.startsWith('image/')) {
+   205→      toast({ title: 'Error', description: 'File harus berupa gambar', variant: 'destructive' })
+   206→      return
+   207→    }
+   208→
+   209→    if (file.size > 4 * 1024 * 1024) {
+   210→      toast({ title: 'Error', description: 'Ukuran file maksimal 4MB', variant: 'destructive' })
+   211→      return
+   212→    }
+   213→
+   214→    const reader = new FileReader()
+   215→    reader.onload = (event) => {
+   216→      const base64 = event.target?.result as string
+   217→      updateSettings('logo', base64)
+   218→    }
+   219→    reader.readAsDataURL(file)
+   220→  }, [toast, updateSettings])
+   221→
+   222→  const handleRemoveLogo = useCallback(() => {
+   223→    updateSettings('logo', null)
+   224→    if (fileInputRef.current) {
+   225→      fileInputRef.current.value = ''
+   226→    }
+   227→  }, [updateSettings])
+   228→
+   229→  // ─── Save handler ────────────────────────────────────────────────────────
+   230→
+   231→  const handleSave = useCallback(async () => {
+   232→    setIsSaving(true)
+   233→    try {
+   234→      const res = await fetch('/api/settings', {
+   235→        method: 'POST',
+   236→        headers: { 'Content-Type': 'application/json' },
+   237→        body: JSON.stringify(settings),
+   238→      })
+   239→      if (!res.ok) throw new Error('Gagal menyimpan pengaturan')
+   240→      toast({
+   241→        title: 'Berhasil',
+   242→        description: 'Pengaturan berhasil disimpan',
+   243→      })
+   244→    } catch {
+   245→      toast({
+   246→        title: 'Error',
+   247→        description: 'Gagal menyimpan pengaturan',
+   248→        variant: 'destructive',
+   249→      })
+   250→    } finally {
+   251→      setIsSaving(false)
+   252→    }
+   253→  }, [settings, toast])
+   254→
+   255→  // Compute text transform style
+   256→  const getTextTransform = (transform: string): React.CSSProperties['textTransform'] => {
+   257→    switch (transform) {
+   258→      case 'uppercase': return 'uppercase'
+   259→      case 'capitalize': return 'capitalize'
+   260→      case 'lowercase': return 'lowercase'
+   261→      default: return 'none'
+   262→    }
+   263→  }
+   264→
+   265→  // Separate header and detail lines for preview
+   266→  const headerLines = settings.kopLines.filter(l => l.style === 'header')
+   267→  const detailLines = settings.kopLines.filter(l => l.style === 'detail')
+   268→
+   269→  if (isLoading) {
+   270→    return (
+   271→      <div className="space-y-6">
+   272→        <div>
+   273→          <h2 className="text-2xl font-bold tracking-tight">Pengaturan</h2>
+   274→          <p className="text-muted-foreground">Pengaturan sekolah dan KOP surat</p>
+   275→        </div>
+   276→        <Card>
+   277→          <CardContent className="flex items-center justify-center py-12">
+   278→            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+   279→          </CardContent>
+   280→        </Card>
+   281→      </div>
+   282→    )
+   283→  }
+   284→
+   285→  return (
+   286→    <div className="space-y-6">
+   287→      {/* Page Header */}
+   288→      <div>
+   289→        <h2 className="text-2xl font-bold tracking-tight">Pengaturan</h2>
+   290→        <p className="text-muted-foreground">Pengaturan sekolah dan KOP surat</p>
+   291→      </div>
+   292→
+   293→      {/* Section 1: Informasi Sekolah */}
+   294→      <Card>
+   295→        <CardHeader>
+   296→          <div className="flex items-center gap-2">
+   297→            <School className="size-5" />
+   298→            <CardTitle>Informasi Sekolah</CardTitle>
+   299→          </div>
+   300→          <CardDescription>
+   301→            Kelola informasi dasar sekolah
+   302→          </CardDescription>
+   303→        </CardHeader>
+   304→        <CardContent className="space-y-4">
+   305→          <div className="grid gap-4 sm:grid-cols-2">
+   306→            <div className="space-y-2">
+   307→              <Label htmlFor="schoolName">Nama Sekolah</Label>
+   308→              <Input
+   309→                id="schoolName"
+   310→                placeholder="Masukkan nama sekolah"
+   311→                value={settings.schoolName}
+   312→                onChange={(e) => updateSettings('schoolName', e.target.value)}
+   313→              />
+   314→            </div>
+   315→            <div className="space-y-2">
+   316→              <Label htmlFor="npsn">NPSN</Label>
+   317→              <Input
+   318→                id="npsn"
+   319→                placeholder="Nomor Pokok Sekolah Nasional"
+   320→                value={settings.npsn ?? ''}
+   321→                onChange={(e) => updateSettings('npsn', e.target.value)}
+   322→              />
+   323→            </div>
+   324→          </div>
+   325→          <div className="space-y-2">
+   326→            <Label htmlFor="address">Alamat</Label>
+   327→            <Textarea
+   328→              id="address"
+   329→              placeholder="Masukkan alamat sekolah"
+   330→              value={settings.address ?? ''}
+   331→              onChange={(e) => updateSettings('address', e.target.value)}
+   332→              rows={3}
+   333→            />
+   334→          </div>
+   335→          <div className="grid gap-4 sm:grid-cols-2">
+   336→            <div className="space-y-2">
+   337→              <Label htmlFor="phone">No. Telepon</Label>
+   338→              <Input
+   339→                id="phone"
+   340→                placeholder="Masukkan nomor telepon"
+   341→                value={settings.phone ?? ''}
+   342→                onChange={(e) => updateSettings('phone', e.target.value)}
+   343→              />
+   344→            </div>
+   345→            <div className="space-y-2">
+   346→              <Label htmlFor="email">Email</Label>
+   347→              <Input
+   348→                id="email"
+   349→                type="email"
+   350→                placeholder="Masukkan email sekolah"
+   351→                value={settings.email ?? ''}
+   352→                onChange={(e) => updateSettings('email', e.target.value)}
+   353→              />
+   354→            </div>
+   355→          </div>
+   356→          <Separator />
+   357→          <div>
+   358→            <Label className="text-base font-semibold">Format Nomor Surat Pesanan</Label>
+   359→            <p className="text-xs text-muted-foreground mt-1 mb-3">
+   360→              Format: <span className="font-mono bg-muted px-1 py-0.5 rounded">[No]/PB/[Kode Sekolah]-[Kode Unit]/[Bulan Romawi]/[Tahun]</span>
+   361→            </p>
+   362→            <p className="text-xs text-muted-foreground mb-3">
+   363→              Contoh: <span className="font-mono bg-muted px-1 py-0.5 rounded">9/PB/SMAN1TLD-TU/XI/2025</span> — Anda hanya perlu memasukkan angka "9", sisanya otomatis.
+   364→            </p>
+   365→            <div className="grid gap-4 sm:grid-cols-2">
+   366→              <div className="space-y-2">
+   367→                <Label htmlFor="schoolCode">Kode Sekolah</Label>
+   368→                <Input
+   369→                  id="schoolCode"
+   370→                  placeholder="Misal: SMAN1TLD"
+   371→                  value={settings.schoolCode}
+   372→                  onChange={(e) => updateSettings('schoolCode', e.target.value)}
+   373→                />
+   374→              </div>
+   375→              <div className="space-y-2">
+   376→                <Label htmlFor="letterUnitCode">Kode Unit</Label>
+   377→                <Input
+   378→                  id="letterUnitCode"
+   379→                  placeholder="Misal: TU"
+   380→                  value={settings.letterUnitCode}
+   381→                  onChange={(e) => updateSettings('letterUnitCode', e.target.value)}
+   382→                />
+   383→              </div>
+   384→            </div>
+   385→          </div>
+   386→        </CardContent>
+   387→      </Card>
+   388→
+   389→      {/* Section 2: Pengaturan KOP Sekolah */}
+   390→      <Card>
+   391→        <CardHeader>
+   392→          <div className="flex items-center gap-2">
+   393→            <Settings className="size-5" />
+   394→            <CardTitle>Pengaturan KOP Sekolah</CardTitle>
+   395→          </div>
+   396→          <CardDescription>
+   397→            Konfigurasi tampilan KOP surat dengan pratinjau langsung
+   398→          </CardDescription>
+   399→        </CardHeader>
+   400→        <CardContent className="space-y-6">
+   401→          {/* Logo Upload */}
+   402→          <div className="space-y-2">
+   403→            <Label>Upload Logo</Label>
+   404→            <div className="flex items-start gap-4">
+   405→              <div className="flex-1">
+   406→                <input
+   407→                  ref={fileInputRef}
+   408→                  type="file"
+   409→                  accept="image/*"
+   410→                  onChange={handleLogoUpload}
+   411→                  className="hidden"
+   412→                />
+   413→                <Button
+   414→                  type="button"
+   415→                  variant="outline"
+   416→                  onClick={() => fileInputRef.current?.click()}
+   417→                  className="w-full sm:w-auto"
+   418→                >
+   419→                  <Upload className="mr-2 size-4" />
+   420→                  Pilih File Logo
+   421→                </Button>
+   422→                <p className="mt-1.5 text-xs text-muted-foreground">
+   423→                  Maksimal 4MB. Format: JPG, PNG, SVG, dll.
+   424→                </p>
+   425→              </div>
+   426→              {settings.logo && (
+   427→                <div className="relative">
+   428→                  <div className="flex size-20 items-center justify-center rounded-md border bg-muted p-1">
+   429→                    <img
+   430→                      src={settings.logo}
+   431→                      alt="Logo sekolah"
+   432→                      className="max-h-full max-w-full object-contain"
+   433→                    />
+   434→                  </div>
+   435→                  <Button
+   436→                    type="button"
+   437→                    variant="destructive"
+   438→                    size="icon"
+   439→                    className="absolute -right-2 -top-2 size-6"
+   440→                    onClick={handleRemoveLogo}
+   441→                  >
+   442→                    <X className="size-3" />
+   443→                  </Button>
+   444→                </div>
+   445→              )}
+   446→            </div>
+   447→          </div>
+   448→
+   449→          <Separator />
+   450→
+   451→          {/* Ukuran Logo */}
+   452→          <div className="space-y-2">
+   453→            <Label>Ukuran Logo</Label>
+   454→            <div className="grid gap-4 sm:grid-cols-2">
+   455→              <div className="space-y-1">
+   456→                <Label htmlFor="logoWidth" className="text-xs text-muted-foreground">
+   457→                  Lebar (cm)
+   458→                </Label>
+   459→                <Input
+   460→                  id="logoWidth"
+   461→                  type="number"
+   462→                  min={0.5}
+   463→                  max={20}
+   464→                  step={0.1}
+   465→                  value={settings.logoWidth}
+   466→                  onChange={(e) => updateSettings('logoWidth', parseFloat(e.target.value) || 0)}
+   467→                />
+   468→              </div>
+   469→              <div className="space-y-1">
+   470→                <Label htmlFor="logoHeight" className="text-xs text-muted-foreground">
+   471→                  Tinggi (cm)
+   472→                </Label>
+   473→                <Input
+   474→                  id="logoHeight"
+   475→                  type="number"
+   476→                  min={0.5}
+   477→                  max={20}
+   478→                  step={0.1}
+   479→                  value={settings.logoHeight}
+   480→                  onChange={(e) => updateSettings('logoHeight', parseFloat(e.target.value) || 0)}
+   481→                />
+   482→              </div>
+   483→            </div>
+   484→          </div>
+   485→
+   486→          <Separator />
+   487→
+   488→          {/* Baris Identitas KOP (Dynamic with header/detail types) */}
+   489→          <div className="space-y-3">
+   490→            <div className="flex items-center justify-between">
+   491→              <div>
+   492→                <Label>Baris Identitas KOP</Label>
+   493→                <p className="text-xs text-muted-foreground">
+   494→                  Baris Header tampil di atas nama sekolah (font besar), baris Detail tampil di bawah (font kecil)
+   495→                </p>
+   496→              </div>
+   497→              <div className="flex gap-2">
+   498→                <Button
+   499→                  type="button"
+   500→                  variant="outline"
+   501→                  size="sm"
+   502→                  onClick={() => addKopLine('header')}
+   503→                >
+   504→                  <Plus className="mr-1 size-4" />
+   505→                  Header
+   506→                </Button>
+   507→                <Button
+   508→                  type="button"
+   509→                  variant="outline"
+   510→                  size="sm"
+   511→                  onClick={() => addKopLine('detail')}
+   512→                >
+   513→                  <Plus className="mr-1 size-4" />
+   514→                  Detail
+   515→                </Button>
+   516→              </div>
+   517→            </div>
+   518→
+   519→            {settings.kopLines.length === 0 ? (
+   520→              <div className="rounded-lg border-2 border-dashed p-6 text-center">
+   521→                <p className="text-sm text-muted-foreground">
+   522→                  Belum ada baris identitas. Klik &quot;Header&quot; atau &quot;Detail&quot; untuk menambahkan.
+   523→                </p>
+   524→                <p className="mt-1 text-xs text-muted-foreground">
+   525→                  Contoh Header: PEMERINTAH PROVINSI..., DINAS PENDIDIKAN
+   526→                  <br />
+   527→                  Contoh Detail: Alamat, No. Telepon, Email, Website
+   528→                </p>
+   529→              </div>
+   530→            ) : (
+   531→              <div className="space-y-2">
+   532→                {settings.kopLines.map((line, index) => (
+   533→                  <div key={index} className="flex items-center gap-2 rounded-md border p-2">
+   534→                    {/* Move buttons */}
+   535→                    <div className="flex flex-col gap-0.5">
+   536→                      <button
+   537→                        type="button"
+   538→                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+   539→                        onClick={() => moveKopLine(index, 'up')}
+   540→                        disabled={index === 0}
+   541→                        title="Pindah ke atas"
+   542→                      >
+   543→                        <ChevronUp className="size-4" />
+   544→                      </button>
+   545→                      <button
+   546→                        type="button"
+   547→                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+   548→                        onClick={() => moveKopLine(index, 'down')}
+   549→                        disabled={index === settings.kopLines.length - 1}
+   550→                        title="Pindah ke bawah"
+   551→                      >
+   552→                        <ChevronDown className="size-4" />
+   553→                      </button>
+   554→                    </div>
+   555→
+   556→                    {/* Style selector */}
+   557→                    <Select
+   558→                      value={line.style}
+   559→                      onValueChange={(value) => updateKopLine(index, 'style', value)}
+   560→                    >
+   561→                      <SelectTrigger className="w-[110px] shrink-0">
+   562→                        <SelectValue />
+   563→                      </SelectTrigger>
+   564→                      <SelectContent>
+   565→                        <SelectItem value="header">
+   566→                          <span className="text-xs font-semibold uppercase">Header</span>
+   567→                        </SelectItem>
+   568→                        <SelectItem value="detail">
+   569→                          <span className="text-xs lowercase">Detail</span>
+   570→                        </SelectItem>
+   571→                      </SelectContent>
+   572→                    </Select>
+   573→
+   574→                    {/* Text input */}
+   575→                    <Input
+   576→                      value={line.text}
+   577→                      onChange={(e) => updateKopLine(index, 'text', e.target.value)}
+   578→                      placeholder={
+   579→                        line.style === 'header'
+   580→                          ? 'Contoh: DINAS PENDIDIKAN'
+   581→                          : 'Contoh: Jl. Pendidikan No. 1, Jakarta'
+   582→                      }
+   583→                      className="flex-1"
+   584→                    />
+   585→
+   586→                    {/* Bold toggle (mainly for header lines) */}
+   587→                    <Button
+   588→                      type="button"
+   589→                      variant={line.bold ? 'default' : 'outline'}
+   590→                      size="icon"
+   591→                      className="size-9 shrink-0 font-bold"
+   592→                      onClick={() => updateKopLine(index, 'bold', !line.bold)}
+   593→                      title={line.bold ? 'Nonaktifkan tebal' : 'Aktifkan tebal'}
+   594→                    >
+   595→                      B
+   596→                    </Button>
+   597→
+   598→                    {/* Delete button */}
+   599→                    <Button
+   600→                      type="button"
+   601→                      variant="ghost"
+   602→                      size="icon"
+   603→                      className="size-9 shrink-0 text-destructive hover:text-destructive"
+   604→                      onClick={() => removeKopLine(index)}
+   605→                      title="Hapus baris"
+   606→                    >
+   607→                      <Trash2 className="size-4" />
+   608→                    </Button>
+   609→                  </div>
+   610→                ))}
+   611→              </div>
+   612→            )}
+   613→          </div>
+   614→
+   615→          <Separator />
+   616→
+   617→          {/* Jenis Huruf */}
+   618→          <div className="space-y-2">
+   619→            <Label>Jenis Huruf</Label>
+   620→            <Select
+   621→              value={settings.fontFamily}
+   622→              onValueChange={(value) => updateSettings('fontFamily', value)}
+   623→            >
+   624→              <SelectTrigger className="w-full">
+   625→                <SelectValue placeholder="Pilih jenis huruf" />
+   626→              </SelectTrigger>
+   627→              <SelectContent>
+   628→                {fontOptions.map((font) => (
+   629→                  <SelectItem key={font} value={font}>
+   630→                    <span style={{ fontFamily: font }}>{font}</span>
+   631→                  </SelectItem>
+   632→                ))}
+   633→              </SelectContent>
+   634→            </Select>
+   635→          </div>
+   636→
+   637→          <Separator />
+   638→
+   639→          {/* Ukuran Huruf */}
+   640→          <div className="space-y-2">
+   641→            <Label htmlFor="fontSize">Ukuran Huruf Nama Sekolah (pt)</Label>
+   642→            <Input
+   643→              id="fontSize"
+   644→              type="number"
+   645→              min={8}
+   646→              max={72}
+   647→              value={settings.fontSize}
+   648→              onChange={(e) => {
+   649→                const val = parseInt(e.target.value)
+   650→                if (!isNaN(val)) {
+   651→                  updateSettings('fontSize', Math.min(72, Math.max(8, val)))
+   652→                }
+   653→              }}
+   654→            />
+   655→            <p className="text-xs text-muted-foreground">Rentang: 8 - 72 pt. Baris header otomatis menggunakan ukuran ini. Baris detail menggunakan ukuran yang lebih kecil.</p>
+   656→          </div>
+   657→
+   658→          <Separator />
+   659→
+   660→          {/* Tebal (Bold) */}
+   661→          <div className="flex items-center justify-between">
+   662→            <div className="space-y-0.5">
+   663→              <Label>Tebal Nama Sekolah (Bold)</Label>
+   664→              <p className="text-xs text-muted-foreground">Aktifkan teks tebal pada nama sekolah</p>
+   665→            </div>
+   666→            <Switch
+   667→              checked={settings.isBold}
+   668→              onCheckedChange={(checked) => updateSettings('isBold', checked)}
+   669→            />
+   670→          </div>
+   671→
+   672→          <Separator />
+   673→
+   674→          {/* Kapitalisasi Huruf */}
+   675→          <div className="space-y-3">
+   676→            <Label>Kapitalisasi Huruf</Label>
+   677→            <RadioGroup
+   678→              value={settings.textTransform}
+   679→              onValueChange={(value) => updateSettings('textTransform', value)}
+   680→              className="grid gap-2 sm:grid-cols-2"
+   681→            >
+   682→              <div className="flex items-center space-x-2">
+   683→                <RadioGroupItem value="none" id="transform-none" />
+   684→                <Label htmlFor="transform-none" className="cursor-pointer font-normal">Normal</Label>
+   685→              </div>
+   686→              <div className="flex items-center space-x-2">
+   687→                <RadioGroupItem value="uppercase" id="transform-uppercase" />
+   688→                <Label htmlFor="transform-uppercase" className="cursor-pointer font-normal">Huruf Kapital</Label>
+   689→              </div>
+   690→              <div className="flex items-center space-x-2">
+   691→                <RadioGroupItem value="capitalize" id="transform-capitalize" />
+   692→                <Label htmlFor="transform-capitalize" className="cursor-pointer font-normal">Huruf Besar Per Kata</Label>
+   693→              </div>
+   694→              <div className="flex items-center space-x-2">
+   695→                <RadioGroupItem value="lowercase" id="transform-lowercase" />
+   696→                <Label htmlFor="transform-lowercase" className="cursor-pointer font-normal">Huruf Kecil</Label>
+   697→              </div>
+   698→            </RadioGroup>
+   699→          </div>
+   700→
+   701→          <Separator />
+   702→
+   703→          {/* Tebal Garis Bawah */}
+   704→          <div className="space-y-2">
+   705→            <Label htmlFor="underlineThickness">Tebal Garis Bawah (px)</Label>
+   706→            <Input
+   707→              id="underlineThickness"
+   708→              type="number"
+   709→              min={0.5}
+   710→              max={5}
+   711→              step={0.1}
+   712→              value={settings.underlineThickness}
+   713→              onChange={(e) => {
+   714→                const val = parseFloat(e.target.value)
+   715→                if (!isNaN(val)) {
+   716→                  updateSettings('underlineThickness', Math.min(5, Math.max(0.5, val)))
+   717→                }
+   718→              }}
+   719→            />
+   720→            <p className="text-xs text-muted-foreground">Rentang: 0.5 - 5 px</p>
+   721→          </div>
+   722→
+   723→          <Separator />
+   724→
+   725→          {/* Lebar Garis Bawah KOP */}
+   726→          <div className="space-y-2">
+   727→            <Label htmlFor="underlineWidth">Lebar Garis Bawah KOP (%)</Label>
+   728→            <Input
+   729→              id="underlineWidth"
+   730→              type="number"
+   731→              min={10}
+   732→              max={100}
+   733→              step={1}
+   734→              value={settings.underlineWidth}
+   735→              onChange={(e) => {
+   736→                const val = parseFloat(e.target.value)
+   737→                if (!isNaN(val)) {
+   738→                  updateSettings('underlineWidth', Math.min(100, Math.max(10, val)))
+   739→                }
+   740→              }}
+   741→            />
+   742→            <p className="text-xs text-muted-foreground">Rentang: 10 - 100 %</p>
+   743→          </div>
+   744→        </CardContent>
+   745→      </Card>
+   746→
+   747→      {/* Live KOP Preview */}
+   748→      <Card>
+   749→        <CardHeader>
+   750→          <div className="flex items-center gap-2">
+   751→            <School className="size-5" />
+   752→            <CardTitle>Pratinjau KOP Surat</CardTitle>
+   753→          </div>
+   754→          <CardDescription>
+   755→            Pratinjau langsung tampilan KOP surat sesuai pengaturan
+   756→          </CardDescription>
+   757→        </CardHeader>
+   758→        <CardContent>
+   759→          <div className="overflow-x-auto rounded-lg border bg-white">
+   760→            <div
+   761→              className="mx-auto bg-white"
+   762→              style={{
+   763→                width: '210mm',
+   764→                minHeight: '80mm',
+   765→                padding: '15mm 20mm 10mm',
+   766→                maxWidth: '100%',
+   767→              }}
+   768→            >
+   769→              <div className="flex items-start gap-4">
+   770→                {/* Logo */}
+   771→                {settings.logo ? (
+   772→                  <div
+   773→                    className="shrink-0"
+   774→                    style={{
+   775→                      width: `${settings.logoWidth * CM_TO_PX}px`,
+   776→                      height: `${settings.logoHeight * CM_TO_PX}px`,
+   777→                    }}
+   778→                  >
+   779→                    <img
+   780→                      src={settings.logo}
+   781→                      alt="Logo"
+   782→                      className="size-full object-contain"
+   783→                    />
+   784→                  </div>
+   785→                ) : (
+   786→                  <div
+   787→                    className="flex shrink-0 items-center justify-center rounded border-2 border-dashed border-gray-300 bg-gray-50"
+   788→                    style={{
+   789→                      width: `${settings.logoWidth * CM_TO_PX}px`,
+   790→                      height: `${settings.logoHeight * CM_TO_PX}px`,
+   791→                    }}
+   792→                  >
+   793→                    <span className="text-xs text-gray-400">Logo</span>
+   794→                  </div>
+   795→                )}
+   796→
+   797→                {/* School Info - Centered */}
+   798→                <div className="flex-1 text-center">
+   799→                  {/* Header lines (above school name) */}
+   800→                  {headerLines.filter(l => l.text.trim()).map((line, idx) => (
+   801→                    <p
+   802→                      key={`h-${idx}`}
+   803→                      className="text-black"
+   804→                      style={{
+   805→                        fontFamily: settings.fontFamily,
+   806→                        fontSize: `${settings.fontSize}pt`,
+   807→                        fontWeight: line.bold ? 'bold' : 'normal',
+   808→                        textTransform: getTextTransform(settings.textTransform),
+   809→                        lineHeight: 1.3,
+   810→                        marginTop: idx === 0 ? 0 : '2px',
+   811→                      }}
+   812→                    >
+   813→                      {line.text}
+   814→                    </p>
+   815→                  ))}
+   816→
+   817→                  {/* School Name (main) */}
+   818→                  <h3
+   819→                    className="text-black"
+   820→                    style={{
+   821→                      fontFamily: settings.fontFamily,
+   822→                      fontSize: `${settings.fontSize}pt`,
+   823→                      fontWeight: settings.isBold ? 'bold' : 'normal',
+   824→                      textTransform: getTextTransform(settings.textTransform),
+   825→                      lineHeight: 1.3,
+   826→                      marginTop: headerLines.length > 0 ? '2px' : 0,
+   827→                    }}
+   828→                  >
+   829→                    {settings.schoolName || 'Nama Sekolah'}
+   830→                  </h3>
+   831→
+   832→                  {/* Detail lines (below school name) */}
+   833→                  {detailLines.filter(l => l.text.trim()).length > 0 ? (
+   834→                    detailLines.filter(l => l.text.trim()).map((line, idx) => (
+   835→                      <p
+   836→                        key={`d-${idx}`}
+   837→                        className="text-black"
+   838→                        style={{
+   839→                          fontFamily: 'Arial, sans-serif',
+   840→                          fontSize: `${Math.max(Math.round(settings.fontSize * 0.55), 7)}pt`,
+   841→                          fontWeight: line.bold ? 'bold' : 'normal',
+   842→                          lineHeight: 1.4,
+   843→                          marginTop: idx === 0 ? '4px' : '1px',
+   844→                        }}
+   845→                      >
+   846→                        {line.text}
+   847→                      </p>
+   848→                    ))
+   849→                  ) : (
+   850→                    <p
+   851→                      className="mt-2 text-gray-400 italic"
+   852→                      style={{
+   853→                        fontFamily: 'Arial, sans-serif',
+   854→                        fontSize: `${Math.max(Math.round(settings.fontSize * 0.55), 7)}pt`,
+   855→                        lineHeight: 1.4,
+   856→                      }}
+   857→                    >
+   858→                      Baris detail akan tampil di sini
+   859→                    </p>
+   860→                  )}
+   861→                </div>
+   862→
+   863→                {/* Spacer for logo width on the right to center text */}
+   864→                {settings.logo && (
+   865→                  <div
+   866→                    className="shrink-0"
+   867→                    style={{
+   868→                      width: `${settings.logoWidth * CM_TO_PX}px`,
+   869→                    }}
+   870→                  />
+   871→                )}
+   872→              </div>
+   873→
+   874→              {/* Underline */}
+   875→              <div className="mt-3 flex justify-center">
+   876→                <div
+   877→                  style={{
+   878→                    width: `${settings.underlineWidth}%`,
+   879→                    height: `${settings.underlineThickness}px`,
+   880→                    backgroundColor: 'black',
+   881→                  }}
+   882→                />
+   883→              </div>
+   884→            </div>
+   885→          </div>
+   886→        </CardContent>
+   887→      </Card>
+   888→
+   889→      {/* Save Button */}
+   890→      <div className="flex justify-end">
+   891→        <Button
+   892→          onClick={handleSave}
+   893→          disabled={isSaving}
+   894→          size="lg"
+   895→          className="min-w-[200px]"
+   896→        >
+   897→          {isSaving ? (
+   898→            <>
+   899→              <Loader2 className="mr-2 size-4 animate-spin" />
+   900→              Menyimpan...
+   901→            </>
+   902→          ) : (
+   903→            'Simpan Pengaturan'
+   904→          )}
+   905→        </Button>
+   906→      </div>
+   907→    </div>
+   908→  )
+   909→}
+   910→
