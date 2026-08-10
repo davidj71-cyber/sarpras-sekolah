@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const buildingId = searchParams.get("buildingId");
+
     const rooms = await db.inventoryRoom.findMany({
+      where: buildingId ? { buildingId } : undefined,
       orderBy: { createdAt: "desc" },
       include: {
+        building: true,
         biliks: true,
-        cabinets: true,
+        cabinets: { include: { bilik: true } },
         items: true,
       },
     });
@@ -29,10 +34,11 @@ export async function POST(request: NextRequest) {
     const room = await db.inventoryRoom.create({
       data: {
         name: body.name,
-        building: body.building ?? "",
+        buildingId: body.buildingId || null,
         floor: body.floor ?? "",
         description: body.description ?? "",
       },
+      include: { building: true },
     });
 
     return NextResponse.json(room, { status: 201 });

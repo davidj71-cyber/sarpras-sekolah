@@ -96,10 +96,22 @@ model Lemari {
 
 // ─── Inventaris Models (completely independent from KIB) ────────────────────
 
+model InventoryBuilding {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @default("") // Kode gedung (misal: A, B, GED-A)
+  floors      Int      @default(1) // Jumlah lantai
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  rooms       InventoryRoom[]
+}
+
 model InventoryRoom {
   id          String   @id @default(cuid())
   name        String
-  building    String   @default("")
+  buildingId  String?
+  building    InventoryBuilding? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
   floor       String   @default("")
   description String   @default("")
   createdAt   DateTime @default(now())
@@ -117,6 +129,7 @@ model InventoryBilik {
   roomId      String
   room        InventoryRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   items       InventoryItem[]
+  cabinets    InventoryCabinet[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -127,6 +140,8 @@ model InventoryCabinet {
   description String   @default("")
   roomId      String
   room        InventoryRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bilikId     String?
+  bilik       InventoryBilik? @relation(fields: [bilikId], references: [id], onDelete: SetNull)
   items       InventoryItem[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

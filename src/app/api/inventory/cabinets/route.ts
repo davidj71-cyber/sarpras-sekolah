@@ -5,12 +5,18 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const roomId = searchParams.get("roomId");
+    const bilikId = searchParams.get("bilikId");
+
+    const where: { roomId?: string; bilikId?: string } = {};
+    if (roomId) where.roomId = roomId;
+    if (bilikId) where.bilikId = bilikId;
 
     const cabinets = await db.inventoryCabinet.findMany({
-      where: roomId ? { roomId } : undefined,
+      where: Object.keys(where).length ? where : undefined,
       orderBy: { createdAt: "desc" },
       include: {
         room: true,
+        bilik: true,
         items: true,
       },
     });
@@ -29,12 +35,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    // roomId wajib; bilikId opsional (jika diisi, bilik harus milik room tsb)
     const cabinet = await db.inventoryCabinet.create({
       data: {
         number: body.number,
         description: body.description ?? "",
         roomId: body.roomId,
+        bilikId: body.bilikId || null,
       },
+      include: { room: true, bilik: true },
     });
 
     return NextResponse.json(cabinet, { status: 201 });

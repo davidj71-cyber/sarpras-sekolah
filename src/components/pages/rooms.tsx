@@ -90,13 +90,22 @@ interface CabinetData {
   number: string
   description: string
   roomId: string
+  bilikId: string | null
+  bilik?: { id: string; name: string; number: string } | null
   items?: InventoryItemData[]
+}
+
+interface BuildingRef {
+  id: string
+  name: string
+  code: string
 }
 
 interface RoomData {
   id: string
   name: string
-  building: string
+  buildingId: string | null
+  building: BuildingRef | null
   floor: string
   description: string
   biliks: BilikData[]
@@ -149,7 +158,7 @@ export function RoomsPage() {
   // Room dialog
   const [roomDialogOpen, setRoomDialogOpen] = useState(false)
   const [editingRoom, setEditingRoom] = useState<RoomData | null>(null)
-  const [roomForm, setRoomForm] = useState({ name: '', building: '', floor: '', description: '' })
+  const [roomForm, setRoomForm] = useState({ name: '', buildingId: '', floor: '', description: '' })
   const [saving, setSaving] = useState(false)
 
   // Bilik dialog
@@ -160,7 +169,10 @@ export function RoomsPage() {
   // Lemari/Cabinet dialog (UI shows "Lemari", API uses "cabinet")
   const [lemariDialogOpen, setLemariDialogOpen] = useState(false)
   const [editingLemari, setEditingLemari] = useState<CabinetData | null>(null)
-  const [lemariForm, setLemariForm] = useState({ number: '', description: '' })
+  const [lemariForm, setLemariForm] = useState({ number: '', description: '', bilikId: '' })
+
+  // Buildings (Gedung) list for room form dropdown
+  const [buildings, setBuildings] = useState<BuildingRef[]>([])
 
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; type: 'room' | 'bilik' | 'lemari' } | null>(null)
@@ -215,7 +227,19 @@ export function RoomsPage() {
     }
   }, [toast])
 
+  const fetchBuildings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/inventory/buildings')
+      if (!res.ok) return
+      const data = await res.json()
+      setBuildings(data.map((b: BuildingRef & { code?: string }) => ({ id: b.id, name: b.name, code: b.code || '' })))
+    } catch {
+      // silent fail; buildings dropdown will just be empty
+    }
+  }, [])
+
   useEffect(() => { fetchRooms() }, [fetchRooms])
+  useEffect(() => { fetchBuildings() }, [fetchBuildings])
 
   // ─── Fetch current room detail ───────────────────────────────────────────
 
@@ -260,7 +284,7 @@ export function RoomsPage() {
 
   const filteredRooms = rooms.filter(room =>
     room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    room.building.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (room.building?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     room.floor.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
@@ -306,7 +330,7 @@ export function RoomsPage() {
       return `<tr>
         <td class="text-center">${idx + 1}</td>
         <td>${room.name}</td>
-        <td>${room.building || '-'}</td>
+        <td>${room.building?.name || '-'}</td>
         <td class="text-center">${room.floor || '-'}</td>
         <td class="text-center">${bilikCount}</td>
         <td class="text-center">${lemariCount}</td>
@@ -425,7 +449,7 @@ export function RoomsPage() {
       const contentHtml = `
         <table class="meta-table">
           <tr><td class="font-bold" style="width:120px">Nama Ruang</td><td>: ${currentRoom.name}</td></tr>
-          <tr><td class="font-bold">Gedung</td><td>: ${currentRoom.building || '-'}</td></tr>
+          <tr><td class="font-bold">Gedung</td><td>: ${currentRoom.building?.name || '-'}</td></tr>
           <tr><td class="font-bold">Lantai</td><td>: ${currentRoom.floor || '-'}</td></tr>
           ${currentRoom.description ? `<tr><td class="font-bold">Deskripsi</td><td>: ${currentRoom.description}</td></tr>` : ''}
         </table>
@@ -489,13 +513,15 @@ export function RoomsPage() {
 
   function openAddRoom() {
     setEditingRoom(null)
-    setRoomForm({ name: '', building: '', floor: '', description: '' })
+    setRoomForm({ name: '', buildingId: '', floor: '', description: '' })
+    fetchBuildings()
     setRoomDialogOpen(true)
   }
 
   function openEditRoom(room: RoomData) {
     setEditingRoom(room)
-    setRoomForm({ name: room.name, building: room.building, floor: room.floor, description: room.description })
+    setRoomForm({ name: room.name, buildingId: room.buildingId || '', floor: room.floor, description: room.description })
+    fetchBuildings()
     setRoomDialogOpen(true)
   }
 
@@ -562,13 +588,14 @@ export function RoomsPage() {
 
   function openAddLemari() {
     setEditingLemari(null)
-    setLemariForm({ number: '', description: '' })
+    // pre-select bilik if user is currently viewing a bilik
+    setLemariForm({ number: '', description: '', bilikId: selectedBilikId || '' })
     setLemariDialogOpen(true)
   }
 
   function openEditLemari(cab: CabinetData) {
     setEditingLemari(cab)
-    setLemariForm({ number: cab.number, description: cab.description })
+    setLemariForm({ number: cab.number, description: cab.description, bilikId: cab.bilikId || '' })
     setLemariDialogOpen(true)
   }
 
@@ -885,9 +912,9 @@ export function RoomsPage() {
                         <div>
                           <CardTitle className="text-base group-hover:text-primary transition-colors">{room.name}</CardTitle>
                           <div className="flex items-center gap-2 mt-0.5 text-sm text-muted-foreground">
-                            {room.building && (
+                            {room.building?.name && (
                               <span className="flex items-center gap-1">
-                                <Building2 className="size-3" />{room.building}
+                                <Building2 className="size-3" />{room.building.name}
                               </span>
                             )}
                             {room.floor && (
@@ -969,8 +996,8 @@ export function RoomsPage() {
                 <div>
                   <h3 className="text-lg font-semibold">{currentRoom.name}</h3>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    {currentRoom.building && (
-                      <span className="flex items-center gap-1"><Building2 className="size-3.5" />{currentRoom.building}</span>
+                    {currentRoom.building?.name && (
+                      <span className="flex items-center gap-1"><Building2 className="size-3.5" />{currentRoom.building.name}</span>
                     )}
                     {currentRoom.floor && (
                       <span className="flex items-center gap-1"><Layers className="size-3.5" />Lantai {currentRoom.floor}</span>
@@ -1115,6 +1142,11 @@ export function RoomsPage() {
                         </div>
                         <div>
                           <p className="font-medium">Lemari {cab.number}</p>
+                          {cab.bilik?.name && (
+                            <span className="inline-flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+                              <Archive className="size-3" />Bilik {cab.bilik.name}
+                            </span>
+                          )}
                           {cab.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{cab.description}</p>}
                           <Badge variant="outline" className="mt-2 text-xs">{cab.items?.length || 0} Barang</Badge>
                         </div>
@@ -1345,7 +1377,22 @@ export function RoomsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="building">Gedung</Label>
-              <Input id="building" value={roomForm.building} onChange={(e) => setRoomForm({ ...roomForm, building: e.target.value })} placeholder="Nama gedung" />
+              <Select value={roomForm.buildingId || '__none__'} onValueChange={(v) => setRoomForm({ ...roomForm, buildingId: v === '__none__' ? '' : v })}>
+                <SelectTrigger id="building">
+                  <SelectValue placeholder={buildings.length === 0 ? 'Belum ada gedung' : 'Pilih gedung'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Tanpa Gedung —</SelectItem>
+                  {buildings.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}{b.code ? ` (${b.code})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {buildings.length === 0 && (
+                <p className="text-xs text-amber-600">Belum ada gedung. Tambahkan gedung di tab "Gedung" terlebih dahulu.</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="floor">Lantai</Label>
@@ -1408,6 +1455,23 @@ export function RoomsPage() {
             <div className="space-y-2">
               <Label htmlFor="lemari-number">Nomor Lemari *</Label>
               <Input id="lemari-number" value={lemariForm.number} onChange={(e) => setLemariForm({ ...lemariForm, number: e.target.value })} placeholder="Nomor lemari" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lemari-bilik">Bilik (opsional)</Label>
+              <Select value={lemariForm.bilikId || '__none__'} onValueChange={(v) => setLemariForm({ ...lemariForm, bilikId: v === '__none__' ? '' : v })}>
+                <SelectTrigger id="lemari-bilik">
+                  <SelectValue placeholder="Lemari berdiri langsung di ruang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Langsung di Ruang (tanpa bilik) —</SelectItem>
+                  {currentRoom?.biliks?.map((bilik) => (
+                    <SelectItem key={bilik.id} value={bilik.id}>
+                      Bilik {bilik.name}{bilik.number ? ` (${bilik.number})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Pilih bilik jika lemari berada di dalam bilik tertentu.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="lemari-desc">Deskripsi</Label>

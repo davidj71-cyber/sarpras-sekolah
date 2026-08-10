@@ -6,7 +6,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { useNavigationStore } from '@/lib/navigation-store'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog } from 'lucide-react'
+import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2 } from 'lucide-react'
 import type { StoreSubPage, RoomSubPage } from '@/lib/navigation-store'
 
 // Dynamic imports to reduce initial compilation memory usage
@@ -19,6 +19,7 @@ const RoomsPage = dynamic(() => import('@/components/pages/rooms').then(m => ({ 
 const OrdersPage = dynamic(() => import('@/components/pages/orders').then(m => ({ default: m.OrdersPage })), { ssr: false })
 const BarangMasukPage = dynamic(() => import('@/components/pages/barang-masuk').then(m => ({ default: m.BarangMasukPage })), { ssr: false })
 const RoomItemsPage = dynamic(() => import('@/components/pages/room-items').then(m => ({ default: m.RoomItemsPage })), { ssr: false })
+const BuildingsPage = dynamic(() => import('@/components/pages/buildings').then(m => ({ default: m.BuildingsPage })), { ssr: false })
 const AccountsPage = dynamic(() => import('@/components/pages/accounts').then(m => ({ default: m.AccountsPage })), { ssr: false })
 const LoginPage = dynamic(() => import('@/components/login-page').then(m => ({ default: m.LoginPage })), { ssr: false })
 
@@ -38,7 +39,8 @@ const storeItems: { key: StoreSubPage; label: string; icon: React.ElementType }[
 ]
 
 const roomItems: { key: RoomSubPage; label: string; icon: React.ElementType }[] = [
-  { key: 'rooms', label: 'Inventaris', icon: DoorOpen },
+  { key: 'buildings', label: 'Gedung', icon: Building2 },
+  { key: 'rooms', label: 'Ruang', icon: DoorOpen },
   { key: 'allItems', label: 'Barang di Ruang', icon: Package },
 ]
 
@@ -159,6 +161,8 @@ export default function Home() {
         return <KibPage />
       case 'rooms':
         switch (roomSubPage) {
+          case 'buildings':
+            return <BuildingsPage />
           case 'allItems':
             return <RoomItemsPage />
           default:

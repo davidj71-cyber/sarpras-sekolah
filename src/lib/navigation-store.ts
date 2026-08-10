@@ -11,7 +11,7 @@ export type Page =
 
 export type StoreSubPage = 'stores' | 'orders' | 'barangMasuk'
 
-export type RoomSubPage = 'rooms' | 'allItems'
+export type RoomSubPage = 'buildings' | 'rooms' | 'allItems'
 
 interface AuthUser {
   id: string
@@ -47,7 +47,7 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   currentPage: 'dashboard',
   kibType: 'B',
   storeSubPage: 'stores',
-  roomSubPage: 'rooms',
+  roomSubPage: 'buildings',
   selectedRoomId: null,
   selectedBilikId: null,
   selectedLemariId: null,

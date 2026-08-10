@@ -12,6 +12,7 @@ export async function GET(
       include: {
         room: true,
         items: true,
+        cabinets: true,
       },
     });
 

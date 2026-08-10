@@ -7,27 +7,32 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const cabinet = await db.inventoryCabinet.findUnique({
+    const building = await db.inventoryBuilding.findUnique({
       where: { id },
       include: {
-        room: true,
-        bilik: true,
-        items: true,
+        rooms: {
+          include: {
+            _count: {
+              select: { items: true, biliks: true, cabinets: true },
+            },
+          },
+        },
+        _count: { select: { rooms: true } },
       },
     });
 
-    if (!cabinet) {
+    if (!building) {
       return NextResponse.json(
-        { error: "Lemari inventaris tidak ditemukan" },
+        { error: "Gedung inventaris tidak ditemukan" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(cabinet);
+    return NextResponse.json(building);
   } catch (error) {
-    console.error("Error fetching inventory cabinet:", error);
+    console.error("Error fetching inventory building:", error);
     return NextResponse.json(
-      { error: "Gagal mengambil data lemari inventaris" },
+      { error: "Gagal mengambil data gedung inventaris" },
       { status: 500 }
     );
   }
@@ -41,22 +46,21 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const cabinet = await db.inventoryCabinet.update({
+    const building = await db.inventoryBuilding.update({
       where: { id },
       data: {
-        number: body.number,
+        name: body.name,
+        code: body.code ?? "",
+        floors: Number(body.floors ?? 1),
         description: body.description ?? "",
-        roomId: body.roomId,
-        bilikId: body.bilikId || null,
       },
-      include: { room: true, bilik: true },
     });
 
-    return NextResponse.json(cabinet);
+    return NextResponse.json(building);
   } catch (error) {
-    console.error("Error updating inventory cabinet:", error);
+    console.error("Error updating inventory building:", error);
     return NextResponse.json(
-      { error: "Gagal memperbarui lemari inventaris" },
+      { error: "Gagal memperbarui gedung inventaris" },
       { status: 500 }
     );
   }
@@ -68,15 +72,15 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await db.inventoryCabinet.delete({
+    await db.inventoryBuilding.delete({
       where: { id },
     });
 
-    return NextResponse.json({ message: "Lemari inventaris berhasil dihapus" });
+    return NextResponse.json({ message: "Gedung inventaris berhasil dihapus" });
   } catch (error) {
-    console.error("Error deleting inventory cabinet:", error);
+    console.error("Error deleting inventory building:", error);
     return NextResponse.json(
-      { error: "Gagal menghapus lemari inventaris" },
+      { error: "Gagal menghapus gedung inventaris" },
       { status: 500 }
     );
   }

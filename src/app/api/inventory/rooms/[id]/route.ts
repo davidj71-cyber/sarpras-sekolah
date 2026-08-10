@@ -10,8 +10,9 @@ export async function GET(
     const room = await db.inventoryRoom.findUnique({
       where: { id },
       include: {
-        biliks: true,
-        cabinets: true,
+        building: true,
+        biliks: { include: { cabinets: true } },
+        cabinets: { include: { bilik: true } },
         items: true,
       },
     });
@@ -45,10 +46,11 @@ export async function PUT(
       where: { id },
       data: {
         name: body.name,
-        building: body.building,
-        floor: body.floor,
-        description: body.description,
+        buildingId: body.buildingId || null,
+        floor: body.floor ?? "",
+        description: body.description ?? "",
       },
+      include: { building: true },
     });
 
     return NextResponse.json(room);

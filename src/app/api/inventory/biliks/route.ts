@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
       include: {
         room: true,
         items: true,
+        cabinets: true,
       },
     });
 
