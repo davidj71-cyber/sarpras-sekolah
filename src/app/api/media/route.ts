@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureSalaryMediaSchema } from "@/lib/migrate-settings";
 
 export async function GET() {
   try {
+    // Self-heal: create tables in Neon production if missing (idempotent).
+    await ensureSalaryMediaSchema();
+
     const entries = await db.mediaEntry.findMany({
       orderBy: { createdAt: "desc" },
     });
@@ -19,6 +23,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Self-heal before write as well, so the first POST doesn't 500.
+    await ensureSalaryMediaSchema();
+
     const body = await request.json();
 
     const unitCount = Number(body.unitCount) || 0;

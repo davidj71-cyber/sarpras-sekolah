@@ -139,12 +139,82 @@ export async function withSchemaHeal<T>(op: () => Promise<T>): Promise<T> {
       /column .* does not exist/i.test(msg) ||
       /no such column/i.test(msg) ||
       /relation .* does not exist/i.test(msg) ||
-      /unknown column/i.test(msg);
+      /unknown column/i.test(msg) ||
+      /no such table/i.test(msg);
 
     if (!isSchemaError) throw err;
 
     console.warn("[migrate] schema error detected, running self-heal:", msg);
     await ensureSchoolSettingsSchema();
+    await ensureSalaryMediaSchema();
     return op();
   }
+}
+
+/**
+ * Ensure the `SalaryEntry` and `MediaEntry` tables exist in the production
+ * DB (Neon Postgres). These tables were added to schema.prisma for the
+ * Gaji & Media features; without this self-heal, the first request after
+ * deploy returns 500 because Prisma queries reference tables that don't
+ * exist yet in production.
+ *
+ * Idempotent — safe to call on every request. On SQLite (sandbox) the
+ * tables already exist from `prisma db push`, so this is a no-op there.
+ */
+export async function ensureSalaryMediaSchema(): Promise<string[]> {
+  const executed: string[] = [];
+
+  if (isSqlite()) {
+    // Sandbox DB already has these tables from `prisma db push`.
+    return executed;
+  }
+
+  // ─── SalaryEntry ────────────────────────────────────────────────────────
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "SalaryEntry" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "nip" TEXT NOT NULL DEFAULT '',
+        "gender" TEXT NOT NULL DEFAULT 'L',
+        "lessonCount" INTEGER NOT NULL DEFAULT 0,
+        "unit" TEXT NOT NULL DEFAULT 'Jam',
+        "pricePerLesson" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "totalReceived" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "period" TEXT NOT NULL DEFAULT '',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "SalaryEntry_pkey" PRIMARY KEY ("id")
+      )
+    `;
+    executed.push(`CREATE TABLE IF NOT EXISTS "SalaryEntry"`);
+  } catch (e) {
+    console.error("[migrate] create SalaryEntry failed:", e);
+    throw e;
+  }
+
+  // ─── MediaEntry ────────────────────────────────────────────────────────
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "MediaEntry" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "mediaName" TEXT NOT NULL,
+        "paymentType" TEXT NOT NULL DEFAULT 'Tunai',
+        "pricePerMonth" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "unitCount" INTEGER NOT NULL DEFAULT 1,
+        "totalReceived" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "period" TEXT NOT NULL DEFAULT '',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "MediaEntry_pkey" PRIMARY KEY ("id")
+      )
+    `;
+    executed.push(`CREATE TABLE IF NOT EXISTS "MediaEntry"`);
+  } catch (e) {
+    console.error("[migrate] create MediaEntry failed:", e);
+    throw e;
+  }
+
+  return executed;
 }
