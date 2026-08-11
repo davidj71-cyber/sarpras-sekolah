@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { PageLoading } from '@/components/ui/loading-skeleton'
 import { refreshSchoolBranding } from '@/lib/use-school-branding'
+import { resizeImageFile } from '@/lib/resize-image'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -277,12 +278,17 @@ export function SettingsPage() {
     }
   }, [updateSettings])
 
-  // ─── App logo & favicon handlers (max 3 MB) ───────────────────────────────
+  // ─── App logo & favicon handlers (max 3 MB input, auto-resized) ───────────
 
-  const MAX_APP_IMAGE_SIZE = 3 * 1024 * 1024 // 3 MB
+  const MAX_APP_IMAGE_SIZE = 3 * 1024 * 1024 // 3 MB input file limit
 
-  const readImageFile = useCallback(
-    (file: File, field: 'appLogo' | 'favicon', label: string) => {
+  const processImageFile = useCallback(
+    async (
+      file: File,
+      field: 'appLogo' | 'favicon',
+      label: string,
+      maxDimension: number
+    ) => {
       if (!file.type.startsWith('image/')) {
         toast({ title: 'Error', description: `${label} harus berupa gambar`, variant: 'destructive' })
         return
@@ -291,12 +297,18 @@ export function SettingsPage() {
         toast({ title: 'Error', description: `Ukuran ${label} maksimal 3 MB`, variant: 'destructive' })
         return
       }
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string
-        updateSettings(field, base64)
+      try {
+        // Resize on the client so the stored base64 payload is small
+        // enough to fit within the platform gateway's body-size limit.
+        const { dataUrl } = await resizeImageFile(file, maxDimension, 0.9)
+        updateSettings(field, dataUrl)
+      } catch (err) {
+        toast({
+          title: 'Error',
+          description: err instanceof Error ? err.message : `Gagal memproses ${label}`,
+          variant: 'destructive',
+        })
       }
-      reader.readAsDataURL(file)
     },
     [toast, updateSettings]
   )
@@ -304,17 +316,17 @@ export function SettingsPage() {
   const handleAppLogoUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
-      if (file) readImageFile(file, 'appLogo', 'logo aplikasi')
+      if (file) void processImageFile(file, 'appLogo', 'logo aplikasi', 512)
     },
-    [readImageFile]
+    [processImageFile]
   )
 
   const handleFaviconUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
-      if (file) readImageFile(file, 'favicon', 'favicon')
+      if (file) void processImageFile(file, 'favicon', 'favicon', 128)
     },
-    [readImageFile]
+    [processImageFile]
   )
 
   const handleRemoveAppLogo = useCallback(() => {
@@ -337,7 +349,21 @@ export function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       })
-      if (!res.ok) throw new Error('Gagal menyimpan pengaturan')
+      if (!res.ok) {
+        // 413 = body too large (gateway limit). 500 = server error.
+        // Give the user a clear, actionable message for each.
+        if (res.status === 413) {
+          throw new Error('Ukuran data terlalu besar. Logo/favicon akan otomatis dikecilkan saat dipilih — coba pilih ulang gambarnya.')
+        }
+        let msg = 'Gagal menyimpan pengaturan'
+        try {
+          const data = await res.json()
+          if (data?.error) msg = data.error
+        } catch {
+          // response wasn't JSON
+        }
+        throw new Error(msg)
+      }
       toast({
         title: 'Berhasil',
         description: 'Pengaturan berhasil disimpan',
@@ -345,10 +371,10 @@ export function SettingsPage() {
       // Refresh the cached branding so login page & sidebar pick up the
       // new app logo / favicon immediately.
       refreshSchoolBranding()
-    } catch {
+    } catch (err) {
       toast({
         title: 'Error',
-        description: 'Gagal menyimpan pengaturan',
+        description: err instanceof Error ? err.message : 'Gagal menyimpan pengaturan',
         variant: 'destructive',
       })
     } finally {

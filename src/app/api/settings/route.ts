@@ -47,7 +47,15 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Permintaan tidak valid" },
+        { status: 400 }
+      );
+    }
 
     const existing = await db.schoolSettings.findFirst();
 
