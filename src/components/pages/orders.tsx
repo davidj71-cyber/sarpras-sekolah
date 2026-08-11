@@ -854,21 +854,12 @@ export function OrdersPage() {
       </div>
 
       <!-- Tanda Tangan -->
-      <div style="margin-top: 32px; font-size: 12pt;">
-        <table style="border: none; border-collapse: collapse; width: auto; margin-left: auto;">
-          <tr>
-            <td style="border: none; padding: 0 0 0 6px;">Bendahara</td>
-          </tr>
-          <tr>
-            <td style="border: none; padding: 0 0 0 6px; height: 60px;"></td>
-          </tr>
-          <tr>
-            <td style="border: none; padding: 0 0 0 6px; text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</td>
-          </tr>
-          <tr>
-            <td style="border: none; padding: 0 0 0 6px;">${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</td>
-          </tr>
-        </table>
+      <div style="margin-top: 32px; font-size: 12pt; text-align: left;">
+        <div>an. Kepala ${settings.schoolName || 'Sekolah'}</div>
+        <div style="padding-left: 48px;">Bendahara Sekolah,</div>
+        <div style="height: 72px;"></div>
+        <div style="padding-left: 36px; text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</div>
+        <div style="padding-left: 36px;">${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</div>
       </div>
     `
 
