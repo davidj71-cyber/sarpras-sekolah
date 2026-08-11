@@ -24,9 +24,9 @@ export const metadata: Metadata = {
   keywords: ["SIMAPRAS", "Sarpras", "Inventaris", "Sekolah", "KIB", "Manajemen"],
   authors: [{ name: "SIMAPRAS" }],
   icons: {
-    icon: [{ url: "/api/logo" }],
-    shortcut: [{ url: "/api/logo" }],
-    apple: [{ url: "/api/logo" }],
+    icon: [{ url: "/api/favicon" }],
+    shortcut: [{ url: "/api/favicon" }],
+    apple: [{ url: "/api/favicon" }],
   },
 };
 

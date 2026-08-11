@@ -10,7 +10,6 @@ import {
   Archive,
   UserCog,
   LogOut,
-  Building2,
 } from 'lucide-react'
 
 import {
@@ -45,7 +44,7 @@ const navItems: {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { currentPage, setPage, authUser, logout } = useNavigationStore()
-  const { logo, schoolName } = useSchoolBranding()
+  const { appLogoUrl, schoolName } = useSchoolBranding()
   const brandName = 'SIMAPRAS'
   const brandSubtitle = schoolName?.trim() ? schoolName.trim() : 'Manajemen Sarpras'
 
@@ -55,17 +54,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" tooltip={brandName} className="group/header">
-              {logo ? (
-                <img
-                  src={logo}
-                  alt={`${brandName} logo`}
-                  className="aspect-square size-8 rounded-lg object-contain ring-1 ring-border/40 bg-card p-0.5"
-                />
-              ) : (
-                <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shadow-sm transition-shadow group-hover/header:shadow-md">
-                  <Building2 className="size-4" />
-                </div>
-              )}
+              <img
+                src={appLogoUrl}
+                alt={`${brandName} logo`}
+                className="aspect-square size-8 rounded-lg object-contain ring-1 ring-border/40 bg-card p-0.5"
+              />
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold tracking-tight">{brandName}</span>
                 <span className="text-muted-foreground truncate text-xs">{brandSubtitle}</span>

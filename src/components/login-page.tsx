@@ -13,11 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Building2, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
 
 export function LoginPage() {
   const { login } = useNavigationStore()
-  const { logo, schoolName, loading } = useSchoolBranding()
+  const { appLogoUrl, schoolName, loading } = useSchoolBranding()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -73,17 +73,11 @@ export function LoginPage() {
       <Card className="w-full max-w-md shadow-xl border-border/50">
         <CardHeader className="text-center space-y-4 pb-2">
           <div className="flex justify-center">
-            {logo ? (
-              <img
-                src={logo}
-                alt={`${brandName} logo`}
-                className="size-20 rounded-2xl object-contain shadow-lg shadow-primary/10 ring-1 ring-border/40 bg-card p-1.5"
-              />
-            ) : (
-              <div className="bg-primary text-primary-foreground flex size-16 items-center justify-center rounded-2xl shadow-lg shadow-primary/25">
-                <Building2 className="size-8" />
-              </div>
-            )}
+            <img
+              src={appLogoUrl}
+              alt={`${brandName} logo`}
+              className="size-20 rounded-2xl object-contain shadow-lg shadow-primary/10 ring-1 ring-border/40 bg-card p-1.5"
+            />
           </div>
           <div>
             <CardTitle className="text-2xl font-bold tracking-tight">{brandName}</CardTitle>

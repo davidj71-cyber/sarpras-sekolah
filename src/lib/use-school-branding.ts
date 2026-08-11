@@ -3,21 +3,21 @@
 import { useEffect, useState } from 'react'
 
 export interface SchoolBranding {
-  /** base64 data URL of the uploaded logo, or null when not set */
-  logo: string | null
-  /** School name from settings, or null when not set */
+  /** URL for the application logo image (login & sidebar). */
+  appLogoUrl: string
+  /** School name from settings, or null when not set. */
   schoolName: string | null
-  /** Whether the settings request is in-flight */
+  /** Whether the settings request is in-flight. */
   loading: boolean
 }
 
 // Module-level cache so multiple consumers (login, sidebar) share one request
 // and avoid re-fetching on every mount.
-let cached: SchoolBranding | null = null
-const listeners = new Set<(b: SchoolBranding) => void>()
-let inflight: Promise<SchoolBranding> | null = null
+let cached: { schoolName: string | null; version: number } | null = null
+const listeners = new Set<(b: { schoolName: string | null; version: number }) => void>()
+let inflight: Promise<{ schoolName: string | null; version: number }> | null = null
 
-async function fetchBranding(): Promise<SchoolBranding> {
+async function fetchBranding(): Promise<{ schoolName: string | null; version: number }> {
   if (cached) return cached
   if (!inflight) {
     inflight = (async () => {
@@ -25,19 +25,22 @@ async function fetchBranding(): Promise<SchoolBranding> {
         const res = await fetch('/api/settings', { cache: 'no-store' })
         if (!res.ok) throw new Error('failed')
         const data = await res.json()
-        const branding: SchoolBranding = {
-          logo: data.logo ?? null,
+        // Use updatedAt (epoch ms) as a cache-bust version so a newly uploaded
+        // app logo / favicon is picked up immediately by the <img> tags.
+        const version = data.updatedAt
+          ? new Date(data.updatedAt).getTime()
+          : Date.now()
+        const branding = {
           schoolName: data.schoolName ?? null,
-          loading: false,
+          version,
         }
         cached = branding
         listeners.forEach((l) => l(branding))
         return branding
       } catch {
-        const fallback: SchoolBranding = {
-          logo: null,
+        const fallback = {
           schoolName: null,
-          loading: false,
+          version: Date.now(),
         }
         cached = fallback
         listeners.forEach((l) => l(fallback))
@@ -50,7 +53,7 @@ async function fetchBranding(): Promise<SchoolBranding> {
   return inflight
 }
 
-/** Force a re-fetch (e.g. after the user uploads a new logo). */
+/** Force a re-fetch (e.g. after the user uploads a new logo in settings). */
 export function refreshSchoolBranding() {
   cached = null
   inflight = null
@@ -58,24 +61,26 @@ export function refreshSchoolBranding() {
 }
 
 /**
- * Shared hook that exposes the school's logo + name from /api/settings.
+ * Shared hook that exposes the school's app-logo URL + name from /api/settings.
  * Results are cached at module level so login & sidebar don't double-fetch.
  */
 export function useSchoolBranding(): SchoolBranding {
-  // Initialize lazily from the module cache so a returning consumer
-  // doesn't flash a loading state.
-  const [state, setState] = useState<SchoolBranding>(
-    () => cached ?? { logo: null, schoolName: null, loading: !cached }
+  const [state, setState] = useState<{
+    schoolName: string | null
+    version: number
+    loading: boolean
+  }>(() =>
+    cached
+      ? { ...cached, loading: false }
+      : { schoolName: null, version: 0, loading: true }
   )
 
   useEffect(() => {
     // Subscribe first so we never miss an update from an in-flight fetch.
-    const listener = (b: SchoolBranding) => setState({ ...b, loading: false })
+    const listener = (b: { schoolName: string | null; version: number }) =>
+      setState({ ...b, loading: false })
     listeners.add(listener)
 
-    // Kick off the fetch only when nothing is cached and nothing is pending.
-    // Updates arrive through the subscription listener (async), never as a
-    // synchronous setState inside this effect.
     if (!cached && !inflight) {
       void fetchBranding()
     }
@@ -85,5 +90,15 @@ export function useSchoolBranding(): SchoolBranding {
     }
   }, [])
 
-  return state
+  // Build the app-logo URL with a cache-bust query so a new logo is reflected
+  // immediately after the user saves settings.
+  const appLogoUrl = state.version
+    ? `/api/app-logo?v=${state.version}`
+    : '/api/app-logo'
+
+  return {
+    appLogoUrl,
+    schoolName: state.schoolName,
+    loading: state.loading,
+  }
 }

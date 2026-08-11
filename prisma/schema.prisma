@@ -10,7 +10,9 @@ datasource db {
 model SchoolSettings {
   id                String  @id @default(cuid())
   schoolName        String  @default("")
-  logo              String? // base64 encoded logo
+  logo              String? // base64 encoded logo (KOP surat / letterhead)
+  appLogo           String? // base64 encoded application logo (login & sidebar)
+  favicon           String? // base64 encoded favicon (browser tab icon)
   logoWidth         Float   @default(3.0) // in cm
   logoHeight        Float   @default(3.0) // in cm
   fontFamily        String  @default("Times New Roman")

@@ -8,10 +8,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Settings, Upload, Loader2, X, School, Plus, Trash2, ChevronUp, ChevronDown, UserCheck } from 'lucide-react'
+import { Settings, Upload, Loader2, X, School, Plus, Trash2, ChevronUp, ChevronDown, UserCheck, Image as ImageIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { PageLoading } from '@/components/ui/loading-skeleton'
+import { refreshSchoolBranding } from '@/lib/use-school-branding'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,9 @@ interface SchoolSettingsData {
   email: string | null
   schoolCode: string
   letterUnitCode: string
-  logo: string | null
+  logo: string | null          // KOP surat / letterhead logo
+  appLogo: string | null       // application logo (login & sidebar)
+  favicon: string | null       // browser tab favicon
   logoWidth: number
   logoHeight: number
   fontFamily: string
@@ -57,6 +60,8 @@ const defaultSettings: SchoolSettingsData = {
   schoolCode: '',
   letterUnitCode: 'TU',
   logo: null,
+  appLogo: null,
+  favicon: null,
   logoWidth: 3.0,
   logoHeight: 3.0,
   fontFamily: 'Times New Roman',
@@ -140,6 +145,8 @@ export function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const appLogoInputRef = useRef<HTMLInputElement>(null)
+  const faviconInputRef = useRef<HTMLInputElement>(null)
 
   // Fetch settings on mount
   useEffect(() => {
@@ -159,6 +166,8 @@ export function SettingsPage() {
           schoolCode: data.schoolCode ?? '',
           letterUnitCode: data.letterUnitCode ?? 'TU',
           logo: data.logo ?? null,
+          appLogo: data.appLogo ?? null,
+          favicon: data.favicon ?? null,
           logoWidth: data.logoWidth ?? 3.0,
           logoHeight: data.logoHeight ?? 3.0,
           fontFamily: data.fontFamily ?? 'Times New Roman',
@@ -268,6 +277,56 @@ export function SettingsPage() {
     }
   }, [updateSettings])
 
+  // ─── App logo & favicon handlers (max 3 MB) ───────────────────────────────
+
+  const MAX_APP_IMAGE_SIZE = 3 * 1024 * 1024 // 3 MB
+
+  const readImageFile = useCallback(
+    (file: File, field: 'appLogo' | 'favicon', label: string) => {
+      if (!file.type.startsWith('image/')) {
+        toast({ title: 'Error', description: `${label} harus berupa gambar`, variant: 'destructive' })
+        return
+      }
+      if (file.size > MAX_APP_IMAGE_SIZE) {
+        toast({ title: 'Error', description: `Ukuran ${label} maksimal 3 MB`, variant: 'destructive' })
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string
+        updateSettings(field, base64)
+      }
+      reader.readAsDataURL(file)
+    },
+    [toast, updateSettings]
+  )
+
+  const handleAppLogoUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (file) readImageFile(file, 'appLogo', 'logo aplikasi')
+    },
+    [readImageFile]
+  )
+
+  const handleFaviconUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (file) readImageFile(file, 'favicon', 'favicon')
+    },
+    [readImageFile]
+  )
+
+  const handleRemoveAppLogo = useCallback(() => {
+    updateSettings('appLogo', null)
+    if (appLogoInputRef.current) appLogoInputRef.current.value = ''
+  }, [updateSettings])
+
+  const handleRemoveFavicon = useCallback(() => {
+    updateSettings('favicon', null)
+    if (faviconInputRef.current) faviconInputRef.current.value = ''
+  }, [updateSettings])
+
   // ─── Save handler ────────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
@@ -283,6 +342,9 @@ export function SettingsPage() {
         title: 'Berhasil',
         description: 'Pengaturan berhasil disimpan',
       })
+      // Refresh the cached branding so login page & sidebar pick up the
+      // new app logo / favicon immediately.
+      refreshSchoolBranding()
     } catch {
       toast({
         title: 'Error',
@@ -422,6 +484,133 @@ export function SettingsPage() {
                 />
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 1.25: Logo Aplikasi & Favicon */}
+      <Card className="card-pro">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <ImageIcon className="size-5" />
+            <CardTitle>Logo Aplikasi &amp; Favicon</CardTitle>
+          </div>
+          <CardDescription>
+            Logo aplikasi tampil di halaman login &amp; sidebar. Favicon tampil sebagai ikon tab browser. Maksimal 3 MB per file.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {/* Logo Aplikasi */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-semibold">Logo Aplikasi</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Tampil di halaman login &amp; sidebar aplikasi.
+                </p>
+              </div>
+              <input
+                ref={appLogoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAppLogoUpload}
+                className="hidden"
+              />
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => appLogoInputRef.current?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="mr-2 size-4" />
+                    Pilih Logo Aplikasi
+                  </Button>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Maksimal 3 MB. Format: PNG, JPG, SVG, WebP, dll.
+                  </p>
+                </div>
+                {settings.appLogo && (
+                  <div className="relative">
+                    <div className="flex size-20 items-center justify-center rounded-lg border bg-muted p-1.5">
+                      <img
+                        src={settings.appLogo}
+                        alt="Logo aplikasi"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -right-2 -top-2 size-6"
+                      onClick={handleRemoveAppLogo}
+                    >
+                      <X className="size-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Favicon */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-semibold">Favicon</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Ikon tab browser. Disarankan gambar persegi (contoh: 64×64).
+                </p>
+              </div>
+              <input
+                ref={faviconInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFaviconUpload}
+                className="hidden"
+              />
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => faviconInputRef.current?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="mr-2 size-4" />
+                    Pilih Favicon
+                  </Button>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Maksimal 3 MB. Format: PNG, ICO, SVG, dll.
+                  </p>
+                </div>
+                {settings.favicon && (
+                  <div className="relative">
+                    <div className="flex size-20 items-center justify-center rounded-lg border bg-muted p-1.5">
+                      <img
+                        src={settings.favicon}
+                        alt="Favicon"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -right-2 -top-2 size-6"
+                      onClick={handleRemoveFavicon}
+                    >
+                      <X className="size-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Info box */}
+          <div className="mt-5 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
+            <strong>Tips:</strong> Jika favicon tidak diisi, otomatis menggunakan logo aplikasi. Jika logo aplikasi juga tidak diisi, otomatis menggunakan logo KOP surat. Klik <strong>Simpan</strong> setelah mengunggah untuk menerapkan perubahan.
           </div>
         </CardContent>
       </Card>

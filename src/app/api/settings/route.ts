@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 const defaultSettings = {
   schoolName: "",
   logo: null,
+  appLogo: null,
+  favicon: null,
   logoWidth: 3.0,
   logoHeight: 3.0,
   fontFamily: "Times New Roman",
@@ -98,6 +100,8 @@ export async function POST(request: NextRequest) {
         data: {
           schoolName: body.schoolName,
           logo: body.logo,
+          appLogo: body.appLogo,
+          favicon: body.favicon,
           logoWidth: body.logoWidth,
           logoHeight: body.logoHeight,
           fontFamily: body.fontFamily,
@@ -124,6 +128,8 @@ export async function POST(request: NextRequest) {
         data: {
           schoolName: body.schoolName ?? "",
           logo: body.logo,
+          appLogo: body.appLogo,
+          favicon: body.favicon,
           logoWidth: body.logoWidth ?? 3.0,
           logoHeight: body.logoHeight ?? 3.0,
           fontFamily: body.fontFamily ?? "Times New Roman",
