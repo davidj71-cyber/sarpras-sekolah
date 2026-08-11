@@ -33,6 +33,8 @@ const defaultSettings = {
   principalNip: "",
   treasurerName: "",
   treasurerNip: "",
+  goodsManagerName: "",
+  goodsManagerNip: "",
 };
 
 export async function GET() {
@@ -141,6 +143,8 @@ export async function POST(request: NextRequest) {
             principalNip: body.principalNip ?? "",
             treasurerName: body.treasurerName ?? "",
             treasurerNip: body.treasurerNip ?? "",
+            goodsManagerName: body.goodsManagerName ?? "",
+            goodsManagerNip: body.goodsManagerNip ?? "",
           },
         })
       );
@@ -171,6 +175,8 @@ export async function POST(request: NextRequest) {
             principalNip: body.principalNip ?? "",
             treasurerName: body.treasurerName ?? "",
             treasurerNip: body.treasurerNip ?? "",
+            goodsManagerName: body.goodsManagerName ?? "",
+            goodsManagerNip: body.goodsManagerNip ?? "",
           },
         })
       );

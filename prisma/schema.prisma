@@ -31,8 +31,10 @@ model SchoolSettings {
   // Penandatangan laporan (disinkronisasi ke semua hasil cetak)
   principalName     String  @default("") // Nama Kepala Sekolah
   principalNip      String  @default("") // NIP Kepala Sekolah
-  treasurerName     String  @default("") // Nama Bendahara Pengurus Barang
-  treasurerNip      String  @default("") // NIP Bendahara Pengurus Barang
+  treasurerName     String  @default("") // Nama Bendahara
+  treasurerNip      String  @default("") // NIP Bendahara
+  goodsManagerName  String  @default("") // Nama Pengurus Barang (berbeda dari Bendahara)
+  goodsManagerNip   String  @default("") // NIP Pengurus Barang
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

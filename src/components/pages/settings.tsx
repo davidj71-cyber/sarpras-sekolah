@@ -50,6 +50,8 @@ interface SchoolSettingsData {
   principalNip: string
   treasurerName: string
   treasurerNip: string
+  goodsManagerName: string
+  goodsManagerNip: string
 }
 
 const defaultSettings: SchoolSettingsData = {
@@ -76,6 +78,8 @@ const defaultSettings: SchoolSettingsData = {
   principalNip: '',
   treasurerName: '',
   treasurerNip: '',
+  goodsManagerName: '',
+  goodsManagerNip: '',
 }
 
 const fontOptions = [
@@ -182,6 +186,8 @@ export function SettingsPage() {
           principalNip: data.principalNip ?? '',
           treasurerName: data.treasurerName ?? '',
           treasurerNip: data.treasurerNip ?? '',
+          goodsManagerName: data.goodsManagerName ?? '',
+          goodsManagerNip: data.goodsManagerNip ?? '',
         })
       } catch {
         toast({
@@ -683,10 +689,10 @@ export function SettingsPage() {
 
           <Separator />
 
-          {/* Bendahara Pengurus Barang */}
+          {/* Bendahara */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <h4 className="text-sm font-semibold">Bendahara Pengurus Barang</h4>
+              <h4 className="text-sm font-semibold">Bendahara</h4>
               <span className="text-xs text-muted-foreground">— Pembuat / Pelaksana</span>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -706,6 +712,36 @@ export function SettingsPage() {
                   placeholder="Misal: 19800315 200501 2 003"
                   value={settings.treasurerNip}
                   onChange={(e) => updateSettings('treasurerNip', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Pengurus Barang */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-semibold">Pengurus Barang</h4>
+              <span className="text-xs text-muted-foreground">— Penyimpan / Pencatat Barang</span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="goodsManagerName">Nama Lengkap</Label>
+                <Input
+                  id="goodsManagerName"
+                  placeholder="Misal: Ahmad Fauzi, S.E."
+                  value={settings.goodsManagerName}
+                  onChange={(e) => updateSettings('goodsManagerName', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="goodsManagerNip">NIP</Label>
+                <Input
+                  id="goodsManagerNip"
+                  placeholder="Misal: 19780420 200801 1 005"
+                  value={settings.goodsManagerNip}
+                  onChange={(e) => updateSettings('goodsManagerNip', e.target.value)}
                 />
               </div>
             </div>

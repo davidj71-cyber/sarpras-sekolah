@@ -50,6 +50,8 @@ export async function ensureSchoolSettingsSchema(): Promise<string[]> {
     { name: "principalNip", ddl: `TEXT NOT NULL DEFAULT ''` },
     { name: "treasurerName", ddl: `TEXT NOT NULL DEFAULT ''` },
     { name: "treasurerNip", ddl: `TEXT NOT NULL DEFAULT ''` },
+    { name: "goodsManagerName", ddl: `TEXT NOT NULL DEFAULT ''` },
+    { name: "goodsManagerNip", ddl: `TEXT NOT NULL DEFAULT ''` },
     { name: "createdAt", ddl: `TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP` },
     { name: "updatedAt", ddl: `TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP` },
   ];

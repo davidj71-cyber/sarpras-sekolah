@@ -32,6 +32,8 @@ interface PrintSettings {
   principalNip: string
   treasurerName: string
   treasurerNip: string
+  goodsManagerName: string
+  goodsManagerNip: string
 }
 
 // ─── Parse kopLines from API response ─────────────────────────────────────────
@@ -92,6 +94,8 @@ export async function fetchPrintSettings(): Promise<PrintSettings> {
       principalNip: data.principalNip ?? '',
       treasurerName: data.treasurerName ?? '',
       treasurerNip: data.treasurerNip ?? '',
+      goodsManagerName: data.goodsManagerName ?? '',
+      goodsManagerNip: data.goodsManagerNip ?? '',
     }
   } catch {
     return {
@@ -114,6 +118,8 @@ export async function fetchPrintSettings(): Promise<PrintSettings> {
       principalNip: '',
       treasurerName: '',
       treasurerNip: '',
+      goodsManagerName: '',
+      goodsManagerNip: '',
     }
   }
 }
@@ -189,15 +195,16 @@ export function buildKopHtml(settings: PrintSettings): string {
 }
 
 // ─── Build synced signature block ────────────────────────────────────────────
-// Renders a 2-column signature block (Kepala Sekolah | Bendahara Pengurus Barang)
-// using data from SchoolSettings so it stays synchronized across all reports.
+// Renders a signature block using data from SchoolSettings so it stays
+// synchronized across all reports. Supports 2-column (default) and
+// 3-column layouts (when `thirdColumn` is provided).
 
 export interface SignatureBlockOptions {
   /** Label for left column header (default: "Mengetahui,") */
   leftIntro?: string
   /** Position title for left column (default: "Kepala Sekolah") */
   leftTitle?: string
-  /** Position title for right column (default: "Bendahara Pengurus Barang") */
+  /** Position title for right column (default: "Bendahara") */
   rightTitle?: string
   /** Override city for right column date line (default: derived from settings.address) */
   city?: string
@@ -205,6 +212,15 @@ export interface SignatureBlockOptions {
   dateStr?: string
   /** Show only one column (e.g. for letters that already have issuer signature) */
   singleColumn?: 'left' | 'right' | null
+  /**
+   * When provided, renders a 3-column layout with the third column showing
+   * the Pengurus Barang (goods manager). Pass `true` to use defaults, or an
+   * object to customize the intro/title.
+   */
+  thirdColumn?: boolean | {
+    intro?: string
+    title?: string
+  }
 }
 
 export function buildSyncedSignatureBlock(
@@ -214,10 +230,11 @@ export function buildSyncedSignatureBlock(
   const {
     leftIntro = 'Mengetahui,',
     leftTitle = 'Kepala Sekolah',
-    rightTitle = 'Bendahara Pengurus Barang',
+    rightTitle = 'Bendahara',
     city,
     dateStr,
     singleColumn = null,
+    thirdColumn = false,
   } = options
 
   // Derive city from address (last comma-separated chunk) or fallback
@@ -230,9 +247,14 @@ export function buildSyncedSignatureBlock(
   const principalNipDisplay = settings.principalNip ? `NIP. ${settings.principalNip}` : 'NIP. ________________________'
   const treasurerNameDisplay = settings.treasurerName || '________________________'
   const treasurerNipDisplay = settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : 'NIP. ________________________'
+  const goodsManagerNameDisplay = settings.goodsManagerName || '________________________'
+  const goodsManagerNipDisplay = settings.goodsManagerNip ? `NIP. ${settings.goodsManagerNip}` : 'NIP. ________________________'
 
-  const renderColumn = (intro: string, title: string, name: string, nip: string) => `
-    <div style="text-align:center; width: 45%;">
+  // Column width adapts to layout: 45% for 2-col, 30% for 3-col
+  const colWidth = thirdColumn ? '30%' : '45%'
+
+  const renderColumn = (intro: string, title: string, name: string, nip: string, width: string = colWidth) => `
+    <div style="text-align:center; width: ${width};">
       <div>${intro}</div>
       <div style="margin-top: 2px;">${title}</div>
       <div style="height: 60px;"></div>
@@ -246,6 +268,18 @@ export function buildSyncedSignatureBlock(
     inner = `<div style="display:flex; justify-content:flex-start;">${renderColumn(leftIntro, leftTitle, principalNameDisplay, principalNipDisplay)}</div>`
   } else if (singleColumn === 'right') {
     inner = `<div style="display:flex; justify-content:flex-end;">${renderColumn(`${derivedCity}, ${derivedDate}`, rightTitle, treasurerNameDisplay, treasurerNipDisplay)}</div>`
+  } else if (thirdColumn) {
+    // 3-column layout: Kepala Sekolah | Bendahara | Pengurus Barang
+    const tc = typeof thirdColumn === 'object' ? thirdColumn : {}
+    const thirdIntro = tc.intro ?? 'Diketahui,'
+    const thirdTitle = tc.title ?? 'Pengurus Barang'
+    inner = `
+      <div style="display:flex; justify-content:space-between; margin-top: 24px;">
+        ${renderColumn(leftIntro, leftTitle, principalNameDisplay, principalNipDisplay)}
+        ${renderColumn(`${derivedCity}, ${derivedDate}`, rightTitle, treasurerNameDisplay, treasurerNipDisplay)}
+        ${renderColumn(thirdIntro, thirdTitle, goodsManagerNameDisplay, goodsManagerNipDisplay)}
+      </div>
+    `
   } else {
     inner = `
       <div style="display:flex; justify-content:space-between; margin-top: 24px;">
