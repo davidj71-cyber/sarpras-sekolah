@@ -10,6 +10,8 @@ import {
   Archive,
   UserCog,
   LogOut,
+  Wallet,
+  Newspaper,
 } from 'lucide-react'
 
 import {
@@ -40,6 +42,8 @@ const navItems: {
   { page: 'employees', label: 'Pegawai', icon: Users },
   { page: 'kib', label: 'KIB', icon: ClipboardList },
   { page: 'rooms', label: 'Inventaris', icon: Archive },
+  { page: 'salary', label: 'Gaji', icon: Wallet },
+  { page: 'media', label: 'Media', icon: Newspaper },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

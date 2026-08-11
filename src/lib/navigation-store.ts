@@ -3,11 +3,13 @@ import { create } from 'zustand'
 export type Page =
   | 'dashboard'
   | 'settings'
+  | 'accounts'
   | 'stores'
   | 'employees'
   | 'kib'
   | 'rooms'
-  | 'accounts'
+  | 'salary'
+  | 'media'
 
 export type StoreSubPage = 'stores' | 'orders' | 'barangMasuk'
 

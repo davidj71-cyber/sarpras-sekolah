@@ -6,7 +6,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { useNavigationStore } from '@/lib/navigation-store'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2 } from 'lucide-react'
+import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2, Wallet, Newspaper } from 'lucide-react'
 import type { StoreSubPage, RoomSubPage } from '@/lib/navigation-store'
 import { LoginPage } from '@/components/login-page'
 import { PageLoading } from '@/components/ui/loading-skeleton'
@@ -37,6 +37,8 @@ const BarangMasukPage = dynamic(() => import('@/components/pages/barang-masuk').
 const RoomItemsPage = dynamic(() => import('@/components/pages/room-items').then(m => ({ default: m.RoomItemsPage })), { ssr: false, loading: loadingFallback })
 const BuildingsPage = dynamic(() => import('@/components/pages/buildings').then(m => ({ default: m.BuildingsPage })), { ssr: false, loading: loadingFallback })
 const AccountsPage = dynamic(() => import('@/components/pages/accounts').then(m => ({ default: m.AccountsPage })), { ssr: false, loading: loadingFallback })
+const SalaryPage = dynamic(() => import('@/components/pages/salary').then(m => ({ default: m.SalaryPage })), { ssr: false, loading: loadingFallback })
+const MediaPage = dynamic(() => import('@/components/pages/media').then(m => ({ default: m.MediaPage })), { ssr: false, loading: loadingFallback })
 
 const kibItems = [
   { type: 'A', label: 'KIB A - Tanah' },
@@ -139,6 +141,8 @@ const pageTitles: Record<string, string> = {
   employees: 'Pegawai',
   kib: 'Kartu Inventaris Barang',
   rooms: 'Inventaris',
+  salary: 'Gaji',
+  media: 'Media',
 }
 
 export default function Home() {
@@ -172,6 +176,10 @@ export default function Home() {
         }
       case 'employees':
         return <EmployeesPage />
+      case 'salary':
+        return <SalaryPage />
+      case 'media':
+        return <MediaPage />
       case 'kib':
         return <KibPage />
       case 'rooms':
@@ -198,6 +206,8 @@ export default function Home() {
             <Separator orientation="vertical" className="mr-2 h-4" />
             <div className="flex items-center gap-2 min-w-0">
               {currentPage === 'accounts' && <UserCog className="size-4.5 text-primary shrink-0" />}
+              {currentPage === 'salary' && <Wallet className="size-4.5 text-primary shrink-0" />}
+              {currentPage === 'media' && <Newspaper className="size-4.5 text-primary shrink-0" />}
               <h1 className="text-base font-semibold tracking-tight truncate">
                 {pageTitles[currentPage] || 'SIMAPRAS'}
               </h1>

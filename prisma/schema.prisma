@@ -389,3 +389,32 @@ model MasterOption {
   @@unique([category, value])
   @@index([category])
 }
+
+// ─── Gaji (Salary) — Data Guru / Honor Mengajar ───────────────────────────────
+model SalaryEntry {
+  id              String   @id @default(cuid())
+  name            String   // Nama guru
+  nip             String   @default("") // NIP
+  gender          String   @default("L") // Jenis Kelamin: L / P
+  lessonCount     Int      @default(0) // Jumlah Les
+  unit            String   @default("Jam") // Satuan (dropdown, bisa ditambah)
+  pricePerLesson  Float    @default(0) // Harga Per Les
+  totalReceived   Float    @default(0) // Penerimaan (total = lessonCount × pricePerLesson)
+  period          String   @default("") // Periode (mis. "Januari 2026")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Media — Database Langganan Media ─────────────────────────────────────────
+model MediaEntry {
+  id              String   @id @default(cuid())
+  name            String   // Nama (pelanggan/penanggung jawab)
+  mediaName       String   // Nama Media (koran/majalah)
+  paymentType     String   @default("Tunai") // Pembayaran: Tunai / Transfer
+  pricePerMonth   Float    @default(0) // Harga Perbulan
+  unitCount       Int      @default(1) // Satuan (jumlah bulan)
+  totalReceived   Float    @default(0) // Penerimaan (total = unitCount × pricePerMonth)
+  period          String   @default("") // Periode
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
