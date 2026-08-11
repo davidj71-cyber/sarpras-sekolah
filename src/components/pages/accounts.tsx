@@ -394,14 +394,14 @@ export function AccountsPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{editingUser ? 'Edit Pengguna' : 'Tambah Pengguna'}</DialogTitle>
             <DialogDescription>{editingUser ? 'Perbarui data pengguna' : 'Isi data pengguna baru'}</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 py-4">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="user-name">Nama Lengkap *</Label>
               <Input
                 id="user-name"
@@ -421,7 +421,7 @@ export function AccountsPage() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="user-password">Password *</Label>
               <div className="relative">
                 <Input
@@ -470,7 +470,7 @@ export function AccountsPage() {
             </div>
 
             {editingUser && (
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label>Status</Label>
                 <Select
                   value={formData.active ? 'active' : 'inactive'}

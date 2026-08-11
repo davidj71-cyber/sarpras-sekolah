@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -212,7 +213,7 @@ export function RoomsPage() {
     description: '',
     condition: 'Baik' as string,
     acquisitionYear: '' as number | string,
-    acquisitionPrice: 0 as number | string,
+    acquisitionPrice: 0 as number,
     sumberDana: '',
     length: 0 as number | string,
     width: 0 as number | string,
@@ -237,7 +238,7 @@ export function RoomsPage() {
     description: '',
     condition: 'Baik' as string,
     acquisitionYear: '' as number | string,
-    acquisitionPrice: 0 as number | string,
+    acquisitionPrice: 0 as number,
     sumberDana: '',
     length: 0 as number | string,
     width: 0 as number | string,
@@ -260,7 +261,7 @@ export function RoomsPage() {
     bilikId: '',
     condition: 'Baik' as string,
     acquisitionYear: '' as number | string,
-    acquisitionPrice: 0 as number | string,
+    acquisitionPrice: 0 as number,
     sumberDana: '',
     length: 0 as number | string,
     width: 0 as number | string,
@@ -1702,13 +1703,13 @@ export function RoomsPage() {
 
       {/* Room Dialog */}
       <Dialog open={roomDialogOpen} onOpenChange={setRoomDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{editingRoom ? 'Edit Ruang' : 'Tambah Ruang'}</DialogTitle>
             <DialogDescription>{editingRoom ? 'Perbarui data ruangan' : 'Isi data ruangan baru'}</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="room-name">Nama Ruang *</Label>
               <Input id="room-name" value={roomForm.name} onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })} placeholder="Masukkan nama ruang" />
             </div>
@@ -1752,7 +1753,7 @@ export function RoomsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="room-price">Nilai Perolehan (Rp)</Label>
-              <Input id="room-price" type="number" min={0} value={roomForm.acquisitionPrice} onChange={(e) => setRoomForm({ ...roomForm, acquisitionPrice: e.target.value })} placeholder="0" />
+              <CurrencyInput id="room-price" value={roomForm.acquisitionPrice} onChange={(val) => setRoomForm({ ...roomForm, acquisitionPrice: val })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="room-sumber">Sumber Dana</Label>
@@ -1765,7 +1766,7 @@ export function RoomsPage() {
               />
             </div>
             {/* Dimensi Fisik */}
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label className="text-xs font-semibold uppercase text-muted-foreground">Dimensi Fisik</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
@@ -1795,7 +1796,7 @@ export function RoomsPage() {
               </div>
             </div>
             {/* Metadata Aset */}
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label className="text-xs font-semibold uppercase text-muted-foreground">Metadata Aset</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -1820,7 +1821,7 @@ export function RoomsPage() {
                 </div>
               </div>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="room-desc">Deskripsi</Label>
               <Textarea id="room-desc" value={roomForm.description} onChange={(e) => setRoomForm({ ...roomForm, description: e.target.value })} placeholder="Deskripsi ruangan" rows={2} />
             </div>
@@ -1837,12 +1838,12 @@ export function RoomsPage() {
 
       {/* Bilik Dialog */}
       <Dialog open={bilikDialogOpen} onOpenChange={setBilikDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{editingBilik ? 'Edit Bilik' : 'Tambah Bilik'}</DialogTitle>
             <DialogDescription>{editingBilik ? 'Perbarui data bilik' : 'Isi data bilik baru'}</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="bilik-name">Nama Bilik *</Label>
               <Input id="bilik-name" value={bilikForm.name} onChange={(e) => setBilikForm({ ...bilikForm, name: e.target.value })} placeholder="Nama bilik" />
@@ -1868,7 +1869,7 @@ export function RoomsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="bilik-price">Nilai Perolehan (Rp)</Label>
-              <Input id="bilik-price" type="number" min={0} value={bilikForm.acquisitionPrice} onChange={(e) => setBilikForm({ ...bilikForm, acquisitionPrice: e.target.value })} placeholder="0" />
+              <CurrencyInput id="bilik-price" value={bilikForm.acquisitionPrice} onChange={(val) => setBilikForm({ ...bilikForm, acquisitionPrice: val })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="bilik-sumber">Sumber Dana</Label>
@@ -1881,7 +1882,7 @@ export function RoomsPage() {
               />
             </div>
             {/* Dimensi Fisik */}
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label className="text-xs font-semibold uppercase text-muted-foreground">Dimensi Fisik</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
@@ -1907,7 +1908,7 @@ export function RoomsPage() {
               </div>
             </div>
             {/* Metadata Aset */}
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label className="text-xs font-semibold uppercase text-muted-foreground">Metadata Aset</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -1932,7 +1933,7 @@ export function RoomsPage() {
                 </div>
               </div>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="bilik-desc">Deskripsi</Label>
               <Textarea id="bilik-desc" value={bilikForm.description} onChange={(e) => setBilikForm({ ...bilikForm, description: e.target.value })} placeholder="Deskripsi bilik" rows={2} />
             </div>
@@ -1949,12 +1950,12 @@ export function RoomsPage() {
 
       {/* Lemari/Cabinet Dialog */}
       <Dialog open={lemariDialogOpen} onOpenChange={setLemariDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{editingLemari ? 'Edit Lemari' : 'Tambah Lemari'}</DialogTitle>
             <DialogDescription>{editingLemari ? 'Perbarui data lemari' : 'Isi data lemari baru'}</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="lemari-number">Nomor Lemari *</Label>
               <Input id="lemari-number" value={lemariForm.number} onChange={(e) => setLemariForm({ ...lemariForm, number: e.target.value })} placeholder="Nomor lemari" />
@@ -1993,7 +1994,7 @@ export function RoomsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="lemari-price">Nilai Perolehan (Rp)</Label>
-              <Input id="lemari-price" type="number" min={0} value={lemariForm.acquisitionPrice} onChange={(e) => setLemariForm({ ...lemariForm, acquisitionPrice: e.target.value })} placeholder="0" />
+              <CurrencyInput id="lemari-price" value={lemariForm.acquisitionPrice} onChange={(val) => setLemariForm({ ...lemariForm, acquisitionPrice: val })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lemari-sumber">Sumber Dana</Label>
@@ -2006,7 +2007,7 @@ export function RoomsPage() {
               />
             </div>
             {/* Dimensi Fisik */}
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label className="text-xs font-semibold uppercase text-muted-foreground">Dimensi Fisik</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
@@ -2032,7 +2033,7 @@ export function RoomsPage() {
               </div>
             </div>
             {/* Metadata Aset */}
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label className="text-xs font-semibold uppercase text-muted-foreground">Metadata Aset</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -2057,7 +2058,7 @@ export function RoomsPage() {
                 </div>
               </div>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="lemari-desc">Deskripsi</Label>
               <Textarea id="lemari-desc" value={lemariForm.description} onChange={(e) => setLemariForm({ ...lemariForm, description: e.target.value })} placeholder="Deskripsi lemari" rows={2} />
             </div>
@@ -2093,7 +2094,7 @@ export function RoomsPage() {
 
       {/* Photo Gallery Dialog */}
       <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Foto Barang - {photoItem?.name}</DialogTitle>
             <DialogDescription>
@@ -2116,13 +2117,13 @@ export function RoomsPage() {
 
       {/* Item Add/Edit Dialog */}
       <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{editingItem ? 'Edit Barang' : 'Tambah Barang'}</DialogTitle>
             <DialogDescription>{editingItem ? 'Perbarui data barang' : 'Isi data barang baru'}</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="item-name">Nama Barang *</Label>
               <Input id="item-name" value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} placeholder="Masukkan nama barang" />
             </div>
@@ -2169,7 +2170,7 @@ export function RoomsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-price">Harga (Rp)</Label>
-              <Input id="item-price" type="number" min={0} value={itemForm.price} onChange={(e) => setItemForm({ ...itemForm, price: Number(e.target.value) || 0 })} placeholder="0" />
+              <CurrencyInput id="item-price" value={itemForm.price} onChange={(val) => setItemForm({ ...itemForm, price: val })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-sumber-dana">Sumber Dana</Label>
@@ -2186,7 +2187,7 @@ export function RoomsPage() {
               <Label htmlFor="item-tahun-pengadaan">Tahun Pengadaan</Label>
               <Input id="item-tahun-pengadaan" type="number" min={1900} max={2100} value={itemForm.tahunPengadaan ?? ''} onChange={(e) => setItemForm({ ...itemForm, tahunPengadaan: e.target.value ? Number(e.target.value) : null })} placeholder="Contoh: 2024" />
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="item-notes">Keterangan</Label>
               <Textarea id="item-notes" value={itemForm.notes} onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })} placeholder="Keterangan tambahan" rows={2} />
             </div>

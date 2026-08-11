@@ -319,7 +319,7 @@ export function EmployeesPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingEmployee ? 'Edit Pegawai' : 'Tambah Pegawai'}</DialogTitle>
             <DialogDescription>{editingEmployee ? 'Perbarui data pegawai' : 'Isi data pegawai baru'}</DialogDescription>

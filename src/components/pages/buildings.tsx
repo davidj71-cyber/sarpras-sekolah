@@ -63,6 +63,7 @@ import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
+import { CurrencyInput } from '@/components/ui/currency-input'
 
 const conditionOptions = ['Baik', 'Rusak Ringan', 'Rusak Berat'] as const
 
@@ -119,7 +120,7 @@ interface FormData {
   description: string
   condition: string
   acquisitionYear: number | string
-  acquisitionPrice: number | string
+  acquisitionPrice: number
   sumberDana: string
   length: number | string
   width: number | string
@@ -234,7 +235,7 @@ export function BuildingsPage() {
         description: formData.description,
         condition: formData.condition,
         acquisitionYear: formData.acquisitionYear ? Number(formData.acquisitionYear) : null,
-        acquisitionPrice: Number(formData.acquisitionPrice) || 0,
+        acquisitionPrice: formData.acquisitionPrice || null,
         sumberDana: formData.sumberDana,
         length: Number(formData.length) || 0,
         width: Number(formData.width) || 0,
@@ -467,13 +468,13 @@ export function BuildingsPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Gedung' : 'Tambah Gedung'}</DialogTitle>
             <DialogDescription>{editing ? 'Perbarui data gedung' : 'Isi data gedung baru'}</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="building-name">Nama Gedung *</Label>
               <Input id="building-name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Misal: Gedung Utama, Gedung A" />
             </div>
@@ -502,7 +503,7 @@ export function BuildingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="building-price">Nilai Perolehan (Rp)</Label>
-              <Input id="building-price" type="number" min={0} value={formData.acquisitionPrice} onChange={(e) => setFormData({ ...formData, acquisitionPrice: e.target.value })} placeholder="0" />
+              <CurrencyInput id="building-price" value={formData.acquisitionPrice} onChange={(val) => setFormData({ ...formData, acquisitionPrice: val })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="building-sumber">Sumber Dana</Label>
@@ -515,7 +516,7 @@ export function BuildingsPage() {
             </div>
 
             {/* Section: Dimensi Fisik */}
-            <div className="sm:col-span-2 mt-2">
+            <div className="sm:col-span-2 lg:col-span-3 mt-2">
               <p className="text-sm font-semibold text-foreground">Dimensi Fisik</p>
               <p className="text-xs text-muted-foreground">Ukuran fisik gedung (meter) dan luas (m²)</p>
             </div>
@@ -545,7 +546,7 @@ export function BuildingsPage() {
             </div>
 
             {/* Section: Metadata Aset */}
-            <div className="sm:col-span-2 mt-2">
+            <div className="sm:col-span-2 lg:col-span-3 mt-2">
               <p className="text-sm font-semibold text-foreground">Metadata Aset</p>
               <p className="text-xs text-muted-foreground">Informasi administratif & dokumentasi aset</p>
             </div>
@@ -565,11 +566,11 @@ export function BuildingsPage() {
               <Label htmlFor="building-life">Masa Manfaat (tahun)</Label>
               <Input id="building-life" type="number" min={0} step={1} value={formData.usefulLife} onChange={(e) => setFormData({ ...formData, usefulLife: e.target.value })} placeholder="Misal: 50" />
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="building-notes">Catatan</Label>
               <Textarea id="building-notes" value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Catatan tambahan (opsional)" rows={2} />
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="building-desc">Deskripsi</Label>
               <Textarea id="building-desc" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Deskripsi gedung (opsional)" rows={2} />
             </div>

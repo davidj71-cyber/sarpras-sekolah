@@ -7,6 +7,7 @@ import { toast } from '@/hooks/use-toast'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -486,7 +487,7 @@ export function KibPage() {
         ...formData,
         kibType,
         quantity: Number(formData.quantity) || 1,
-        price: Number(formData.price) || 0,
+        price: formData.price || 0,
         acquisitionYear: formData.acquisitionYear ? Number(formData.acquisitionYear) : null,
         yearMade: formData.yearMade ? Number(formData.yearMade) : null,
         landArea: formData.landArea ? Number(formData.landArea) : 0,
@@ -635,8 +636,8 @@ export function KibPage() {
   function renderCommonFields() {
     return (
       <>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2 sm:col-span-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="name">Nama Barang *</Label>
             <Input
               id="name"
@@ -719,13 +720,10 @@ export function KibPage() {
 
           <div className="space-y-2">
             <Label htmlFor="price">Harga (Rp)</Label>
-            <Input
+            <CurrencyInput
               id="price"
-              type="number"
-              min={0}
               value={formData.price}
-              onChange={(e) => handleFieldChange('price', e.target.value)}
-              placeholder="0"
+              onChange={(val) => handleFieldChange('price', val)}
             />
           </div>
 
@@ -760,7 +758,7 @@ export function KibPage() {
             </Select>
           </div>
 
-          <div className="space-y-2 sm:col-span-2">
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="notes">Keterangan</Label>
             <Textarea
               id="notes"
@@ -1213,7 +1211,7 @@ export function KibPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh]">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>
               {editingItem ? 'Edit Barang' : 'Tambah Barang'} - KIB {kibType} ({label})
@@ -1297,7 +1295,7 @@ export function KibPage() {
 
       {/* Photo Gallery Dialog */}
       <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Foto Barang - {photoItem?.name}</DialogTitle>
             <DialogDescription>

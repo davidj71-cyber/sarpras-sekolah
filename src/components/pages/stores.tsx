@@ -321,7 +321,7 @@ export function StoresPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingStore ? 'Edit Toko' : 'Tambah Toko'}</DialogTitle>
             <DialogDescription>{editingStore ? 'Perbarui data toko' : 'Isi data toko baru'}</DialogDescription>

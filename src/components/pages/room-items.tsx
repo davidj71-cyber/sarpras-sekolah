@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import {
   Card,
   CardContent,
@@ -686,7 +687,7 @@ export function RoomItemsPage() {
 
       {/* Photo Gallery Dialog */}
       <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Foto Barang - {photoItem?.name}</DialogTitle>
             <DialogDescription>
@@ -709,15 +710,15 @@ export function RoomItemsPage() {
 
       {/* Item Add/Edit Dialog */}
       <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{editingItem ? 'Edit Barang' : 'Tambah Barang'}</DialogTitle>
             <DialogDescription>
               {editingItem ? 'Perbarui data barang inventaris.' : 'Tambahkan barang inventaris baru.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="item-name">Nama Barang *</Label>
               <Input id="item-name" value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} placeholder="Masukkan nama barang" />
             </div>
@@ -762,7 +763,7 @@ export function RoomItemsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-price">Harga (Rp)</Label>
-              <Input id="item-price" type="number" min={0} value={itemForm.price} onChange={(e) => setItemForm({ ...itemForm, price: Number(e.target.value) || 0 })} placeholder="0" />
+              <CurrencyInput id="item-price" value={itemForm.price} onChange={(val) => setItemForm({ ...itemForm, price: val })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-sumber-dana">Sumber Dana</Label>
@@ -794,7 +795,7 @@ export function RoomItemsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="item-notes">Keterangan</Label>
               <Textarea id="item-notes" value={itemForm.notes} onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })} placeholder="Keterangan tambahan" rows={2} />
             </div>

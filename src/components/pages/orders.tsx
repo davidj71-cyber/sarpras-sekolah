@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -1235,7 +1236,7 @@ export function OrdersPage() {
                     </div>
                     <div className="col-span-3 sm:col-span-3 space-y-1">
                       <Label className="text-xs">Harga Satuan</Label>
-                      <Input type="number" min={0} value={item.unitPrice} onChange={(e) => updateItem(idx, 'unitPrice', Number(e.target.value))} className="h-9" />
+                      <CurrencyInput value={item.unitPrice} onChange={(val) => updateItem(idx, 'unitPrice', val)} className="h-9" />
                     </div>
                     <div className="col-span-1 flex justify-end">
                       <Button
