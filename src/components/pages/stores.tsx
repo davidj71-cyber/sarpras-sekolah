@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { MasterCombobox } from '@/components/ui/master-combobox'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { PageLoading } from '@/components/ui/loading-skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Card,
   CardContent,
@@ -230,25 +233,26 @@ export function StoresPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Toko</h2>
-          <p className="text-muted-foreground">Manajemen data toko dan supplier</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredStores.length === 0}>
-            <Printer className="size-4 mr-2" />
-            Cetak
-          </Button>
-          <Button onClick={openAddDialog}>
-            <Plus className="size-4 mr-2" />
-            Tambah Toko
-          </Button>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Toko"
+        description="Manajemen data toko dan supplier"
+        icon={Store}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredStores.length === 0}>
+              <Printer className="size-4 mr-2" />
+              Cetak
+            </Button>
+            <Button onClick={openAddDialog}>
+              <Plus className="size-4 mr-2" />
+              Tambah Toko
+            </Button>
+          </>
+        }
+      />
 
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -266,34 +270,32 @@ export function StoresPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
+            <PageLoading label="Memuat data toko..." />
           ) : filteredStores.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Store className="size-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">Belum ada data</p>
-              <p className="text-sm">{search ? 'Tidak ditemukan toko yang sesuai' : 'Klik "Tambah Toko" untuk menambahkan'}</p>
-            </div>
+            <EmptyState
+              icon={Store}
+              title="Belum ada data"
+              description={search ? 'Tidak ditemukan toko yang sesuai' : 'Klik "Tambah Toko" untuk menambahkan'}
+            />
           ) : (
             <div className="max-h-[520px] overflow-y-auto rounded-md border">
-              <Table>
+              <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">No</TableHead>
+                    <TableHead className="w-[50px] text-left">No</TableHead>
                     <TableHead>Nama Toko</TableHead>
                     <TableHead>Nama Pemilik</TableHead>
                     <TableHead>NPWP</TableHead>
                     <TableHead>Jenis Barang</TableHead>
                     <TableHead>No HP</TableHead>
                     <TableHead>Alamat</TableHead>
-                    <TableHead className="w-[100px]">Aksi</TableHead>
+                    <TableHead className="w-[100px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredStores.map((store, idx) => (
                     <TableRow key={store.id}>
-                      <TableCell>{idx + 1}</TableCell>
+                      <TableCell className="tabular-nums">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{store.name}</TableCell>
                       <TableCell>{store.ownerName || '-'}</TableCell>
                       <TableCell>{store.npwp || '-'}</TableCell>
@@ -301,7 +303,7 @@ export function StoresPage() {
                       <TableCell>{store.phone || '-'}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{store.address || '-'}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(store)}>
                             <Pencil className="size-4" />
                           </Button>
@@ -392,6 +394,6 @@ export function StoresPage() {
         onPrint={handlePrint}
         title="Cetak Daftar Toko"
       />
-    </div>
+    </PageContainer>
   )
 }

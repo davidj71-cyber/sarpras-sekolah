@@ -68,6 +68,9 @@ import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-
 import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { PageLoading } from '@/components/ui/loading-skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -230,7 +233,7 @@ type ColumnDef = { key: string; label: string; className?: string }
 
 function getColumns(kibType: string): ColumnDef[] {
   const base: ColumnDef[] = [
-    { key: 'no', label: 'No', className: 'w-[50px]' },
+    { key: 'no', label: 'No', className: 'w-[50px] tabular-nums' },
     { key: 'registrationNumber', label: 'No. Register' },
     { key: 'name', label: 'Nama Barang' },
   ]
@@ -238,46 +241,46 @@ function getColumns(kibType: string): ColumnDef[] {
   const specific: Record<string, ColumnDef[]> = {
     A: [
       { key: 'landCertificate', label: 'Sertifikat' },
-      { key: 'landArea', label: 'Luas (m²)' },
+      { key: 'landArea', label: 'Luas (m²)', className: 'text-right tabular-nums whitespace-nowrap' },
       { key: 'landStatus', label: 'Status' },
       { key: 'landUsage', label: 'Penggunaan' },
-      { key: 'price', label: 'Harga' },
+      { key: 'price', label: 'Harga', className: 'text-right tabular-nums whitespace-nowrap' },
     ],
     B: [
       { key: 'brand', label: 'Merk' },
       { key: 'model', label: 'Model' },
       { key: 'serialNumber', label: 'No. Seri' },
-      { key: 'quantity', label: 'Jumlah' },
+      { key: 'quantity', label: 'Jumlah', className: 'text-right tabular-nums whitespace-nowrap' },
       { key: 'condition', label: 'Kondisi' },
-      { key: 'price', label: 'Harga' },
+      { key: 'price', label: 'Harga', className: 'text-right tabular-nums whitespace-nowrap' },
     ],
     C: [
       { key: 'buildingLevel', label: 'Tingkat' },
       { key: 'buildingConcrete', label: 'Beton' },
-      { key: 'buildingArea', label: 'Luas (m²)' },
+      { key: 'buildingArea', label: 'Luas (m²)', className: 'text-right tabular-nums whitespace-nowrap' },
       { key: 'buildingLocation', label: 'Letak' },
-      { key: 'price', label: 'Harga' },
+      { key: 'price', label: 'Harga', className: 'text-right tabular-nums whitespace-nowrap' },
     ],
     D: [
-      { key: 'roadLength', label: 'Panjang (km)' },
-      { key: 'roadWidth', label: 'Lebar (m)' },
-      { key: 'roadArea', label: 'Luas (m²)' },
+      { key: 'roadLength', label: 'Panjang (km)', className: 'text-right tabular-nums whitespace-nowrap' },
+      { key: 'roadWidth', label: 'Lebar (m)', className: 'text-right tabular-nums whitespace-nowrap' },
+      { key: 'roadArea', label: 'Luas (m²)', className: 'text-right tabular-nums whitespace-nowrap' },
       { key: 'roadLocation', label: 'Letak' },
-      { key: 'price', label: 'Harga' },
+      { key: 'price', label: 'Harga', className: 'text-right tabular-nums whitespace-nowrap' },
     ],
     E: [
-      { key: 'quantity', label: 'Jumlah' },
+      { key: 'quantity', label: 'Jumlah', className: 'text-right tabular-nums whitespace-nowrap' },
       { key: 'condition', label: 'Kondisi' },
-      { key: 'price', label: 'Harga' },
+      { key: 'price', label: 'Harga', className: 'text-right tabular-nums whitespace-nowrap' },
     ],
     F: [
       { key: 'contractNumber', label: 'No. Kontrak' },
-      { key: 'implementationYear', label: 'Tahun Pelaksanaan' },
-      { key: 'price', label: 'Harga' },
+      { key: 'implementationYear', label: 'Tahun Pelaksanaan', className: 'text-right tabular-nums whitespace-nowrap' },
+      { key: 'price', label: 'Harga', className: 'text-right tabular-nums whitespace-nowrap' },
     ],
   }
 
-  return [...base, ...(specific[kibType] || []), { key: 'photos', label: 'Foto', className: 'w-[70px]' }, { key: 'actions', label: 'Aksi', className: 'w-[100px]' }]
+  return [...base, ...(specific[kibType] || []), { key: 'photos', label: 'Foto', className: 'w-[70px] text-center' }, { key: 'actions', label: 'Aksi', className: 'w-[100px] text-right' }]
 }
 
 // Print columns (same as getColumns but without actions)
@@ -1105,31 +1108,28 @@ export function KibPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            KIB {kibType} - {label}
-          </h2>
-          <p className="text-muted-foreground">
-            Manajemen Kartu Inventaris Barang - KIB {kibType}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={filteredItems.length === 0}>
-            <Printer className="size-4 mr-2" />
-            Cetak
-          </Button>
-          <Button onClick={openAddDialog}>
-            <Plus className="size-4 mr-2" />
-            Tambah Barang
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={`KIB ${kibType} - ${label}`}
+        description={`Manajemen Kartu Inventaris Barang - KIB ${kibType}`}
+        icon={ClipboardList}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={filteredItems.length === 0}>
+              <Printer className="size-4 mr-2" />
+              Cetak
+            </Button>
+            <Button onClick={openAddDialog}>
+              <Plus className="size-4 mr-2" />
+              Tambah Barang
+            </Button>
+          </>
+        }
+      />
 
       {/* Main Card */}
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -1155,23 +1155,17 @@ export function KibPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
+            <PageLoading label="Memuat data barang..." />
           ) : filteredItems.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <ClipboardList className="size-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">Belum ada data</p>
-              <p className="text-sm">
-                {search
-                  ? 'Tidak ditemukan barang yang sesuai dengan pencarian'
-                  : `Klik "Tambah Barang" untuk menambahkan data KIB ${kibType}`}
-              </p>
-            </div>
+            <EmptyState
+              icon={ClipboardList}
+              title="Belum ada data"
+              description={search ? 'Tidak ditemukan barang yang sesuai dengan pencarian' : `Klik "Tambah Barang" untuk menambahkan data KIB ${kibType}`}
+            />
           ) : (
             <>
               <div className="max-h-[520px] overflow-y-auto rounded-md border">
-                <Table>
+                <Table className="table-pro">
                   <TableHeader>
                     <TableRow>
                       {columns.map((col) => (
@@ -1183,7 +1177,7 @@ export function KibPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredItems.map((item, idx) => (
-                      <TableRow key={item.id}>
+                      <TableRow key={item.id} className="h-14">
                         {columns.map((col) => (
                           <TableCell key={col.key} className={col.className}>
                             {renderCell(item, col, idx)}
@@ -1200,7 +1194,7 @@ export function KibPage() {
                 <span>
                   Total {filteredItems.length} barang
                 </span>
-                <span className="font-semibold text-foreground">
+                <span className="font-semibold text-foreground tabular-nums">
                   Total Harga: {formatRupiah(totalPrice)}
                 </span>
               </div>
@@ -1321,6 +1315,6 @@ export function KibPage() {
         onPrint={handlePrint}
         title="Cetak Kartu Inventaris Barang"
       />
-    </div>
+    </PageContainer>
   )
 }

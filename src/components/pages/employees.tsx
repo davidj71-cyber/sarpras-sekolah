@@ -54,6 +54,9 @@ import {
 import { printWithKop } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageLoading } from '@/components/ui/loading-skeleton'
 
 interface EmployeeData {
   id: string
@@ -228,25 +231,26 @@ export function EmployeesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Pegawai</h2>
-          <p className="text-muted-foreground">Manajemen data pegawai sekolah</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredEmployees.length === 0}>
-            <Printer className="size-4 mr-2" />
-            Cetak
-          </Button>
-          <Button onClick={openAddDialog}>
-            <Plus className="size-4 mr-2" />
-            Tambah Pegawai
-          </Button>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Pegawai"
+        description="Manajemen data pegawai sekolah"
+        icon={Users}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredEmployees.length === 0}>
+              <Printer className="size-4 mr-2" />
+              Cetak
+            </Button>
+            <Button onClick={openAddDialog}>
+              <Plus className="size-4 mr-2" />
+              Tambah Pegawai
+            </Button>
+          </>
+        }
+      />
 
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -264,42 +268,40 @@ export function EmployeesPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
+            <PageLoading label="Memuat data pegawai..." />
           ) : filteredEmployees.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Users className="size-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">Belum ada data</p>
-              <p className="text-sm">{search ? 'Tidak ditemukan pegawai yang sesuai' : 'Klik "Tambah Pegawai" untuk menambahkan'}</p>
-            </div>
+            <EmptyState
+              icon={Users}
+              title="Belum ada data"
+              description={search ? 'Tidak ditemukan pegawai yang sesuai' : 'Klik "Tambah Pegawai" untuk menambahkan'}
+            />
           ) : (
             <div className="max-h-[520px] overflow-y-auto rounded-md border">
-              <Table>
+              <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">No</TableHead>
+                    <TableHead className="w-[50px] text-left tabular-nums">No</TableHead>
                     <TableHead>Nama</TableHead>
-                    <TableHead>NIP</TableHead>
+                    <TableHead className="whitespace-nowrap tabular-nums">NIP</TableHead>
                     <TableHead>Jabatan</TableHead>
                     <TableHead>Unit Kerja</TableHead>
-                    <TableHead>No HP</TableHead>
+                    <TableHead className="whitespace-nowrap tabular-nums">No HP</TableHead>
                     <TableHead>Alamat</TableHead>
-                    <TableHead className="w-[100px]">Aksi</TableHead>
+                    <TableHead className="w-[100px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredEmployees.map((emp, idx) => (
-                    <TableRow key={emp.id}>
-                      <TableCell>{idx + 1}</TableCell>
+                    <TableRow key={emp.id} className="h-14">
+                      <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{emp.name}</TableCell>
-                      <TableCell>{emp.nip || '-'}</TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{emp.nip || '-'}</TableCell>
                       <TableCell>{emp.position || '-'}</TableCell>
                       <TableCell>{emp.department || '-'}</TableCell>
-                      <TableCell>{emp.phone || '-'}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{emp.address || '-'}</TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{emp.phone || '-'}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-muted-foreground">{emp.address || '-'}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(emp)}>
                             <Pencil className="size-4" />
                           </Button>
@@ -395,6 +397,6 @@ export function EmployeesPage() {
         onPrint={handlePrint}
         title="Cetak Daftar Pegawai"
       />
-    </div>
+    </PageContainer>
   )
 }

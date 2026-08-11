@@ -12,6 +12,9 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { StatCard } from '@/components/ui/stat-card'
+import { PageLoading } from '@/components/ui/loading-skeleton'
 import {
   Store,
   Users,
@@ -29,6 +32,7 @@ import {
   Loader2,
   Sparkles,
   Printer,
+  CalendarDays,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
@@ -156,40 +160,34 @@ function bmStatusBadge(status: string) {
   return <Badge className={`text-[11px] font-medium ${v.className}`}>{status}</Badge>
 }
 
-// ─── Stat Card Component ────────────────────────────────────────────────────
+// ─── Stat Card Component (now uses shared StatCard) ─────────────────────────
+// The local StatCard has been replaced by the shared @/components/ui/stat-card
+// to ensure visual consistency across all pages.
 
-function StatCard({
+function StatCardLocal({
   title,
   value,
   subtitle,
   icon: Icon,
-  iconBg,
-  iconColor,
+  tone = 'primary',
   delay = 0,
 }: {
   title: string
   value: string | number
   subtitle?: string
   icon: React.ElementType
-  iconBg: string
-  iconColor: string
+  tone?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'neutral'
   delay?: number
 }) {
   return (
-    <Card className={`overflow-hidden card-elegant animate-fade-in-up stagger-${delay}`}>
-      <CardContent className="p-5">
-        <div className="flex items-start gap-3.5">
-          <div className={`rounded-xl p-2.5 shadow-sm ${iconBg}`}>
-            <Icon className={`size-5 ${iconColor}`} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground mb-0.5">{title}</p>
-            <p className="text-2xl font-bold tracking-tight stat-value">{typeof value === 'number' ? value.toLocaleString('id-ID') : value}</p>
-            {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <StatCard
+      title={title}
+      value={value}
+      subtitle={subtitle}
+      icon={Icon}
+      tone={tone}
+      delay={delay}
+    />
   )
 }
 
@@ -219,14 +217,7 @@ export function DashboardPage() {
   }, [])
 
   if (loading || !data) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="size-8 animate-spin text-primary/60" />
-          <p className="text-sm text-muted-foreground">Memuat dashboard...</p>
-        </div>
-      </div>
-    )
+    return <PageLoading label="Memuat dashboard..." />
   }
 
   const conditionData = [
@@ -359,61 +350,58 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-muted-foreground">Ringkasan data Sarana Prasarana Sekolah</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-1.5">
-            <Sparkles className="size-3.5 text-primary" />
-            {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </div>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setPrintDialogOpen(true)}>
-            <Printer className="size-4" />
-            Cetak Laporan
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Ringkasan data Sarana Prasarana Sekolah"
+        icon={Sparkles}
+        actions={
+          <>
+            <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-1.5 border border-border/50">
+              <CalendarDays className="size-3.5 text-primary" />
+              {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setPrintDialogOpen(true)}>
+              <Printer className="size-4" />
+              <span className="hidden sm:inline">Cetak Laporan</span>
+            </Button>
+          </>
+        }
+      />
 
       {/* ─── Stat Cards ──────────────────────────────────────────────────────── */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard
+        <StatCardLocal
           title="Total Barang"
           value={data.totalItems}
           subtitle="Barang inventaris terdaftar"
           icon={Package}
-          iconBg="bg-sky-50"
-          iconColor="text-sky-600"
+          tone="info"
           delay={1}
         />
-        <StatCard
+        <StatCardLocal
           title="Nilai Aset"
           value={formatRupiah(data.totalAssetValue)}
           subtitle="Total nilai seluruh aset"
           icon={TrendingUp}
-          iconBg="bg-emerald-50"
-          iconColor="text-emerald-600"
+          tone="success"
           delay={2}
         />
-        <StatCard
+        <StatCardLocal
           title="Ruang & Lokasi"
           value={data.totalRooms}
           subtitle={`${data.totalBilik} bilik · ${data.totalLemari} lemari`}
           icon={Warehouse}
-          iconBg="bg-violet-50"
-          iconColor="text-violet-600"
+          tone="primary"
           delay={3}
         />
-        <StatCard
+        <StatCardLocal
           title="Pesanan"
           value={data.totalOrders}
           subtitle={`${data.ordersDikirim} dikirim · ${data.ordersDraft} draft`}
           icon={FileText}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-600"
+          tone="warning"
           delay={4}
         />
       </div>
@@ -421,7 +409,7 @@ export function DashboardPage() {
       {/* ─── Condition & KIB Charts Row ───────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Kondisi Barang */}
-        <Card className="card-elegant animate-fade-in-up stagger-2">
+        <Card className="card-pro animate-fade-in-up stagger-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Kondisi Barang</CardTitle>
             <CardDescription>Distribusi kondisi seluruh barang inventaris</CardDescription>
@@ -503,7 +491,7 @@ export function DashboardPage() {
         </Card>
 
         {/* KIB Breakdown */}
-        <Card className="card-elegant animate-fade-in-up stagger-3">
+        <Card className="card-pro animate-fade-in-up stagger-3">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Klasifikasi KIB</CardTitle>
             <CardDescription>Distribusi barang berdasarkan jenis KIB</CardDescription>
@@ -534,7 +522,7 @@ export function DashboardPage() {
       {/* ─── Location & Alerts Row ─────────────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Lokasi Barang */}
-        <Card className="card-elegant animate-fade-in-up stagger-4">
+        <Card className="card-pro animate-fade-in-up stagger-4">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -582,7 +570,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Barang Perlu Perhatian */}
-        <Card className="card-elegant animate-fade-in-up stagger-5">
+        <Card className="card-pro animate-fade-in-up stagger-5">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -637,7 +625,7 @@ export function DashboardPage() {
       {/* ─── Recent Activity Row ─────────────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Pesanan Terbaru */}
-        <Card className="card-elegant animate-fade-in-up stagger-4">
+        <Card className="card-pro animate-fade-in-up stagger-4">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -685,7 +673,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Barang Masuk Terbaru */}
-        <Card className="card-elegant animate-fade-in-up stagger-5">
+        <Card className="card-pro animate-fade-in-up stagger-5">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -742,7 +730,7 @@ export function DashboardPage() {
         ].map((item, idx) => (
           <Card
             key={item.label}
-            className={`cursor-pointer card-elegant group animate-fade-in-up stagger-${idx + 1}`}
+            className={`cursor-pointer card-pro group animate-fade-in-up stagger-${idx + 1}`}
             onClick={item.action}
           >
             <CardContent className="p-5">
@@ -766,6 +754,6 @@ export function DashboardPage() {
         onPrint={handlePrint}
         title="Cetak Laporan Dashboard"
       />
-    </div>
+    </PageContainer>
   )
 }

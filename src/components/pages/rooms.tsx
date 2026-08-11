@@ -75,6 +75,10 @@ import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
 import { PhotoThumbnail } from '@/components/photo-thumbnail'
 import { PhotoGallery } from '@/components/photo-gallery'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { StatCard } from '@/components/ui/stat-card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageLoading } from '@/components/ui/loading-skeleton'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1130,30 +1134,12 @@ export function RoomsPage() {
   // ─── Stats Cards ─────────────────────────────────────────────────────────
 
   function renderStatsCards() {
-    const stats = [
-      { label: 'Total Ruang', value: rooms.length, icon: DoorOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
-      { label: 'Total Bilik', value: totalBilik, icon: Archive, color: 'text-purple-600', bg: 'bg-purple-50' },
-      { label: 'Total Lemari', value: totalLemari, icon: Box, color: 'text-orange-600', bg: 'bg-orange-50' },
-      { label: 'Total Barang', value: totalItems, icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    ]
-
     return (
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.label} className="overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className={`rounded-lg p-2.5 ${stat.bg}`}>
-                  <stat.icon className={`size-5 ${stat.color}`} />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        <StatCard title="Total Ruang" value={rooms.length} subtitle="Ruang terdaftar" icon={DoorOpen} tone="info" delay={1} />
+        <StatCard title="Total Bilik" value={totalBilik} subtitle="Bilik terdaftar" icon={Archive} tone="primary" delay={2} />
+        <StatCard title="Total Lemari" value={totalLemari} subtitle="Lemari terdaftar" icon={Box} tone="warning" delay={3} />
+        <StatCard title="Total Barang" value={totalItems} subtitle="Barang inventaris" icon={Package} tone="success" delay={4} />
       </div>
     )
   }
@@ -1162,24 +1148,26 @@ export function RoomsPage() {
 
   function renderRoomList() {
     if (loading) {
-      return (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
-        </div>
-      )
+      return <PageLoading label="Memuat data ruangan..." />
     }
 
     if (rooms.length === 0) {
       return (
-        <div className="text-center py-16 text-muted-foreground">
-          <DoorOpen className="size-16 mx-auto mb-4 opacity-20" />
-          <p className="text-lg font-medium">Belum ada data ruangan</p>
-          <p className="text-sm mb-6">Klik tombol di atas untuk menambahkan ruangan baru</p>
-          <Button onClick={openAddRoom}>
-            <Plus className="size-4 mr-2" />
-            Tambah Ruang
-          </Button>
-        </div>
+        <Card className="card-pro">
+          <CardContent className="p-0">
+            <EmptyState
+              icon={DoorOpen}
+              title="Belum ada data ruangan"
+              description="Klik tombol di bawah untuk menambahkan ruangan baru"
+              action={
+                <Button onClick={openAddRoom}>
+                  <Plus className="size-4 mr-2" />
+                  Tambah Ruang
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
       )
     }
 
@@ -1201,11 +1189,12 @@ export function RoomsPage() {
 
         {/* Room grid */}
         {filteredRooms.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Search className="size-10 mx-auto mb-3 opacity-30" />
-            <p className="font-medium">Tidak ditemukan</p>
-            <p className="text-sm">Tidak ada ruangan yang cocok dengan pencarian</p>
-          </div>
+          <EmptyState
+            icon={Search}
+            title="Tidak ditemukan"
+            description="Tidak ada ruangan yang cocok dengan pencarian"
+            size="compact"
+          />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filteredRooms.map((room) => {
@@ -1217,7 +1206,7 @@ export function RoomsPage() {
               return (
                 <Card
                   key={room.id}
-                  className="cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all group"
+                  className="card-pro cursor-pointer hover:border-primary/50 transition-all group"
                   onClick={() => setSelectedRoomId(room.id)}
                 >
                   <CardHeader className="pb-3">
@@ -1310,7 +1299,7 @@ export function RoomsPage() {
     return (
       <div className="space-y-6">
         {/* Room Header */}
-        <Card>
+        <Card className="card-pro">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1370,7 +1359,7 @@ export function RoomsPage() {
         </Card>
 
         {/* Bilik Section */}
-        <Card>
+        <Card className="card-pro">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1387,11 +1376,12 @@ export function RoomsPage() {
           </CardHeader>
           <CardContent>
             {currentRoom.biliks?.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Archive className="size-10 mx-auto mb-3 opacity-20" />
-                <p className="font-medium">Belum ada bilik</p>
-                <p className="text-sm">Tambahkan bilik untuk mengorganisir barang</p>
-              </div>
+              <EmptyState
+                icon={Archive}
+                title="Belum ada bilik"
+                description="Tambahkan bilik untuk mengorganisir barang"
+                size="compact"
+              />
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {currentRoom.biliks.map((bilik) => (
@@ -1436,7 +1426,7 @@ export function RoomsPage() {
         </Card>
 
         {/* Lemari/Cabinet Section */}
-        <Card>
+        <Card className="card-pro">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1453,11 +1443,12 @@ export function RoomsPage() {
           </CardHeader>
           <CardContent>
             {currentRoom.cabinets?.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Box className="size-10 mx-auto mb-3 opacity-20" />
-                <p className="font-medium">Belum ada lemari</p>
-                <p className="text-sm">Tambahkan lemari untuk menyimpan barang</p>
-              </div>
+              <EmptyState
+                icon={Box}
+                title="Belum ada lemari"
+                description="Tambahkan lemari untuk menyimpan barang"
+                size="compact"
+              />
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {currentRoom.cabinets.map((cab) => (
@@ -1507,7 +1498,7 @@ export function RoomsPage() {
 
         {/* Items in Room (when no bilik/lemari selected) */}
         {!selectedBilikId && !selectedLemariId && (
-          <Card>
+          <Card className="card-pro">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1541,7 +1532,7 @@ export function RoomsPage() {
         : ''
 
     return (
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1577,46 +1568,43 @@ export function RoomsPage() {
 
   function renderItemsTable() {
     if (itemsLoading) {
-      return (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        </div>
-      )
+      return <PageLoading label="Memuat barang..." />
     }
 
     if (items.length === 0) {
       return (
-        <div className="text-center py-8 text-muted-foreground">
-          <Package className="size-10 mx-auto mb-3 opacity-20" />
-          <p className="font-medium">Belum ada barang</p>
-          <p className="text-sm">Klik tombol &quot;Tambah Barang&quot; untuk menambahkan barang baru</p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="Belum ada barang"
+          description='Klik tombol "Tambah Barang" untuk menambahkan barang baru'
+          size="compact"
+        />
       )
     }
 
     return (
       <div className="max-h-[400px] overflow-y-auto rounded-md border">
-        <Table>
+        <Table className="table-pro">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]">No</TableHead>
+              <TableHead className="w-[50px] text-left tabular-nums">No</TableHead>
               <TableHead className="w-[70px]">Foto</TableHead>
               <TableHead>Nama Barang</TableHead>
               <TableHead>No. Register</TableHead>
               <TableHead>Merk</TableHead>
               <TableHead>Kondisi</TableHead>
-              <TableHead className="text-right">Jumlah</TableHead>
-              <TableHead className="text-right">Harga</TableHead>
+              <TableHead className="text-right tabular-nums whitespace-nowrap">Jumlah</TableHead>
+              <TableHead className="text-right tabular-nums whitespace-nowrap">Harga</TableHead>
               <TableHead>Sumber Dana</TableHead>
-              <TableHead>Tahun Pengadaan</TableHead>
+              <TableHead className="text-center">Tahun Pengadaan</TableHead>
               <TableHead>Keterangan</TableHead>
-              <TableHead className="w-[120px]">Aksi</TableHead>
+              <TableHead className="w-[120px] text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((item, idx) => (
-              <TableRow key={item.id}>
-                <TableCell>{idx + 1}</TableCell>
+              <TableRow key={item.id} className="h-14">
+                <TableCell className="text-left tabular-nums">{idx + 1}</TableCell>
                 <TableCell>
                   <div onClick={(e) => e.stopPropagation()}>
                     <PhotoThumbnail
@@ -1628,13 +1616,13 @@ export function RoomsPage() {
                 <TableCell>{item.registrationNumber || '-'}</TableCell>
                 <TableCell>{item.brand || '-'}</TableCell>
                 <TableCell>{conditionBadge(item.condition)}</TableCell>
-                <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
-                <TableCell className="text-right">{item.price ? formatRupiahPrint(item.price) : '-'}</TableCell>
+                <TableCell className="text-right tabular-nums whitespace-nowrap">{item.quantity} {item.unit}</TableCell>
+                <TableCell className="text-right tabular-nums whitespace-nowrap">{item.price ? formatRupiahPrint(item.price) : '-'}</TableCell>
                 <TableCell>{item.sumberDana || '-'}</TableCell>
-                <TableCell>{item.tahunPengadaan || '-'}</TableCell>
+                <TableCell className="text-center tabular-nums">{item.tahunPengadaan || '-'}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{item.notes || '-'}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -1675,25 +1663,26 @@ export function RoomsPage() {
   // ─── Main Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Inventaris</h2>
-          <p className="text-muted-foreground">Manajemen ruangan dan inventaris barang</p>
-        </div>
-        {!selectedRoomId && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setPrintListDialogOpen(true)} disabled={rooms.length === 0}>
-              <Printer className="size-4 mr-2" />
-              Cetak
-            </Button>
-            <Button onClick={openAddRoom}>
-              <Plus className="size-4 mr-2" />
-              Tambah Ruang
-            </Button>
-          </div>
-        )}
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Inventaris"
+        description="Manajemen ruangan dan inventaris barang"
+        icon={DoorOpen}
+        actions={
+          !selectedRoomId ? (
+            <>
+              <Button variant="outline" onClick={() => setPrintListDialogOpen(true)} disabled={rooms.length === 0}>
+                <Printer className="size-4 mr-2" />
+                Cetak
+              </Button>
+              <Button onClick={openAddRoom}>
+                <Plus className="size-4 mr-2" />
+                Tambah Ruang
+              </Button>
+            </>
+          ) : undefined
+        }
+      />
 
       {selectedRoomId && renderBreadcrumb()}
 
@@ -2233,6 +2222,6 @@ export function RoomsPage() {
         onPrint={handlePrintRoomDetail}
         title="Cetak Detail Ruangan"
       />
-    </div>
+    </PageContainer>
   )
 }

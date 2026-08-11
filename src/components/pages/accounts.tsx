@@ -62,6 +62,9 @@ import {
   User,
   LogOut,
 } from 'lucide-react'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageLoading } from '@/components/ui/loading-skeleton'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -258,40 +261,40 @@ export function AccountsPage() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Kelola Akun</h2>
-          <p className="text-muted-foreground">Tambah, edit, dan hapus pengguna aplikasi</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {authUser && (
-            <div className="flex items-center gap-2 mr-2">
-              <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
-                <div className="flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  {authUser.role === 'admin' ? <Shield className="size-3.5" /> : <User className="size-3.5" />}
+    <PageContainer>
+      <PageHeader
+        title="Kelola Akun"
+        description="Tambah, edit, dan hapus pengguna aplikasi"
+        icon={UserCog}
+        actions={
+          <>
+            {authUser && (
+              <div className="flex items-center gap-2 mr-2">
+                <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
+                  <div className="flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    {authUser.role === 'admin' ? <Shield className="size-3.5" /> : <User className="size-3.5" />}
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-medium">{authUser.name}</span>
+                    <span className="text-muted-foreground ml-1">({roleLabels[authUser.role] || authUser.role})</span>
+                  </div>
                 </div>
-                <div className="text-sm">
-                  <span className="font-medium">{authUser.name}</span>
-                  <span className="text-muted-foreground ml-1">({roleLabels[authUser.role] || authUser.role})</span>
-                </div>
+                <Button variant="outline" size="sm" onClick={logout} className="gap-1.5">
+                  <LogOut className="size-3.5" />
+                  Keluar
+                </Button>
               </div>
-              <Button variant="outline" size="sm" onClick={logout} className="gap-1.5">
-                <LogOut className="size-3.5" />
-                Keluar
-              </Button>
-            </div>
-          )}
-          <Button onClick={openAddDialog}>
-            <Plus className="size-4 mr-2" />
-            Tambah Pengguna
-          </Button>
-        </div>
-      </div>
+            )}
+            <Button onClick={openAddDialog}>
+              <Plus className="size-4 mr-2" />
+              Tambah Pengguna
+            </Button>
+          </>
+        }
+      />
 
       {/* Main Card */}
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -309,40 +312,38 @@ export function AccountsPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
+            <PageLoading label="Memuat data pengguna..." />
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <UserCog className="size-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">Belum ada data</p>
-              <p className="text-sm">{search ? 'Tidak ditemukan pengguna yang sesuai' : 'Klik "Tambah Pengguna" untuk menambahkan'}</p>
-            </div>
+            <EmptyState
+              icon={UserCog}
+              title="Belum ada data"
+              description={search ? 'Tidak ditemukan pengguna yang sesuai' : 'Klik "Tambah Pengguna" untuk menambahkan'}
+            />
           ) : (
             <div className="max-h-[520px] overflow-y-auto rounded-md border">
-              <Table>
+              <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">No</TableHead>
+                    <TableHead className="w-[50px] text-left tabular-nums">No</TableHead>
                     <TableHead>Nama</TableHead>
                     <TableHead>Username</TableHead>
                     <TableHead>Password</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-[120px]">Aksi</TableHead>
+                    <TableHead className="w-[120px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user, idx) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{idx + 1}</TableCell>
+                    <TableRow key={user.id} className="h-14">
+                      <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>
-                        <code className="rounded bg-muted px-2 py-0.5 text-sm">{user.username}</code>
+                        <code className="rounded bg-muted px-2 py-0.5 text-sm tabular-nums">{user.username}</code>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <code className="rounded bg-muted px-2 py-0.5 text-sm font-mono">
+                          <code className="rounded bg-muted px-2 py-0.5 text-sm font-mono tabular-nums">
                             {visiblePasswords[user.id] ? user.password : '••••••••'}
                           </code>
                           <Button
@@ -368,7 +369,7 @@ export function AccountsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(user)} title="Edit">
                             <Pencil className="size-4" />
                           </Button>
@@ -516,6 +517,6 @@ export function AccountsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageContainer>
   )
 }

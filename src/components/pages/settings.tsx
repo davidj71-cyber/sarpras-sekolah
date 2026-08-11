@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Settings, Upload, Loader2, X, School, Plus, Trash2, ChevronUp, ChevronDown, UserCheck } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { PageLoading } from '@/components/ui/loading-skeleton'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -308,30 +310,28 @@ export function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Pengaturan</h2>
-          <p className="text-muted-foreground">Pengaturan sekolah dan KOP surat</p>
-        </div>
-        <Card>
-          <CardContent className="flex items-center justify-center py-12">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </CardContent>
-        </Card>
-      </div>
+      <PageContainer>
+        <PageHeader
+          title="Pengaturan"
+          description="Pengaturan sekolah dan KOP surat"
+          icon={Settings}
+        />
+        <PageLoading label="Memuat pengaturan..." />
+      </PageContainer>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       {/* Page Header */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Pengaturan</h2>
-        <p className="text-muted-foreground">Pengaturan sekolah dan KOP surat</p>
-      </div>
+      <PageHeader
+        title="Pengaturan"
+        description="Pengaturan sekolah dan KOP surat"
+        icon={Settings}
+      />
 
       {/* Section 1: Informasi Sekolah */}
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex items-center gap-2">
             <School className="size-5" />
@@ -427,7 +427,7 @@ export function SettingsPage() {
       </Card>
 
       {/* Section 1.5: Penandatangan Laporan (Sinkronisasi) */}
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex items-center gap-2">
             <UserCheck className="size-5" />
@@ -505,7 +505,7 @@ export function SettingsPage() {
       </Card>
 
       {/* Section 2: Pengaturan KOP Sekolah */}
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Settings className="size-5" />
@@ -866,7 +866,7 @@ export function SettingsPage() {
       </Card>
 
       {/* Live KOP Preview */}
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex items-center gap-2">
             <School className="size-5" />
@@ -1015,6 +1015,6 @@ export function SettingsPage() {
           )}
         </Button>
       </div>
-    </div>
+    </PageContainer>
   )
 }

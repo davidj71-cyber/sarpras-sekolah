@@ -79,6 +79,10 @@ import {
 import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { StatCard } from '@/components/ui/stat-card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageLoading } from '@/components/ui/loading-skeleton'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -226,7 +230,7 @@ function OrderRowGroup({
             )}
           </div>
         </TableCell>
-        <TableCell>{formatRupiahPrint(order.totalAmount)}</TableCell>
+        <TableCell className="text-right tabular-nums whitespace-nowrap font-medium">{formatRupiahPrint(order.totalAmount)}</TableCell>
         <TableCell>
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             {isUnpaid && (
@@ -298,14 +302,14 @@ function OrderRowGroup({
                         <TableCell className="text-xs py-1.5">{item.itemName}</TableCell>
                         <TableCell className="text-xs py-1.5 text-center">{item.quantity}</TableCell>
                         <TableCell className="text-xs py-1.5 text-center">{item.unit}</TableCell>
-                        <TableCell className="text-xs py-1.5 text-right">{formatRupiahPrint(item.unitPrice)}</TableCell>
-                        <TableCell className="text-xs py-1.5 text-right">{formatRupiahPrint(item.totalPrice)}</TableCell>
+                        <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap">{formatRupiahPrint(item.unitPrice)}</TableCell>
+                        <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap font-semibold">{formatRupiahPrint(item.totalPrice)}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow>
                       <TableCell colSpan={4} className="text-xs py-1.5 text-right font-semibold border-t">Total</TableCell>
                       <TableCell className="text-xs py-1.5 border-t"></TableCell>
-                      <TableCell className="text-xs py-1.5 text-right font-semibold border-t">{formatRupiahPrint(order.totalAmount)}</TableCell>
+                      <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap font-semibold border-t">{formatRupiahPrint(order.totalAmount)}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -898,83 +902,60 @@ export function OrdersPage() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Pesanan</h2>
-          <p className="text-muted-foreground">Manajemen surat pesanan dan pencatatan BON</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={openAddBonDialog}>
-            <CreditCard className="size-4 mr-2" />
-            Catat BON
-          </Button>
-          <Button onClick={openAddDialog}>
-            <Plus className="size-4 mr-2" />
-            Tambah Pesanan
-          </Button>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Pesanan"
+        description="Manajemen surat pesanan dan pencatatan BON"
+        icon={FileText}
+        actions={
+          <>
+            <Button variant="outline" onClick={openAddBonDialog}>
+              <CreditCard className="size-4 mr-2" />
+              Catat BON
+            </Button>
+            <Button onClick={openAddDialog}>
+              <Plus className="size-4 mr-2" />
+              Tambah Pesanan
+            </Button>
+          </>
+        }
+      />
 
       {/* BON Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
-                <DollarSign className="size-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Pesanan</p>
-                <p className="text-lg font-bold">{formatRupiahPrint(orders.reduce((s, o) => s + o.totalAmount, 0))}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                <Wallet className="size-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Cash (Tunai)</p>
-                <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatRupiahPrint(totalCash)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <CreditCard className="size-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">BON Belum Bayar</p>
-                <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{formatRupiahPrint(totalBonUnpaid)}</p>
-                <p className="text-xs text-muted-foreground">{bonUnpaid.length} pesanan</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                <CheckCircle2 className="size-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">BON Lunas</p>
-                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{formatRupiahPrint(totalBonPaid)}</p>
-                <p className="text-xs text-muted-foreground">{bonPaid.length} pesanan</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Total Pesanan"
+          value={formatRupiahPrint(orders.reduce((s, o) => s + o.totalAmount, 0))}
+          icon={DollarSign}
+          tone="primary"
+          delay={1}
+        />
+        <StatCard
+          title="Cash (Tunai)"
+          value={formatRupiahPrint(totalCash)}
+          icon={Wallet}
+          tone="success"
+          delay={2}
+        />
+        <StatCard
+          title="BON Belum Bayar"
+          value={formatRupiahPrint(totalBonUnpaid)}
+          subtitle={`${bonUnpaid.length} pesanan`}
+          icon={CreditCard}
+          tone="warning"
+          delay={3}
+        />
+        <StatCard
+          title="BON Lunas"
+          value={formatRupiahPrint(totalBonPaid)}
+          subtitle={`${bonPaid.length} pesanan`}
+          icon={CheckCircle2}
+          tone="info"
+          delay={4}
+        />
       </div>
 
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -1014,18 +995,16 @@ export function OrdersPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
+            <PageLoading label="Memuat data pesanan..." />
           ) : filteredOrders.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <FileText className="size-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">Belum ada data</p>
-              <p className="text-sm">{search ? 'Tidak ditemukan pesanan yang sesuai' : 'Klik "Tambah Pesanan" untuk menambahkan'}</p>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="Belum ada data"
+              description={search ? 'Tidak ditemukan pesanan yang sesuai' : 'Klik "Tambah Pesanan" untuk menambahkan'}
+            />
           ) : (
             <div className="max-h-[600px] overflow-y-auto rounded-md border">
-              <Table>
+              <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]"></TableHead>
@@ -1035,8 +1014,8 @@ export function OrdersPage() {
                     <TableHead>Toko</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Pembayaran</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead className="w-[160px]">Aksi</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="w-[160px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1353,6 +1332,6 @@ export function OrdersPage() {
         }}
         title="Cetak Surat Pesanan"
       />
-    </div>
+    </PageContainer>
   )
 }

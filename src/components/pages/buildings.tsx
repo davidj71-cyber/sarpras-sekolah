@@ -64,6 +64,9 @@ import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { PageLoading } from '@/components/ui/loading-skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 
 const conditionOptions = ['Baik', 'Rusak Ringan', 'Rusak Berat'] as const
 
@@ -350,25 +353,26 @@ export function BuildingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Gedung</h2>
-          <p className="text-muted-foreground">Manajemen data gedung (lokasi tertinggi inventaris)</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filtered.length === 0}>
-            <Printer className="size-4 mr-2" />
-            Cetak
-          </Button>
-          <Button onClick={openAddDialog}>
-            <Plus className="size-4 mr-2" />
-            Tambah Gedung
-          </Button>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Gedung"
+        description="Manajemen data gedung (lokasi tertinggi inventaris)"
+        icon={Building2}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filtered.length === 0}>
+              <Printer className="size-4 mr-2" />
+              Cetak
+            </Button>
+            <Button onClick={openAddDialog}>
+              <Plus className="size-4 mr-2" />
+              Tambah Gedung
+            </Button>
+          </>
+        }
+      />
 
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -386,21 +390,19 @@ export function BuildingsPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
+            <PageLoading label="Memuat data gedung..." />
           ) : filtered.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Building2 className="size-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">Belum ada data</p>
-              <p className="text-sm">{search ? 'Tidak ditemukan gedung yang sesuai' : 'Klik "Tambah Gedung" untuk menambahkan'}</p>
-            </div>
+            <EmptyState
+              icon={Building2}
+              title="Belum ada data"
+              description={search ? 'Tidak ditemukan gedung yang sesuai' : 'Klik "Tambah Gedung" untuk menambahkan'}
+            />
           ) : (
             <div className="max-h-[520px] overflow-y-auto rounded-md border">
-              <Table>
+              <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">No</TableHead>
+                    <TableHead className="w-[50px] text-left">No</TableHead>
                     <TableHead>Nama Gedung</TableHead>
                     <TableHead>Kode</TableHead>
                     <TableHead className="text-center">Lantai</TableHead>
@@ -410,17 +412,17 @@ export function BuildingsPage() {
                     <TableHead className="text-center">Luas Tanah</TableHead>
                     <TableHead className="text-right">Nilai Aset</TableHead>
                     <TableHead className="max-w-[200px]">Deskripsi</TableHead>
-                    <TableHead className="w-[100px]">Aksi</TableHead>
+                    <TableHead className="w-[100px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((b, idx) => (
-                    <TableRow key={b.id}>
-                      <TableCell>{idx + 1}</TableCell>
+                    <TableRow key={b.id} className="h-14">
+                      <TableCell className="tabular-nums">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{b.name}</TableCell>
                       <TableCell>{b.code || '-'}</TableCell>
-                      <TableCell className="text-center">{b.floors}</TableCell>
-                      <TableCell className="text-center">{b._count?.rooms ?? 0}</TableCell>
+                      <TableCell className="text-center tabular-nums">{b.floors}</TableCell>
+                      <TableCell className="text-center tabular-nums">{b._count?.rooms ?? 0}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant={conditionBadge[b.condition] || 'secondary'} className="text-xs">{b.condition || 'Baik'}</Badge>
                       </TableCell>
@@ -431,13 +433,13 @@ export function BuildingsPage() {
                       <TableCell className="text-center text-xs whitespace-nowrap">
                         {b.landArea ? `${b.landArea} m²` : '-'}
                       </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {b.acquisitionPrice ? <span className="text-xs">{formatRupiah(b.acquisitionPrice)}</span> : '-'}
                         {b.acquisitionYear && <div className="text-[10px] text-muted-foreground">Th. {b.acquisitionYear}</div>}
                       </TableCell>
                       <TableCell className="max-w-[220px] truncate">{b.description || '-'}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(b)}>
                             <Pencil className="size-4" />
                           </Button>
@@ -611,6 +613,6 @@ export function BuildingsPage() {
         onPrint={handlePrint}
         title="Cetak Daftar Gedung"
       />
-    </div>
+    </PageContainer>
   )
 }

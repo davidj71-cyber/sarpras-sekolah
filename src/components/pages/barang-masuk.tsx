@@ -64,6 +64,9 @@ import { printWithKop, formatDatePrint, fetchPrintSettings } from '@/lib/print-u
 import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageLoading } from '@/components/ui/loading-skeleton'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -468,25 +471,26 @@ export function BarangMasukPage() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Barang Masuk</h2>
-          <p className="text-muted-foreground">Pencatatan barang masuk dan penerimaan</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredData.length === 0}>
-            <Printer className="size-4 mr-2" />
-            Cetak
-          </Button>
-          <Button onClick={openAddDialog}>
-            <Plus className="size-4 mr-2" />
-            Tambah Barang Masuk
-          </Button>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Barang Masuk"
+        description="Pencatatan barang masuk dan penerimaan"
+        icon={PackagePlus}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredData.length === 0}>
+              <Printer className="size-4 mr-2" />
+              Cetak
+            </Button>
+            <Button onClick={openAddDialog}>
+              <Plus className="size-4 mr-2" />
+              Tambah Barang Masuk
+            </Button>
+          </>
+        }
+      />
 
-      <Card>
+      <Card className="card-pro">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -504,18 +508,16 @@ export function BarangMasukPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
+            <PageLoading label="Memuat data barang masuk..." />
           ) : filteredData.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <PackagePlus className="size-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">Belum ada data</p>
-              <p className="text-sm">{search ? 'Tidak ditemukan data yang sesuai' : 'Klik "Tambah Barang Masuk" untuk menambahkan'}</p>
-            </div>
+            <EmptyState
+              icon={PackagePlus}
+              title="Belum ada data"
+              description={search ? 'Tidak ditemukan data yang sesuai' : 'Klik "Tambah Barang Masuk" untuk menambahkan'}
+            />
           ) : (
             <div className="max-h-[520px] overflow-y-auto rounded-md border">
-              <Table>
+              <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[50px]">No</TableHead>
@@ -523,9 +525,9 @@ export function BarangMasukPage() {
                     <TableHead>Tanggal</TableHead>
                     <TableHead>Sumber</TableHead>
                     <TableHead>Toko</TableHead>
-                    <TableHead>Jumlah Item</TableHead>
+                    <TableHead className="text-right">Jumlah Item</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-[130px]">Aksi</TableHead>
+                    <TableHead className="w-[130px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -536,7 +538,7 @@ export function BarangMasukPage() {
                       <TableCell>{record.entryDate ? formatDate(record.entryDate) : '-'}</TableCell>
                       <TableCell>{record.source || '-'}</TableCell>
                       <TableCell>{record.store?.name || '-'}</TableCell>
-                      <TableCell className="text-center">{record.items?.length || 0}</TableCell>
+                      <TableCell className="text-right tabular-nums whitespace-nowrap">{record.items?.length || 0}</TableCell>
                       <TableCell>
                         <Badge
                           variant={statusColors[record.status] || 'secondary'}
@@ -772,6 +774,6 @@ export function BarangMasukPage() {
         title="Cetak Detail Barang Masuk"
         description="Pilih orientasi halaman sebelum mencetak detail"
       />
-    </div>
+    </PageContainer>
   )
 }

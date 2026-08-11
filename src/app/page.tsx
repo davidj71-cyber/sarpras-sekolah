@@ -177,36 +177,38 @@ export default function Home() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex shrink-0 flex-col bg-card/80 backdrop-blur-sm border-b supports-[backdrop-filter]:bg-card/60">
+        <header className="sticky top-0 z-30 flex shrink-0 flex-col bg-card/80 backdrop-blur-md border-b supports-[backdrop-filter]:bg-card/70">
           <div className="flex h-14 items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1 transition-colors" />
             <Separator orientation="vertical" className="mr-2 h-4" />
-            <div className="flex items-center gap-2">
-              {currentPage === 'accounts' && <UserCog className="size-5 text-primary" />}
-              <h1 className="text-lg font-semibold tracking-tight">
+            <div className="flex items-center gap-2 min-w-0">
+              {currentPage === 'accounts' && <UserCog className="size-4.5 text-primary shrink-0" />}
+              <h1 className="text-base font-semibold tracking-tight truncate">
                 {pageTitles[currentPage] || 'Sarana Prasarana Sekolah'}
               </h1>
             </div>
           </div>
           {showStoreNavbar && (
-            <div className="border-t px-4 py-2">
+            <div className="border-t bg-muted/30 px-4 py-2">
               <StoreNavbar />
             </div>
           )}
           {showKibNavbar && (
-            <div className="border-t px-4 py-2">
+            <div className="border-t bg-muted/30 px-4 py-2">
               <KibNavbar />
             </div>
           )}
           {showRoomNavbar && (
-            <div className="border-t px-4 py-2">
+            <div className="border-t bg-muted/30 px-4 py-2">
               <RoomNavbar />
             </div>
           )}
         </header>
-        <main className="flex-1 overflow-auto p-4 md:p-6">
-          <div className="animate-fade-in-up">
-            {renderPage()}
+        <main className="flex-1 overflow-auto page-bg">
+          <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
+            <div className="animate-fade-in-up">
+              {renderPage()}
+            </div>
           </div>
         </main>
       </SidebarInset>

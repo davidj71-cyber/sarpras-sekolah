@@ -73,6 +73,10 @@ import type { PrintOrientation } from '@/lib/print-utils'
 import { PrintDialog } from '@/components/print-dialog'
 import { PhotoThumbnail } from '@/components/photo-thumbnail'
 import { PhotoGallery } from '@/components/photo-gallery'
+import { PageHeader, PageContainer } from '@/components/ui/page-header'
+import { StatCard } from '@/components/ui/stat-card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageLoading } from '@/components/ui/loading-skeleton'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -457,90 +461,39 @@ export function RoomItemsPage() {
   // ─── Render ──────────────────────────────────────────────────────────────
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <PageLoading label="Memuat data barang..." />
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Barang Inventaris</h2>
-          <p className="text-muted-foreground">Daftar semua barang inventaris beserta lokasi</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={openAddItem} size="sm">
-            <Plus className="size-4 mr-2" />
-            Tambah Barang
-          </Button>
-          <Button onClick={() => setPrintDialogOpen(true)} disabled={printing || filteredItems.length === 0} variant="outline" size="sm">
-            {printing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
-            Cetak
-          </Button>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Barang Inventaris"
+        description="Daftar semua barang inventaris beserta lokasi"
+        icon={Package}
+        actions={
+          <>
+            <Button onClick={openAddItem} size="sm">
+              <Plus className="size-4 mr-2" />
+              Tambah Barang
+            </Button>
+            <Button onClick={() => setPrintDialogOpen(true)} disabled={printing || filteredItems.length === 0} variant="outline" size="sm">
+              {printing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
+              Cetak
+            </Button>
+          </>
+        }
+      />
 
       {/* Stats */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-blue-50 p-2.5">
-                <Package className="size-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Barang Inventaris</p>
-                <p className="text-2xl font-bold">{filteredItems.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-emerald-50 p-2.5">
-                <CheckCircle2 className="size-5 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Baik</p>
-                <p className="text-2xl font-bold text-emerald-600">{baikCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-amber-50 p-2.5">
-                <AlertTriangle className="size-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Rusak Ringan</p>
-                <p className="text-2xl font-bold text-amber-600">{rusakRinganCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-red-50 p-2.5">
-                <XCircle className="size-5 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Rusak Berat</p>
-                <p className="text-2xl font-bold text-red-600">{rusakBeratCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard title="Barang Inventaris" value={filteredItems.length} subtitle="Total barang" icon={Package} tone="primary" delay={1} />
+        <StatCard title="Kondisi Baik" value={baikCount} subtitle="Layak pakai" icon={CheckCircle2} tone="success" delay={2} />
+        <StatCard title="Rusak Ringan" value={rusakRinganCount} subtitle="Perlu perbaikan" icon={AlertTriangle} tone="warning" delay={3} />
+        <StatCard title="Rusak Berat" value={rusakBeratCount} subtitle="Perlu penggantian" icon={XCircle} tone="danger" delay={4} />
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="card-pro">
         <CardContent className="p-4">
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
@@ -588,47 +541,51 @@ export function RoomItemsPage() {
       {filteredItems.length > 0 && (
         <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
           <span>Menampilkan {filteredItems.length} dari {items.length} barang</span>
-          <span>Total Nilai: <span className="font-semibold text-foreground">{formatRupiah(totalValue)}</span></span>
+          <span>Total Nilai: <span className="font-semibold text-foreground tabular-nums">{formatRupiah(totalValue)}</span></span>
         </div>
       )}
 
       {/* Items Table */}
       {filteredItems.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Package className="size-16 mx-auto mb-4 opacity-20" />
-          <p className="text-lg font-medium">Tidak ada barang ditemukan</p>
-          <p className="text-sm">
-            {items.length === 0
-              ? 'Belum ada barang inventaris. Klik tombol "Tambah Barang" untuk menambahkan barang baru.'
-              : 'Coba ubah filter pencarian Anda'}
-          </p>
-        </div>
+        <Card className="card-pro">
+          <CardContent className="p-0">
+            <EmptyState
+              icon={Package}
+              title="Tidak ada barang ditemukan"
+              description={
+                items.length === 0
+                  ? 'Belum ada barang inventaris. Klik tombol "Tambah Barang" untuk menambahkan barang baru.'
+                  : 'Coba ubah filter pencarian Anda'
+              }
+            />
+          </CardContent>
+        </Card>
       ) : (
-        <Card>
+        <Card className="card-pro">
           <CardContent className="p-0">
             <div className="max-h-[600px] overflow-y-auto">
-              <Table>
+              <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">No</TableHead>
+                    <TableHead className="w-[50px] text-left tabular-nums">No</TableHead>
                     <TableHead className="w-[70px]">Foto</TableHead>
                     <TableHead>Nama Barang</TableHead>
                     <TableHead>No. Register</TableHead>
                     <TableHead>Merk</TableHead>
                     <TableHead>Kondisi</TableHead>
-                    <TableHead className="text-right">Jumlah</TableHead>
-                    <TableHead className="text-right">Harga</TableHead>
+                    <TableHead className="text-right tabular-nums whitespace-nowrap">Jumlah</TableHead>
+                    <TableHead className="text-right tabular-nums whitespace-nowrap">Harga</TableHead>
                     <TableHead>Sumber Dana</TableHead>
-                    <TableHead>Tahun Pengadaan</TableHead>
+                    <TableHead className="text-center">Tahun Pengadaan</TableHead>
                     <TableHead>Lokasi</TableHead>
                     <TableHead>Keterangan</TableHead>
-                    <TableHead className="w-[130px]">Aksi</TableHead>
+                    <TableHead className="w-[130px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredItems.map((item, idx) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{idx + 1}</TableCell>
+                    <TableRow key={item.id} className="h-14">
+                      <TableCell className="text-left tabular-nums">{idx + 1}</TableCell>
                       <TableCell>
                         <PhotoThumbnail photos={item.photos || []} />
                       </TableCell>
@@ -636,14 +593,14 @@ export function RoomItemsPage() {
                       <TableCell>{item.registrationNumber || '-'}</TableCell>
                       <TableCell>{item.brand || '-'}</TableCell>
                       <TableCell>{conditionBadge(item.condition)}</TableCell>
-                      <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
-                      <TableCell className="text-right">{item.price > 0 ? formatRupiah(item.price) : '-'}</TableCell>
+                      <TableCell className="text-right tabular-nums whitespace-nowrap">{item.quantity} {item.unit}</TableCell>
+                      <TableCell className="text-right tabular-nums whitespace-nowrap">{item.price > 0 ? formatRupiah(item.price) : '-'}</TableCell>
                       <TableCell>{item.sumberDana || '-'}</TableCell>
-                      <TableCell>{item.tahunPengadaan || '-'}</TableCell>
+                      <TableCell className="text-center tabular-nums">{item.tahunPengadaan || '-'}</TableCell>
                       <TableCell>{renderLocation(item)}</TableCell>
                       <TableCell className="max-w-[150px] truncate">{item.notes || '-'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -836,6 +793,6 @@ export function RoomItemsPage() {
         title="Cetak Daftar Barang Inventaris"
         loading={printing}
       />
-    </div>
+    </PageContainer>
   )
 }

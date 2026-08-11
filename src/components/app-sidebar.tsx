@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Archive,
   UserCog,
+  LogOut,
 } from 'lucide-react'
 
 import {
@@ -100,9 +101,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenuButton
                 tooltip="Keluar"
                 onClick={logout}
-                className="text-destructive hover:text-destructive"
+                className="text-muted-foreground hover:text-destructive"
               >
-                <span className="text-xs">Keluar</span>
+                <LogOut className="size-4" />
+                <span className="text-sm">Keluar</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
