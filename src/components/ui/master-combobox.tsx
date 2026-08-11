@@ -129,29 +129,71 @@ export function MasterCombobox({
   )
   const canAddNew = normalizedQuery.length > 0 && !isExactMatch
 
+  // Clear the current value WITHOUT opening the dropdown.
+  // stopPropagation + preventDefault so the Popover trigger doesn't toggle.
+  const handleClear = React.useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      onChange('')
+      setOpen(false)
+    },
+    [onChange]
+  )
+
+  const showClear = allowClear && value && !disabled
+
   return (
-    <div className="flex items-center gap-1 w-full">
-      <Popover open={open} onOpenChange={handleOpenChange}>
-        <PopoverTrigger asChild>
-          <Button
-            id={id}
-            type="button"
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            disabled={disabled}
-            className={cn(
-              'justify-between font-normal w-full',
-              !value && 'text-muted-foreground',
-              className
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className={cn(
+            'relative justify-between font-normal w-full',
+            // Make room on the right for both the clear (X) button and the chevron
+            showClear ? 'pr-16' : 'pr-9',
+            !value && 'text-muted-foreground',
+            className
+          )}
+        >
+          <span className="truncate">
+            {value || placeholder}
+          </span>
+          {/* Right-side controls: chevron + optional clear (X). The X is rendered
+              INSIDE the trigger button so it is visually attached to THIS field
+              and cannot be mistaken for an indicator on the next grid cell. */}
+          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+            {showClear && (
+              <span
+                role="button"
+                tabIndex={-1}
+                aria-label="Hapus pilihan"
+                title="Hapus pilihan"
+                // Inline span (not a <Button>) so it can sit inside the trigger
+                // without nesting interactive elements. We handle the click here
+                // and stop it from toggling the Popover.
+                onClick={handleClear}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleClear(e as unknown as React.MouseEvent)
+                  }
+                }}
+                className="pointer-events-auto inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+              >
+                <X className="size-3.5" />
+              </span>
             )}
-          >
-            <span className="truncate">
-              {value || placeholder}
-            </span>
-            <ChevronsUpDown className="size-4 shrink-0 opacity-50 ml-2" />
-          </Button>
-        </PopoverTrigger>
+            <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+          </span>
+        </Button>
+      </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] min-w-[200px] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
@@ -216,19 +258,6 @@ export function MasterCombobox({
           </Command>
         </PopoverContent>
       </Popover>
-      {allowClear && value && !disabled && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={() => onChange('')}
-          title="Hapus pilihan"
-        >
-          <X className="size-4" />
-        </Button>
-      )}
-    </div>
   )
 }
 
