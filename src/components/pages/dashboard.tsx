@@ -346,7 +346,10 @@ export function DashboardPage() {
 
     const contentHtml = section1 + section2 + section3 + section4 + section5 + section6
 
-    await printWithKop('LAPORAN DASHBOARD SARANA PRASARANA', contentHtml, orientation, { appendSignature: true })
+    await printWithKop('LAPORAN DASHBOARD SARANA PRASARANA', contentHtml, orientation, {
+      appendSignature: true,
+      signatureOptions: { rightTitle: 'Pengurus Barang' },
+    })
   }
 
   return (

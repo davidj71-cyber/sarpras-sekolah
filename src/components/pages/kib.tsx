@@ -1104,7 +1104,10 @@ export function KibPage() {
       </table>
     `
 
-    await printWithKop(title, contentHtml, orientation, { appendSignature: true })
+    await printWithKop(title, contentHtml, orientation, {
+      appendSignature: true,
+      signatureOptions: { rightTitle: 'Pengurus Barang' },
+    })
   }
 
   return (

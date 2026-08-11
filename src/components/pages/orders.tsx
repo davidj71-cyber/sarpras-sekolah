@@ -848,25 +848,17 @@ export function OrdersPage() {
 
       <!-- Tanda Tangan -->
       <div style="margin-top: 32px; font-size: 12pt;">
-        <table style="border: none; border-collapse: collapse; width: auto;">
+        <table style="border: none; border-collapse: collapse; width: auto; margin-left: auto;">
           <tr>
-            <td style="border: none; padding: 0; vertical-align: top; white-space: nowrap;">an.</td>
-            <td style="border: none; padding: 0 0 0 6px; vertical-align: top;">Kepala Sekolah</td>
+            <td style="border: none; padding: 0 0 0 6px;">Bendahara</td>
           </tr>
           <tr>
-            <td style="border: none; padding: 0;"></td>
-            <td style="border: none; padding: 0 0 0 6px;">Bendahara Pengurus Barang</td>
-          </tr>
-          <tr>
-            <td style="border: none; padding: 0;"></td>
             <td style="border: none; padding: 0 0 0 6px; height: 60px;"></td>
           </tr>
           <tr>
-            <td style="border: none; padding: 0;"></td>
             <td style="border: none; padding: 0 0 0 6px; text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</td>
           </tr>
           <tr>
-            <td style="border: none; padding: 0;"></td>
             <td style="border: none; padding: 0 0 0 6px;">${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</td>
           </tr>
         </table>

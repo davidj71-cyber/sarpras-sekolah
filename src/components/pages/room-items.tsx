@@ -450,7 +450,10 @@ export function RoomItemsPage() {
         </table>
       `
 
-      await printWithKop('DAFTAR BARANG INVENTARIS', contentHtml, orientation, { appendSignature: true })
+      await printWithKop('DAFTAR BARANG INVENTARIS', contentHtml, orientation, {
+        appendSignature: true,
+        signatureOptions: { rightTitle: 'Pengurus Barang' },
+      })
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak data', variant: 'destructive' })
     } finally {

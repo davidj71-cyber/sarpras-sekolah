@@ -372,7 +372,10 @@ export function BarangMasukPage() {
       </div>
     `
 
-    await printWithKop('DAFTAR BARANG MASUK', contentHtml, orientation, { appendSignature: true })
+    await printWithKop('DAFTAR BARANG MASUK', contentHtml, orientation, {
+      appendSignature: true,
+      signatureOptions: { rightTitle: 'Pengurus Barang' },
+    })
   }
 
   async function handlePrintDetail(record: BarangMasukData, orientation: PrintOrientation = 'portrait') {
