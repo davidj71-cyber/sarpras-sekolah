@@ -63,9 +63,11 @@ import {
   ClipboardList,
   Printer,
   Camera,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
+import { exportToExcel, getSchoolMeta, type ExcelColumn } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
@@ -1106,8 +1108,61 @@ export function KibPage() {
 
     await printWithKop(title, contentHtml, orientation, {
       appendSignature: true,
-      signatureOptions: { rightTitle: 'Pengurus Barang' },
+      signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
     })
+  }
+
+  async function handleExportExcel() {
+    if (filteredItems.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data barang untuk diekspor' })
+      return
+    }
+    try {
+      const meta = await getSchoolMeta()
+      const printCols = getPrintColumns(kibType)
+      const excelColumns: ExcelColumn<Item>[] = printCols.map((col) => {
+        switch (col.key) {
+          case 'no':
+            return { header: 'No', key: (item) => String(filteredItems.indexOf(item) + 1), width: 6 }
+          case 'price':
+            return { header: 'Harga (Rp)', key: (item) => item.price || 0, width: 16 }
+          case 'landArea':
+          case 'buildingArea':
+          case 'roadArea':
+            return { header: col.label, key: (item) => (item as Record<string, unknown>)[col.key] as number || 0, width: 14 }
+          case 'roadLength':
+            return { header: col.label, key: (item) => item.roadLength || 0, width: 14 }
+          case 'roadWidth':
+            return { header: col.label, key: (item) => item.roadWidth || 0, width: 14 }
+          case 'quantity':
+            return { header: col.label, key: (item) => `${item.quantity} ${item.unit}`, width: 12 }
+          case 'implementationYear':
+            return { header: col.label, key: (item) => item.implementationYear || '-', width: 16 }
+          case 'condition':
+            return { header: 'Kondisi', key: (item) => item.condition || '-', width: 14 }
+          default:
+            return {
+              header: col.label,
+              key: (item) => {
+                const value = (item as Record<string, unknown>)[col.key]
+                return value ? String(value) : '-'
+              },
+              width: 20,
+            }
+        }
+      })
+      await exportToExcel({
+        filename: `KIB_${kibType}_${label.replace(/\s+/g, '_')}.xlsx`,
+        sheetName: `KIB ${kibType}`,
+        title: `KARTU INVENTARIS BARANG (KIB ${kibType}) - ${label}`,
+        meta,
+        columns: excelColumns,
+        data: filteredItems,
+      })
+      toast({ title: 'Berhasil', description: 'Data KIB berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor data ke Excel', variant: 'destructive' })
+    }
   }
 
   return (
@@ -1122,6 +1177,10 @@ export function KibPage() {
             <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={filteredItems.length === 0}>
               <Printer className="size-4 mr-2" />
               Cetak
+            </Button>
+            <Button variant="outline" onClick={handleExportExcel} disabled={filteredItems.length === 0}>
+              <FileSpreadsheet className="size-4 mr-2" />
+              Export Excel
             </Button>
             <Button onClick={openAddDialog}>
               <Plus className="size-4 mr-2" />

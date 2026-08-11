@@ -58,9 +58,11 @@ import {
   DoorOpen,
   Layers,
   Printer,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
+import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
 import { CurrencyInput } from '@/components/ui/currency-input'
@@ -351,8 +353,44 @@ export function BuildingsPage() {
 
     await printWithKop('DAFTAR GEDUNG', contentHtml, 'landscape', {
       appendSignature: true,
-      signatureOptions: { rightTitle: 'Pengurus Barang' },
+      signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
     })
+  }
+
+  async function handleExportExcel() {
+    if (filtered.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data gedung untuk diekspor' })
+      return
+    }
+    try {
+      const meta = await getSchoolMeta()
+      await exportToExcel({
+        filename: 'Daftar_Gedung.xlsx',
+        sheetName: 'Daftar Gedung',
+        title: 'DAFTAR GEDUNG',
+        meta,
+        columns: [
+          { header: 'No', key: (row) => String(filtered.indexOf(row) + 1), width: 6 },
+          { header: 'Nama Gedung', key: 'name', width: 28 },
+          { header: 'Kode', key: (b) => b.code || '-', width: 12 },
+          { header: 'Lantai', key: (b) => b.floors, width: 8 },
+          { header: 'Jml Ruang', key: (b) => b._count?.rooms ?? 0, width: 10 },
+          { header: 'Keadaan', key: (b) => b.condition || '-', width: 14 },
+          { header: 'Luas Bangunan (m²)', key: (b) => b.area || 0, width: 18 },
+          { header: 'Luas Tanah (m²)', key: (b) => b.landArea || 0, width: 16 },
+          { header: 'Tahun Perolehan', key: (b) => b.acquisitionYear || '-', width: 14 },
+          { header: 'Nilai Aset (Rp)', key: (b) => b.acquisitionPrice ? b.acquisitionPrice : 0, width: 18 },
+          { header: 'Sumber Dana', key: (b) => b.sumberDana || '-', width: 16 },
+          { header: 'No. Registrasi', key: (b) => b.registrationNumber || '-', width: 16 },
+          { header: 'Penanggung Jawab', key: (b) => b.responsiblePerson || '-', width: 20 },
+          { header: 'Deskripsi', key: (b) => b.description || '-', width: 30 },
+        ],
+        data: filtered,
+      })
+      toast({ title: 'Berhasil', description: 'Data gedung berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor data ke Excel', variant: 'destructive' })
+    }
   }
 
   return (
@@ -366,6 +404,10 @@ export function BuildingsPage() {
             <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filtered.length === 0}>
               <Printer className="size-4 mr-2" />
               Cetak
+            </Button>
+            <Button variant="outline" onClick={handleExportExcel} disabled={loading || filtered.length === 0}>
+              <FileSpreadsheet className="size-4 mr-2" />
+              Export Excel
             </Button>
             <Button onClick={openAddDialog}>
               <Plus className="size-4 mr-2" />

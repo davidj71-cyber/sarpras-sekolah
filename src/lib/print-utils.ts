@@ -213,6 +213,13 @@ export interface SignatureBlockOptions {
   /** Show only one column (e.g. for letters that already have issuer signature) */
   singleColumn?: 'left' | 'right' | null
   /**
+   * Which person's name/NIP to render in the RIGHT column.
+   * - 'treasurer' (default) → uses settings.treasurerName / treasurerNip
+   * - 'goodsManager'        → uses settings.goodsManagerName / goodsManagerNip
+   * The label (rightTitle) is independent — caller controls both.
+   */
+  rightSigner?: 'treasurer' | 'goodsManager'
+  /**
    * When provided, renders a 3-column layout with the third column showing
    * the Pengurus Barang (goods manager). Pass `true` to use defaults, or an
    * object to customize the intro/title.
@@ -234,6 +241,7 @@ export function buildSyncedSignatureBlock(
     city,
     dateStr,
     singleColumn = null,
+    rightSigner = 'treasurer',
     thirdColumn = false,
   } = options
 
@@ -249,6 +257,14 @@ export function buildSyncedSignatureBlock(
   const treasurerNipDisplay = settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : 'NIP. ________________________'
   const goodsManagerNameDisplay = settings.goodsManagerName || '________________________'
   const goodsManagerNipDisplay = settings.goodsManagerNip ? `NIP. ${settings.goodsManagerNip}` : 'NIP. ________________________'
+
+  // Pick which person's data goes in the right column based on `rightSigner`.
+  // The label (rightTitle) is independent so callers can pair any title with
+  // any person — but the typical pairings are:
+  //   rightSigner='treasurer'   + rightTitle='Bendahara'           (Pesanan)
+  //   rightSigner='goodsManager' + rightTitle='Pengurus Barang'    (Inventaris/KIB)
+  const rightNameDisplay = rightSigner === 'goodsManager' ? goodsManagerNameDisplay : treasurerNameDisplay
+  const rightNipDisplay = rightSigner === 'goodsManager' ? goodsManagerNipDisplay : treasurerNipDisplay
 
   // Column width adapts to layout: 45% for 2-col, 30% for 3-col
   const colWidth = thirdColumn ? '30%' : '45%'
@@ -267,7 +283,7 @@ export function buildSyncedSignatureBlock(
   if (singleColumn === 'left') {
     inner = `<div style="display:flex; justify-content:flex-start;">${renderColumn(leftIntro, leftTitle, principalNameDisplay, principalNipDisplay)}</div>`
   } else if (singleColumn === 'right') {
-    inner = `<div style="display:flex; justify-content:flex-end;">${renderColumn(`${derivedCity}, ${derivedDate}`, rightTitle, treasurerNameDisplay, treasurerNipDisplay)}</div>`
+    inner = `<div style="display:flex; justify-content:flex-end;">${renderColumn(`${derivedCity}, ${derivedDate}`, rightTitle, rightNameDisplay, rightNipDisplay)}</div>`
   } else if (thirdColumn) {
     // 3-column layout: Kepala Sekolah | Bendahara | Pengurus Barang
     const tc = typeof thirdColumn === 'object' ? thirdColumn : {}
@@ -276,7 +292,7 @@ export function buildSyncedSignatureBlock(
     inner = `
       <div style="display:flex; justify-content:space-between; margin-top: 24px;">
         ${renderColumn(leftIntro, leftTitle, principalNameDisplay, principalNipDisplay)}
-        ${renderColumn(`${derivedCity}, ${derivedDate}`, rightTitle, treasurerNameDisplay, treasurerNipDisplay)}
+        ${renderColumn(`${derivedCity}, ${derivedDate}`, rightTitle, rightNameDisplay, rightNipDisplay)}
         ${renderColumn(thirdIntro, thirdTitle, goodsManagerNameDisplay, goodsManagerNipDisplay)}
       </div>
     `
@@ -284,7 +300,7 @@ export function buildSyncedSignatureBlock(
     inner = `
       <div style="display:flex; justify-content:space-between; margin-top: 24px;">
         ${renderColumn(leftIntro, leftTitle, principalNameDisplay, principalNipDisplay)}
-        ${renderColumn(`${derivedCity}, ${derivedDate}`, rightTitle, treasurerNameDisplay, treasurerNipDisplay)}
+        ${renderColumn(`${derivedCity}, ${derivedDate}`, rightTitle, rightNameDisplay, rightNipDisplay)}
       </div>
     `
   }

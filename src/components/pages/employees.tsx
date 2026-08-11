@@ -50,9 +50,11 @@ import {
   Loader2,
   Users,
   Printer,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { printWithKop } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
+import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -230,6 +232,36 @@ export function EmployeesPage() {
     await printWithKop('DAFTAR PEGAWAI', contentHtml, orientation, { appendSignature: true })
   }
 
+  async function handleExportExcel() {
+    if (filteredEmployees.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data pegawai untuk diekspor' })
+      return
+    }
+    try {
+      const meta = await getSchoolMeta()
+      meta.push({ label: 'Total Pegawai', value: `${filteredEmployees.length} orang` })
+      await exportToExcel({
+        filename: 'Daftar_Pegawai.xlsx',
+        sheetName: 'Daftar Pegawai',
+        title: 'DAFTAR PEGAWAI',
+        meta,
+        columns: [
+          { header: 'No', key: (e) => String(filteredEmployees.indexOf(e) + 1), width: 6 },
+          { header: 'Nama', key: 'name', width: 26 },
+          { header: 'NIP', key: (e) => e.nip || '-', width: 22 },
+          { header: 'Jabatan', key: (e) => e.position || '-', width: 20 },
+          { header: 'Unit Kerja', key: (e) => e.department || '-', width: 20 },
+          { header: 'No HP', key: (e) => e.phone || '-', width: 14 },
+          { header: 'Alamat', key: (e) => e.address || '-', width: 36 },
+        ],
+        data: filteredEmployees,
+      })
+      toast({ title: 'Berhasil', description: 'Data pegawai berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor data ke Excel', variant: 'destructive' })
+    }
+  }
+
   return (
     <PageContainer>
       <PageHeader
@@ -241,6 +273,10 @@ export function EmployeesPage() {
             <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredEmployees.length === 0}>
               <Printer className="size-4 mr-2" />
               Cetak
+            </Button>
+            <Button variant="outline" onClick={handleExportExcel} disabled={loading || filteredEmployees.length === 0}>
+              <FileSpreadsheet className="size-4 mr-2" />
+              Export Excel
             </Button>
             <Button onClick={openAddDialog}>
               <Plus className="size-4 mr-2" />

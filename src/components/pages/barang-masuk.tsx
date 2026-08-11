@@ -59,9 +59,11 @@ import {
   PackagePlus,
   Printer,
   X,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { printWithKop, formatDatePrint, fetchPrintSettings } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
+import { exportToExcel, getSchoolMeta, type ExcelColumn } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
@@ -374,8 +376,80 @@ export function BarangMasukPage() {
 
     await printWithKop('DAFTAR BARANG MASUK', contentHtml, orientation, {
       appendSignature: true,
-      signatureOptions: { rightTitle: 'Pengurus Barang' },
+      signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
     })
+  }
+
+  async function handleExportExcelList() {
+    if (filteredData.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data untuk diekspor' })
+      return
+    }
+    try {
+      const meta = await getSchoolMeta()
+      const totalItems = filteredData.reduce((sum, r) => sum + (r.items?.length || 0), 0)
+      meta.push({ label: 'Total Data', value: `${filteredData.length} dokumen` })
+      meta.push({ label: 'Total Item', value: `${totalItems} item` })
+      const columns: ExcelColumn<BarangMasukData>[] = [
+        { header: 'No', key: (record) => String(filteredData.indexOf(record) + 1), width: 6 },
+        { header: 'No. Dokumen', key: (record) => record.documentNumber || '-', width: 20 },
+        { header: 'Tanggal', key: (record) => record.entryDate ? formatDatePrint(record.entryDate) : '-', width: 16 },
+        { header: 'Sumber', key: (record) => record.source || '-', width: 18 },
+        { header: 'Toko', key: (record) => record.store?.name || '-', width: 20 },
+        { header: 'Penerima', key: (record) => record.employee?.name || '-', width: 18 },
+        { header: 'Jumlah Item', key: (record) => record.items?.length || 0, width: 12 },
+        { header: 'Status', key: (record) => record.status || '-', width: 12 },
+        { header: 'Keterangan', key: (record) => record.notes || '-', width: 24 },
+      ]
+      await exportToExcel({
+        filename: 'Daftar_Barang_Masuk.xlsx',
+        sheetName: 'Barang Masuk',
+        title: 'DAFTAR BARANG MASUK',
+        meta,
+        columns,
+        data: filteredData,
+      })
+      toast({ title: 'Berhasil', description: 'Data barang masuk berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor data ke Excel', variant: 'destructive' })
+    }
+  }
+
+  async function handleExportExcelDetail(record: BarangMasukData) {
+    try {
+      const res = await fetch(`/api/barang-masuk/${record.id}`)
+      if (!res.ok) throw new Error('Gagal')
+      const detail: BarangMasukData = await res.json()
+      const items = detail.items || []
+      const meta = await getSchoolMeta()
+      meta.unshift(
+        { label: 'No. Dokumen', value: detail.documentNumber || '-' },
+        { label: 'Tanggal', value: detail.entryDate ? formatDatePrint(detail.entryDate) : '-' },
+        { label: 'Sumber', value: detail.source || '-' },
+        { label: 'Toko', value: detail.store?.name || '-' },
+        { label: 'Penerima', value: detail.employee?.name || '-' },
+        { label: 'Status', value: detail.status || '-' },
+      )
+      const columns: ExcelColumn<BarangMasukItemData>[] = [
+        { header: 'No', key: (item) => String(items.indexOf(item) + 1), width: 6 },
+        { header: 'Nama Barang', key: 'itemName', width: 30 },
+        { header: 'Jumlah', key: 'quantity', width: 10 },
+        { header: 'Satuan', key: 'unit', width: 10 },
+        { header: 'Kondisi', key: (item) => item.condition || '-', width: 14 },
+        { header: 'Keterangan', key: (item) => item.notes || '-', width: 24 },
+      ]
+      await exportToExcel({
+        filename: `Barang_Masuk_${detail.documentNumber || detail.id}.xlsx`,
+        sheetName: 'Barang Masuk',
+        title: `LAPORAN BARANG MASUK - ${detail.documentNumber}`,
+        meta,
+        columns,
+        data: items,
+      })
+      toast({ title: 'Berhasil', description: 'Detail barang masuk berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor detail ke Excel', variant: 'destructive' })
+    }
   }
 
   async function handlePrintDetail(record: BarangMasukData, orientation: PrintOrientation = 'portrait') {
@@ -485,6 +559,10 @@ export function BarangMasukPage() {
               <Printer className="size-4 mr-2" />
               Cetak
             </Button>
+            <Button variant="outline" onClick={handleExportExcelList} disabled={loading || filteredData.length === 0}>
+              <FileSpreadsheet className="size-4 mr-2" />
+              Export Excel
+            </Button>
             <Button onClick={openAddDialog}>
               <Plus className="size-4 mr-2" />
               Tambah Barang Masuk
@@ -559,6 +637,9 @@ export function BarangMasukPage() {
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => { setPrintDetailRecord(record); setPrintDetailDialogOpen(true) }} title="Cetak">
                             <Printer className="size-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => handleExportExcelDetail(record)} title="Export Excel">
+                            <FileSpreadsheet className="size-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(record)} title="Edit">
                             <Pencil className="size-4" />

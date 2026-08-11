@@ -67,6 +67,7 @@ import {
   DollarSign,
   CreditCard,
   Wallet,
+  FileSpreadsheet,
 } from 'lucide-react'
 import {
   fetchPrintSettings,
@@ -77,6 +78,7 @@ import {
   formatNumberPrint,
 } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
+import { exportToExcel, getSchoolMeta, type ExcelColumn } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
@@ -165,6 +167,7 @@ function OrderRowGroup({
   onStatusClick,
   onEdit,
   onPrint,
+  onExportExcel,
   onDelete,
   onMarkAsPaid,
 }: {
@@ -176,6 +179,7 @@ function OrderRowGroup({
   onStatusClick: (orderId: string, status: string) => void
   onEdit: (order: OrderData) => void
   onPrint: (order: OrderData) => void
+  onExportExcel: (order: OrderData) => void
   onDelete: (id: string, name: string) => void
   onMarkAsPaid: (order: OrderData) => void
 }) {
@@ -249,6 +253,9 @@ function OrderRowGroup({
             </Button>
             <Button variant="ghost" size="icon" className="size-8" onClick={() => onPrint(order)} title="Cetak Surat Pesanan">
               <Printer className="size-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => onExportExcel(order)} title="Export Excel">
+              <FileSpreadsheet className="size-4" />
             </Button>
             <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => onDelete(order.id, order.orderNumber)} title="Hapus">
               <Trash2 className="size-4" />
@@ -868,6 +875,85 @@ export function OrdersPage() {
     openPrintWindow(`Surat Pesanan - ${fullOrder.orderNumber}`, bodyHtml, orientation)
   }
 
+  // ─── Excel: Order List ──────────────────────────────────────────────────
+
+  async function handleExportExcelList() {
+    if (filteredOrders.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data pesanan untuk diekspor' })
+      return
+    }
+    try {
+      const meta = await getSchoolMeta()
+      const grandTotal = filteredOrders.reduce((s, o) => s + o.totalAmount, 0)
+      meta.push({ label: 'Total Pesanan', value: `${filteredOrders.length} dokumen` })
+      meta.push({ label: 'Total Nilai', value: formatRupiahPrint(grandTotal) })
+      const columns: ExcelColumn<OrderData>[] = [
+        { header: 'No', key: (order) => String(filteredOrders.indexOf(order) + 1), width: 6 },
+        { header: 'No. Pesanan', key: (order) => order.orderNumber || '-', width: 30 },
+        { header: 'Tanggal', key: (order) => order.orderDate ? formatDatePrint(order.orderDate) : '-', width: 16 },
+        { header: 'Toko', key: (order) => order.store?.name || '-', width: 24 },
+        { header: 'Pemesan', key: (order) => order.employee?.name || '-', width: 18 },
+        { header: 'Status', key: (order) => order.status || '-', width: 12 },
+        { header: 'Metode Bayar', key: (order) => order.paymentMethod || '-', width: 14 },
+        { header: 'Status Bayar', key: (order) => order.paymentStatus || '-', width: 14 },
+        { header: 'Tgl Bayar', key: (order) => order.paidAt ? formatDatePrint(order.paidAt) : '-', width: 14 },
+        { header: 'Total (Rp)', key: (order) => order.totalAmount || 0, width: 18 },
+        { header: 'Keterangan', key: (order) => order.notes || '-', width: 24 },
+      ]
+      await exportToExcel({
+        filename: 'Daftar_Pesanan.xlsx',
+        sheetName: 'Daftar Pesanan',
+        title: 'DAFTAR PESANAN',
+        meta,
+        columns,
+        data: filteredOrders,
+      })
+      toast({ title: 'Berhasil', description: 'Daftar pesanan berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor daftar pesanan ke Excel', variant: 'destructive' })
+    }
+  }
+
+  // ─── Excel: Surat Pesanan (single order) ──────────────────────────────────
+
+  async function handleExportExcelOrder(order: OrderData) {
+    try {
+      const orderRes = await fetch(`/api/orders/${order.id}`)
+      if (!orderRes.ok) throw new Error('Gagal')
+      const fullOrder: OrderData = await orderRes.json()
+      const items = fullOrder.items || []
+      const meta = await getSchoolMeta()
+      meta.unshift(
+        { label: 'No. Pesanan', value: fullOrder.orderNumber || '-' },
+        { label: 'Tanggal', value: fullOrder.orderDate ? formatDatePrint(fullOrder.orderDate) : '-' },
+        { label: 'Toko', value: fullOrder.store?.name || '-' },
+        { label: 'Pemesan', value: fullOrder.employee?.name || '-' },
+        { label: 'Status', value: fullOrder.status || '-' },
+        { label: 'Metode Bayar', value: fullOrder.paymentMethod || '-' },
+        { label: 'Status Bayar', value: fullOrder.paymentStatus || '-' },
+      )
+      const columns: ExcelColumn<OrderItemData>[] = [
+        { header: 'No', key: (item) => String(items.indexOf(item) + 1), width: 6 },
+        { header: 'Nama Barang', key: 'itemName', width: 30 },
+        { header: 'Jumlah', key: 'quantity', width: 10 },
+        { header: 'Satuan', key: 'unit', width: 10 },
+        { header: 'Harga Satuan (Rp)', key: 'unitPrice', width: 16 },
+        { header: 'Total Harga (Rp)', key: 'totalPrice', width: 16 },
+      ]
+      await exportToExcel({
+        filename: `Surat_Pesanan_${fullOrder.orderNumber || fullOrder.id}.xlsx`,
+        sheetName: 'Surat Pesanan',
+        title: `SURAT PESANAN - ${fullOrder.orderNumber}`,
+        meta,
+        columns,
+        data: items,
+      })
+      toast({ title: 'Berhasil', description: 'Surat pesanan berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor surat pesanan ke Excel', variant: 'destructive' })
+    }
+  }
+
   // ─── Filter ────────────────────────────────────────────────────────────────
 
   const filteredOrders = orders.filter((o) => {
@@ -901,6 +987,10 @@ export function OrdersPage() {
         icon={FileText}
         actions={
           <>
+            <Button variant="outline" onClick={handleExportExcelList} disabled={loading || filteredOrders.length === 0}>
+              <FileSpreadsheet className="size-4 mr-2" />
+              Export Excel
+            </Button>
             <Button variant="outline" onClick={openAddBonDialog}>
               <CreditCard className="size-4 mr-2" />
               Catat BON
@@ -1029,6 +1119,7 @@ export function OrdersPage() {
                         }}
                         onEdit={openEditDialog}
                         onPrint={(order) => { setPrintOrderId(order.id); setPrintDialogOpen(true) }}
+                        onExportExcel={handleExportExcelOrder}
                         onDelete={(id, name) => { setDeleteId(id); setDeleteName(name) }}
                         onMarkAsPaid={openMarkAsPaidDialog}
                       />

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useNavigationStore } from '@/lib/navigation-store'
+import { useToast } from '@/hooks/use-toast'
 import {
   Card,
   CardContent,
@@ -33,9 +34,11 @@ import {
   Sparkles,
   Printer,
   CalendarDays,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
+import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
 import {
   ChartContainer,
@@ -195,6 +198,7 @@ function StatCardLocal({
 
 export function DashboardPage() {
   const { setPage, setStoreSubPage, setRoomSubPage } = useNavigationStore()
+  const { toast } = useToast()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
@@ -348,8 +352,68 @@ export function DashboardPage() {
 
     await printWithKop('LAPORAN DASHBOARD SARANA PRASARANA', contentHtml, orientation, {
       appendSignature: true,
-      signatureOptions: { rightTitle: 'Pengurus Barang' },
+      signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
     })
+  }
+
+  const handleExportExcel = async () => {
+    try {
+      const placed = data.totalItems - data.itemsWithoutRoom
+      const meta = await getSchoolMeta()
+      meta.push({ label: 'Generated', value: 'Ringkasan Statistik Sarana Prasarana' })
+
+      interface DashboardRow {
+        kategori: string
+        indikator: string
+        nilai: string | number
+        keterangan: string
+      }
+      const rows: DashboardRow[] = [
+        { kategori: 'Aset', indikator: 'Total Barang', nilai: data.totalItems, keterangan: 'Barang inventaris terdaftar' },
+        { kategori: 'Aset', indikator: 'Nilai Aset', nilai: formatRupiahPrint(data.totalAssetValue), keterangan: 'Total nilai seluruh aset' },
+        { kategori: 'Aset', indikator: 'Total Toko/Supplier', nilai: data.totalStores, keterangan: '' },
+        { kategori: 'Aset', indikator: 'Total Pegawai', nilai: data.totalEmployees, keterangan: '' },
+        { kategori: 'Lokasi', indikator: 'Total Ruang', nilai: data.totalRooms, keterangan: '' },
+        { kategori: 'Lokasi', indikator: 'Total Bilik', nilai: data.totalBilik, keterangan: '' },
+        { kategori: 'Lokasi', indikator: 'Total Lemari', nilai: data.totalLemari, keterangan: '' },
+        { kategori: 'Kondisi', indikator: 'Barang Baik', nilai: data.itemsBaik, keterangan: `${baikPercent}%` },
+        { kategori: 'Kondisi', indikator: 'Barang Rusak Ringan', nilai: data.itemsRusakRingan, keterangan: data.totalItems > 0 ? `${((data.itemsRusakRingan / data.totalItems) * 100).toFixed(1)}%` : '0%' },
+        { kategori: 'Kondisi', indikator: 'Barang Rusak Berat', nilai: data.itemsRusakBerat, keterangan: data.totalItems > 0 ? `${((data.itemsRusakBerat / data.totalItems) * 100).toFixed(1)}%` : '0%' },
+        { kategori: 'Penempatan', indikator: 'Barang Ditempatkan', nilai: placed, keterangan: `${placedPercent}%` },
+        { kategori: 'Penempatan', indikator: 'Barang Belum Ditempatkan', nilai: data.itemsWithoutRoom, keterangan: '' },
+        { kategori: 'Pesanan', indikator: 'Total Pesanan', nilai: data.totalOrders, keterangan: '' },
+        { kategori: 'Pesanan', indikator: 'Pesanan Draft', nilai: data.ordersDraft, keterangan: '' },
+        { kategori: 'Pesanan', indikator: 'Pesanan Dikirim', nilai: data.ordersDikirim, keterangan: '' },
+        { kategori: 'Pesanan', indikator: 'Pesanan Diterima', nilai: data.ordersDiterima, keterangan: '' },
+        { kategori: 'Pesanan', indikator: 'Pesanan Selesai', nilai: data.ordersSelesai, keterangan: '' },
+        { kategori: 'Barang Masuk', indikator: 'Total Dokumen', nilai: data.totalBarangMasuk, keterangan: '' },
+        { kategori: 'Barang Masuk', indikator: 'Draft', nilai: data.bmDraft, keterangan: '' },
+        { kategori: 'Barang Masuk', indikator: 'Diterima', nilai: data.bmDiterima, keterangan: '' },
+        { kategori: 'Barang Masuk', indikator: 'Ditolak', nilai: data.bmDitolak, keterangan: '' },
+      ]
+
+      // Append KIB breakdown as separate rows
+      for (const kib of data.kibBreakdown) {
+        rows.push({ kategori: 'KIB', indikator: `KIB ${kib.type} - ${kib.label}`, nilai: kib.count, keterangan: '' })
+      }
+
+      await exportToExcel({
+        filename: 'Laporan_Dashboard.xlsx',
+        sheetName: 'Dashboard',
+        title: 'LAPORAN DASHBOARD SARANA PRASARANA',
+        meta,
+        columns: [
+          { header: 'Kategori', key: 'kategori', width: 18 },
+          { header: 'Indikator', key: 'indikator', width: 32 },
+          { header: 'Nilai', key: 'nilai', width: 18 },
+          { header: 'Keterangan', key: 'keterangan', width: 18 },
+        ],
+        data: rows,
+      })
+      toast({ title: 'Berhasil', description: 'Laporan dashboard berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor laporan ke Excel', variant: 'destructive' })
+    }
   }
 
   return (
@@ -368,6 +432,10 @@ export function DashboardPage() {
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setPrintDialogOpen(true)}>
               <Printer className="size-4" />
               <span className="hidden sm:inline">Cetak Laporan</span>
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportExcel}>
+              <FileSpreadsheet className="size-4" />
+              <span className="hidden sm:inline">Export Excel</span>
             </Button>
           </>
         }

@@ -53,9 +53,11 @@ import {
   Loader2,
   Store,
   Printer,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { printWithKop } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
+import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
 
 interface StoreData {
@@ -232,6 +234,36 @@ export function StoresPage() {
     await printWithKop('DAFTAR TOKO DAN SUPPLIER', contentHtml, orientation, { appendSignature: true })
   }
 
+  async function handleExportExcel() {
+    if (filteredStores.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data toko untuk diekspor' })
+      return
+    }
+    try {
+      const meta = await getSchoolMeta()
+      meta.push({ label: 'Total', value: `${filteredStores.length} toko/supplier` })
+      await exportToExcel({
+        filename: 'Daftar_Toko_Supplier.xlsx',
+        sheetName: 'Daftar Toko',
+        title: 'DAFTAR TOKO DAN SUPPLIER',
+        meta,
+        columns: [
+          { header: 'No', key: (s) => String(filteredStores.indexOf(s) + 1), width: 6 },
+          { header: 'Nama Toko', key: 'name', width: 24 },
+          { header: 'Nama Pemilik', key: (s) => s.ownerName || '-', width: 20 },
+          { header: 'NPWP', key: (s) => s.npwp || '-', width: 22 },
+          { header: 'Jenis Barang', key: (s) => s.goodsType || '-', width: 18 },
+          { header: 'No HP', key: (s) => s.phone || '-', width: 14 },
+          { header: 'Alamat', key: (s) => s.address || '-', width: 36 },
+        ],
+        data: filteredStores,
+      })
+      toast({ title: 'Berhasil', description: 'Data toko berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor data ke Excel', variant: 'destructive' })
+    }
+  }
+
   return (
     <PageContainer>
       <PageHeader
@@ -243,6 +275,10 @@ export function StoresPage() {
             <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredStores.length === 0}>
               <Printer className="size-4 mr-2" />
               Cetak
+            </Button>
+            <Button variant="outline" onClick={handleExportExcel} disabled={loading || filteredStores.length === 0}>
+              <FileSpreadsheet className="size-4 mr-2" />
+              Export Excel
             </Button>
             <Button onClick={openAddDialog}>
               <Plus className="size-4 mr-2" />

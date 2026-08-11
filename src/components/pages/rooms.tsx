@@ -69,9 +69,11 @@ import {
   XCircle,
   Printer,
   Camera,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
+import { exportToExcel, getSchoolMeta, type ExcelColumn } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
 import { PhotoThumbnail } from '@/components/photo-thumbnail'
 import { PhotoGallery } from '@/components/photo-gallery'
@@ -487,8 +489,46 @@ export function RoomsPage() {
 
     await printWithKop('DAFTAR RUANGAN', contentHtml, orientation, {
       appendSignature: true,
-      signatureOptions: { rightTitle: 'Pengurus Barang' },
+      signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
     })
+  }
+
+  // ─── Excel: Room List ─────────────────────────────────────────────────
+
+  async function handleExportExcelRoomList() {
+    if (rooms.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data ruangan untuk diekspor' })
+      return
+    }
+    try {
+      const meta = await getSchoolMeta()
+      await exportToExcel({
+        filename: 'Daftar_Ruangan.xlsx',
+        sheetName: 'Daftar Ruangan',
+        title: 'DAFTAR RUANGAN',
+        meta,
+        columns: [
+          { header: 'No', key: (r) => String(rooms.indexOf(r) + 1), width: 6 },
+          { header: 'Nama Ruang', key: 'name', width: 24 },
+          { header: 'Gedung', key: (r) => r.building?.name || '-', width: 20 },
+          { header: 'Lantai', key: (r) => r.floor || '-', width: 8 },
+          { header: 'Keadaan', key: (r) => r.condition || '-', width: 14 },
+          { header: 'Tahun Perolehan', key: (r) => r.acquisitionYear || '-', width: 14 },
+          { header: 'Nilai Aset (Rp)', key: (r) => r.acquisitionPrice || 0, width: 18 },
+          { header: 'Luas (m²)', key: (r) => r.area || 0, width: 12 },
+          { header: 'Kapasitas', key: (r) => r.capacity || 0, width: 12 },
+          { header: 'Jml Bilik', key: (r) => r.biliks?.length || 0, width: 10 },
+          { header: 'Jml Lemari', key: (r) => r.cabinets?.length || 0, width: 10 },
+          { header: 'Jml Barang', key: (r) => r.items?.length || 0, width: 10 },
+          { header: 'Sumber Dana', key: (r) => r.sumberDana || '-', width: 16 },
+          { header: 'Penanggung Jawab', key: (r) => r.responsiblePerson || '-', width: 20 },
+        ],
+        data: rooms,
+      })
+      toast({ title: 'Berhasil', description: 'Data ruangan berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor data ke Excel', variant: 'destructive' })
+    }
   }
 
   // ─── Print Room Detail ──────────────────────────────────────────────────
@@ -619,10 +659,93 @@ export function RoomsPage() {
 
       await printWithKop(`INVENTARIS RUANG ${currentRoom.name.toUpperCase()}`, contentHtml, orientation, {
         appendSignature: true,
-        signatureOptions: { rightTitle: 'Pengurus Barang' },
+        signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
       })
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak data ruangan', variant: 'destructive' })
+    }
+  }
+
+  // ─── Excel: Room Detail ──────────────────────────────────────────────────
+
+  async function handleExportExcelRoomDetail() {
+    if (!selectedRoomId || !currentRoom) return
+    try {
+      const res = await fetch(`/api/inventory/items?roomId=${selectedRoomId}`)
+      if (!res.ok) throw new Error('Gagal')
+      const allItems: InventoryItemData[] = await res.json()
+      const bilikItemPromises = currentRoom.biliks.map(async (bilik) => {
+        try {
+          const bRes = await fetch(`/api/inventory/items?bilikId=${bilik.id}`)
+          if (!bRes.ok) return []
+          return await bRes.json()
+        } catch { return [] }
+      })
+      const cabinetItemPromises = currentRoom.cabinets.map(async (cab) => {
+        try {
+          const cRes = await fetch(`/api/inventory/items?cabinetId=${cab.id}`)
+          if (!cRes.ok) return []
+          return await cRes.json()
+        } catch { return [] }
+      })
+      const [bilikItems, cabinetItems] = await Promise.all([
+        Promise.all(bilikItemPromises),
+        Promise.all(cabinetItemPromises),
+      ])
+      const combinedItems = [...allItems, ...bilikItems.flat(), ...cabinetItems.flat()]
+      const uniqueItems = Array.from(
+        combinedItems.reduce((map, item) => { map.set(item.id, item); return map }, new Map<string, InventoryItemData>())
+          .values()
+      )
+
+      function getItemLocation(item: InventoryItemData): string {
+        const parts: string[] = [currentRoom.name]
+        if (item.bilikId) {
+          const bilik = currentRoom.biliks.find(b => b.id === item.bilikId)
+          if (bilik) parts.push(`Bilik ${bilik.name}`)
+        }
+        if (item.cabinetId) {
+          const cab = currentRoom.cabinets.find(c => c.id === item.cabinetId)
+          if (cab) parts.push(`Lemari ${cab.number}`)
+        }
+        return parts.join(' / ')
+      }
+
+      const meta = await getSchoolMeta()
+      meta.unshift(
+        { label: 'Nama Ruang', value: currentRoom.name },
+        { label: 'Gedung', value: currentRoom.building?.name || '-' },
+        { label: 'Lantai', value: currentRoom.floor || '-' },
+        { label: 'Keadaan', value: currentRoom.condition || 'Baik' },
+        { label: 'Tahun Perolehan', value: String(currentRoom.acquisitionYear || '-') },
+        { label: 'Kapasitas', value: String(currentRoom.capacity || '-') },
+        { label: 'Penanggung Jawab', value: currentRoom.responsiblePerson || '-' },
+      )
+
+      const columns: ExcelColumn<InventoryItemData>[] = [
+        { header: 'No', key: (item) => String(uniqueItems.indexOf(item) + 1), width: 6 },
+        { header: 'Nama Barang', key: 'name', width: 28 },
+        { header: 'No. Register', key: (item) => item.registrationNumber || '-', width: 16 },
+        { header: 'Merk', key: (item) => item.brand || '-', width: 16 },
+        { header: 'Kondisi', key: (item) => item.condition || '-', width: 14 },
+        { header: 'Jumlah', key: (item) => `${item.quantity} ${item.unit}`, width: 12 },
+        { header: 'Sumber Dana', key: (item) => item.sumberDana || '-', width: 16 },
+        { header: 'Tahun Pengadaan', key: (item) => item.tahunPengadaan || '-', width: 14 },
+        { header: 'Lokasi', key: (item) => getItemLocation(item), width: 28 },
+        { header: 'Keterangan', key: (item) => item.notes || '-', width: 24 },
+      ]
+
+      await exportToExcel({
+        filename: `Inventaris_Ruang_${currentRoom.name.replace(/\s+/g, '_')}.xlsx`,
+        sheetName: 'Inventaris Ruang',
+        title: `INVENTARIS RUANG ${currentRoom.name.toUpperCase()}`,
+        meta,
+        columns,
+        data: uniqueItems,
+      })
+      toast({ title: 'Berhasil', description: 'Data inventaris ruang berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor data ke Excel', variant: 'destructive' })
     }
   }
 
@@ -1331,6 +1454,9 @@ export function RoomsPage() {
                 <Button variant="outline" size="sm" onClick={() => setPrintDetailDialogOpen(true)}>
                   <Printer className="size-3.5 mr-1" /> Cetak
                 </Button>
+                <Button variant="outline" size="sm" onClick={handleExportExcelRoomDetail}>
+                  <FileSpreadsheet className="size-3.5 mr-1" /> Export Excel
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => openEditRoom(currentRoom)}>
                   <Pencil className="size-3.5 mr-1" /> Edit
                 </Button>
@@ -1680,6 +1806,10 @@ export function RoomsPage() {
               <Button variant="outline" onClick={() => setPrintListDialogOpen(true)} disabled={rooms.length === 0}>
                 <Printer className="size-4 mr-2" />
                 Cetak
+              </Button>
+              <Button variant="outline" onClick={handleExportExcelRoomList} disabled={rooms.length === 0}>
+                <FileSpreadsheet className="size-4 mr-2" />
+                Export Excel
               </Button>
               <Button onClick={openAddRoom}>
                 <Plus className="size-4 mr-2" />

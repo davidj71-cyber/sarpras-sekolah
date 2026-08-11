@@ -67,9 +67,11 @@ import {
   Camera,
   Pencil,
   Trash2,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
+import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
 import { PhotoThumbnail } from '@/components/photo-thumbnail'
 import { PhotoGallery } from '@/components/photo-gallery'
@@ -452,12 +454,69 @@ export function RoomItemsPage() {
 
       await printWithKop('DAFTAR BARANG INVENTARIS', contentHtml, orientation, {
         appendSignature: true,
-        signatureOptions: { rightTitle: 'Pengurus Barang' },
+        signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
       })
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak data', variant: 'destructive' })
     } finally {
       setPrinting(false)
+    }
+  }
+
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExportExcel() {
+    if (filteredItems.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data untuk diekspor' })
+      return
+    }
+    setExporting(true)
+    try {
+      const filterParts: string[] = []
+      if (filterRoom !== 'all') {
+        const room = rooms.find(r => r.id === filterRoom)
+        if (room) filterParts.push(`Ruang - ${room.name}`)
+      }
+      if (filterCondition !== 'all') {
+        filterParts.push(`Kondisi - ${filterCondition}`)
+      }
+      const meta = await getSchoolMeta()
+      if (filterParts.length > 0) {
+        meta.push({ label: 'Filter', value: filterParts.join(', ') })
+      }
+      meta.push({ label: 'Jumlah Barang', value: `${filteredItems.length} item` })
+      meta.push({ label: 'Total Nilai', value: formatRupiahPrint(totalValue) })
+      await exportToExcel({
+        filename: 'Daftar_Barang_Inventaris.xlsx',
+        sheetName: 'Barang Inventaris',
+        title: 'DAFTAR BARANG INVENTARIS',
+        meta,
+        columns: [
+          { header: 'No', key: (item) => String(filteredItems.indexOf(item) + 1), width: 6 },
+          { header: 'Nama Barang', key: 'name', width: 28 },
+          { header: 'No. Register', key: (item) => item.registrationNumber || '-', width: 16 },
+          { header: 'Merk', key: (item) => item.brand || '-', width: 16 },
+          { header: 'Kondisi', key: (item) => item.condition || '-', width: 14 },
+          { header: 'Jumlah', key: (item) => `${item.quantity} ${item.unit}`, width: 12 },
+          { header: 'Harga (Rp)', key: (item) => item.price || 0, width: 16 },
+          { header: 'Sumber Dana', key: (item) => item.sumberDana || '-', width: 16 },
+          { header: 'Tahun Pengadaan', key: (item) => item.tahunPengadaan || '-', width: 14 },
+          { header: 'Lokasi', key: (item) => {
+            const parts: string[] = []
+            if (item.room) parts.push(item.room.name)
+            if (item.bilik) parts.push(`Bilik ${item.bilik.name}`)
+            if (item.cabinet) parts.push(`Lemari ${item.cabinet.number}`)
+            return parts.join(' / ') || '-'
+          }, width: 28 },
+          { header: 'Keterangan', key: (item) => item.notes || '-', width: 24 },
+        ],
+        data: filteredItems,
+      })
+      toast({ title: 'Berhasil', description: 'Data barang inventaris berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor data ke Excel', variant: 'destructive' })
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -482,6 +541,10 @@ export function RoomItemsPage() {
             <Button onClick={() => setPrintDialogOpen(true)} disabled={printing || filteredItems.length === 0} variant="outline" size="sm">
               {printing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
               Cetak
+            </Button>
+            <Button onClick={handleExportExcel} disabled={exporting || filteredItems.length === 0} variant="outline" size="sm">
+              {exporting ? <Loader2 className="size-4 mr-2 animate-spin" /> : <FileSpreadsheet className="size-4 mr-2" />}
+              Export Excel
             </Button>
           </>
         }
