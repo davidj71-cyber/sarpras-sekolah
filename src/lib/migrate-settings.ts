@@ -216,5 +216,72 @@ export async function ensureSalaryMediaSchema(): Promise<string[]> {
     throw e;
   }
 
+  // ─── MediaPayment ─────────────────────────────────────────────────────
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "MediaPayment" (
+        "id" TEXT NOT NULL,
+        "mediaId" TEXT NOT NULL,
+        "year" INTEGER NOT NULL,
+        "month" INTEGER NOT NULL,
+        "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "notes" TEXT NOT NULL DEFAULT '',
+        "paidAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "MediaPayment_pkey" PRIMARY KEY ("id")
+      )
+    `;
+    executed.push(`CREATE TABLE IF NOT EXISTS "MediaPayment"`);
+    try {
+      await db.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS "MediaPayment_mediaId_year_month_key" ON "MediaPayment"("mediaId", "year", "month")`;
+      executed.push(`CREATE INDEX MediaPayment_unique`);
+    } catch (e) {
+      console.warn("[migrate] MediaPayment unique index skipped:", e);
+    }
+    try {
+      await db.$executeRaw`CREATE INDEX IF NOT EXISTS "MediaPayment_mediaId_idx" ON "MediaPayment"("mediaId")`;
+    } catch (e) {
+      console.warn("[migrate] MediaPayment mediaId index skipped:", e);
+    }
+  } catch (e) {
+    console.error("[migrate] create MediaPayment failed:", e);
+    throw e;
+  }
+
+  // ─── SalaryPayment ────────────────────────────────────────────────────
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "SalaryPayment" (
+        "id" TEXT NOT NULL,
+        "salaryId" TEXT NOT NULL,
+        "year" INTEGER NOT NULL,
+        "month" INTEGER NOT NULL,
+        "lessonCount" INTEGER NOT NULL DEFAULT 0,
+        "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "notes" TEXT NOT NULL DEFAULT '',
+        "paidAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "SalaryPayment_pkey" PRIMARY KEY ("id")
+      )
+    `;
+    executed.push(`CREATE TABLE IF NOT EXISTS "SalaryPayment"`);
+    try {
+      await db.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS "SalaryPayment_salaryId_year_month_key" ON "SalaryPayment"("salaryId", "year", "month")`;
+      executed.push(`CREATE INDEX SalaryPayment_unique`);
+    } catch (e) {
+      console.warn("[migrate] SalaryPayment unique index skipped:", e);
+    }
+    try {
+      await db.$executeRaw`CREATE INDEX IF NOT EXISTS "SalaryPayment_salaryId_idx" ON "SalaryPayment"("salaryId")`;
+    } catch (e) {
+      console.warn("[migrate] SalaryPayment salaryId index skipped:", e);
+    }
+  } catch (e) {
+    console.error("[migrate] create SalaryPayment failed:", e);
+    throw e;
+  }
+
   return executed;
 }

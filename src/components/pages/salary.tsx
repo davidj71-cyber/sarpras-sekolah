@@ -60,6 +60,7 @@ import {
   FileText,
   FileSpreadsheet,
   Banknote,
+  CalendarCheck,
 } from 'lucide-react'
 import {
   fetchPrintSettings,
@@ -71,9 +72,11 @@ import {
 import type { PrintOrientation } from '@/lib/print-utils'
 import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
+import { PaymentDialog } from '@/components/payment-dialog'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageLoading } from '@/components/ui/loading-skeleton'
+import { Badge } from '@/components/ui/badge'
 
 interface SalaryData {
   id: string
@@ -127,6 +130,7 @@ export function SalaryPage() {
 
   const [bankDialogOpen, setBankDialogOpen] = useState(false)
   const [ttdDialogOpen, setTtdDialogOpen] = useState(false)
+  const [paymentEntry, setPaymentEntry] = useState<SalaryData | null>(null)
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
@@ -472,7 +476,7 @@ export function SalaryPage() {
                     <TableHead>Satuan</TableHead>
                     <TableHead className="text-right">Harga/Les</TableHead>
                     <TableHead className="text-right">Penerimaan</TableHead>
-                    <TableHead className="w-[90px] text-right">Aksi</TableHead>
+                    <TableHead className="w-[160px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -481,13 +485,25 @@ export function SalaryPage() {
                       <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{e.name}</TableCell>
                       <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{e.nip || '-'}</TableCell>
-                      <TableCell className="text-center">{e.gender === 'P' ? 'P' : 'L'}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline">{e.gender === 'P' ? 'P' : 'L'}</Badge>
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">{e.lessonCount}</TableCell>
                       <TableCell>{e.unit || '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">Rp {formatNumberPrint(e.pricePerLesson)}</TableCell>
                       <TableCell className="text-right tabular-nums font-medium">Rp {formatNumberPrint(e.totalReceived)}</TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            onClick={() => setPaymentEntry(e)}
+                            title="Catatan pembayaran per bulan"
+                          >
+                            <CalendarCheck className="size-4" />
+                            <span className="hidden sm:inline">Bayar</span>
+                          </Button>
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(e)}>
                             <Pencil className="size-4" />
                           </Button>
@@ -609,6 +625,22 @@ export function SalaryPage() {
         title="Cetak Daftar Gaji (Tanda Tangan)"
         description="Format dengan kolom tanda tangan untuk setiap guru"
       />
+
+      {paymentEntry && (
+        <PaymentDialog
+          open={!!paymentEntry}
+          onOpenChange={(open) => { if (!open) setPaymentEntry(null) }}
+          kind="salary"
+          ownerId={paymentEntry.id}
+          ownerName={paymentEntry.name}
+          ownerSubtitle={paymentEntry.nip ? `NIP. ${paymentEntry.nip}` : undefined}
+          durationMonths={12}
+          defaultAmount={paymentEntry.totalReceived}
+          defaultLessonCount={paymentEntry.lessonCount}
+          showLessonCount
+          apiBase={`/api/salary/${paymentEntry.id}/payments`}
+        />
+      )}
     </PageContainer>
   )
 }

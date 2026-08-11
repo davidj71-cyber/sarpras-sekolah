@@ -58,6 +58,7 @@ import {
   Newspaper,
   Printer,
   FileSpreadsheet,
+  CalendarCheck,
 } from 'lucide-react'
 import {
   fetchPrintSettings,
@@ -69,9 +70,11 @@ import {
 import type { PrintOrientation } from '@/lib/print-utils'
 import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
+import { PaymentDialog } from '@/components/payment-dialog'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageLoading } from '@/components/ui/loading-skeleton'
+import { Badge } from '@/components/ui/badge'
 
 interface MediaData {
   id: string
@@ -121,6 +124,7 @@ export function MediaPage() {
   const [deleting, setDeleting] = useState(false)
 
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
+  const [paymentEntry, setPaymentEntry] = useState<MediaData | null>(null)
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
@@ -394,7 +398,7 @@ export function MediaPage() {
                     <TableHead className="text-right">Harga/Bulan</TableHead>
                     <TableHead className="text-center">Satuan</TableHead>
                     <TableHead className="text-right">Penerimaan</TableHead>
-                    <TableHead className="w-[90px] text-right">Aksi</TableHead>
+                    <TableHead className="w-[160px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -405,10 +409,22 @@ export function MediaPage() {
                       <TableCell>{e.mediaName}</TableCell>
                       <TableCell className="text-center">{e.paymentType || '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">Rp {formatNumberPrint(e.pricePerMonth)}</TableCell>
-                      <TableCell className="text-center tabular-nums">{e.unitCount}</TableCell>
+                      <TableCell className="text-center tabular-nums">
+                        <Badge variant="outline" className="font-medium">{e.unitCount} bln</Badge>
+                      </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">Rp {formatNumberPrint(e.totalReceived)}</TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            onClick={() => setPaymentEntry(e)}
+                            title="Catatan pembayaran per bulan"
+                          >
+                            <CalendarCheck className="size-4" />
+                            <span className="hidden sm:inline">Bayar</span>
+                          </Button>
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(e)}>
                             <Pencil className="size-4" />
                           </Button>
@@ -459,8 +475,15 @@ export function MediaPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="med-unit">Satuan (jumlah bulan)</Label>
-              <Input id="med-unit" type="number" min="0" value={formData.unitCount} onChange={(e) => setFormData({ ...formData, unitCount: e.target.value })} placeholder="1" />
+              <Label>Satuan (jumlah bulan)</Label>
+              <Select value={formData.unitCount} onValueChange={(v) => setFormData({ ...formData, unitCount: v })}>
+                <SelectTrigger><SelectValue placeholder="Pilih jumlah bulan" /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((n) => (
+                    <SelectItem key={n} value={n}>{n} bulan</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="med-price">Harga Perbulan (Rp)</Label>
@@ -513,6 +536,20 @@ export function MediaPage() {
         title="Cetak Daftar Media"
         description="Format dengan kolom tanda tangan"
       />
+
+      {paymentEntry && (
+        <PaymentDialog
+          open={!!paymentEntry}
+          onOpenChange={(open) => { if (!open) setPaymentEntry(null) }}
+          kind="media"
+          ownerId={paymentEntry.id}
+          ownerName={paymentEntry.name}
+          ownerSubtitle={paymentEntry.mediaName}
+          durationMonths={paymentEntry.unitCount}
+          defaultAmount={paymentEntry.pricePerMonth}
+          apiBase={`/api/media/${paymentEntry.id}/payments`}
+        />
+      )}
     </PageContainer>
   )
 }

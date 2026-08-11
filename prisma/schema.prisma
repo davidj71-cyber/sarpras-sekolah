@@ -396,13 +396,14 @@ model SalaryEntry {
   name            String   // Nama guru
   nip             String   @default("") // NIP
   gender          String   @default("L") // Jenis Kelamin: L / P
-  lessonCount     Int      @default(0) // Jumlah Les
+  lessonCount     Int      @default(0) // Jumlah Les (default per bulan)
   unit            String   @default("Jam") // Satuan (dropdown, bisa ditambah)
   pricePerLesson  Float    @default(0) // Harga Per Les
   totalReceived   Float    @default(0) // Penerimaan (total = lessonCount × pricePerLesson)
   period          String   @default("") // Periode (mis. "Januari 2026")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  payments        SalaryPayment[]
 }
 
 // ─── Media — Database Langganan Media ─────────────────────────────────────────
@@ -412,9 +413,48 @@ model MediaEntry {
   mediaName       String   // Nama Media (koran/majalah)
   paymentType     String   @default("Tunai") // Pembayaran: Tunai / Transfer
   pricePerMonth   Float    @default(0) // Harga Perbulan
-  unitCount       Int      @default(1) // Satuan (jumlah bulan)
+  unitCount       Int      @default(1) // Satuan (jumlah bulan langganan: 1/2/3/.../12)
   totalReceived   Float    @default(0) // Penerimaan (total = unitCount × pricePerMonth)
   period          String   @default("") // Periode
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  payments        MediaPayment[]
+}
+
+// ─── Catatan Pembayaran per Bulan (Media) ─────────────────────────────────────
+// Melacak bulan mana saja yang sudah dibayar / belum dibayar untuk tiap media.
+// Satu baris = pembayaran untuk satu bulan (year + month) dari satu media.
+model MediaPayment {
+  id          String    @id @default(cuid())
+  mediaId     String
+  media       MediaEntry @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  year        Int       // Tahun, mis. 2026
+  month       Int       // 1-12 (Januari-Desember)
+  amount      Float     @default(0) // Jumlah dibayar untuk bulan ini
+  notes       String    @default("") // Catatan tambahan
+  paidAt      DateTime  @default(now()) // Tanggal pembayaran
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([mediaId, year, month])
+  @@index([mediaId])
+}
+
+// ─── Catatan Pembayaran per Bulan (Gaji) ──────────────────────────────────────
+// Melacak bulan mana saja yang sudah dibayar / belum dibayar untuk tiap guru.
+model SalaryPayment {
+  id          String    @id @default(cuid())
+  salaryId    String
+  salary      SalaryEntry @relation(fields: [salaryId], references: [id], onDelete: Cascade)
+  year        Int       // Tahun
+  month       Int       // 1-12
+  lessonCount Int       @default(0) // Jumlah les di bulan ini (override default)
+  amount      Float     @default(0) // Jumlah dibayar untuk bulan ini
+  notes       String    @default("") // Catatan tambahan
+  paidAt      DateTime  @default(now()) // Tanggal pembayaran
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([salaryId, year, month])
+  @@index([salaryId])
 }
