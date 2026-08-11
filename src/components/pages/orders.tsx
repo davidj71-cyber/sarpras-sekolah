@@ -854,19 +854,17 @@ export function OrdersPage() {
       </div>
 
       <!-- Tanda Tangan -->
-      <div style="margin-top: 32px; font-size: 12pt; text-align: left;">
-        <table style="border: none; border-collapse: collapse;">
-          <tr>
-            <td style="border: none; vertical-align: top; width: 30px; white-space: nowrap;">an.</td>
-            <td style="border: none; vertical-align: top;">
-              <div>Kepala ${settings.schoolName || 'Sekolah'}</div>
-              <div style="margin-top: 4px;">Bendahara Sekolah,</div>
-              <div style="height: 72px;"></div>
-              <div style="text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</div>
-              <div>${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</div>
-            </td>
-          </tr>
-        </table>
+      <div style="margin-top: 32px; font-size: 12pt; text-align: left; display: inline-grid; grid-template-columns: auto auto;">
+        <div style="padding-right: 4px;">an.</div>
+        <div>Kepala ${settings.schoolName || 'Sekolah'}</div>
+        <div></div>
+        <div style="margin-top: 4px;">Bendahara Sekolah,</div>
+        <div></div>
+        <div style="height: 72px;"></div>
+        <div></div>
+        <div style="text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</div>
+        <div></div>
+        <div>${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</div>
       </div>
     `
 
