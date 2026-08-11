@@ -29,8 +29,9 @@ import {
   Circle,
   Loader2,
   CalendarCheck,
-  Save,
+  Plus,
   Trash2,
+  X,
 } from 'lucide-react'
 import { formatNumberPrint } from '@/lib/print-utils'
 
@@ -39,6 +40,7 @@ export interface PaymentRecord {
   year: number
   month: number
   amount: number
+  lessonCount?: number
   notes?: string
   paidAt?: string
 }
@@ -46,25 +48,27 @@ export interface PaymentRecord {
 interface PaymentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  // Title for the dialog (e.g. "Media" or "Gaji")
+  /** Title for the dialog (e.g. "Media" or "Gaji") */
   kind: 'media' | 'salary'
-  // The owner entity ID
+  /** The owner entity ID */
   ownerId: string
-  // Display name of the owner (for the dialog header)
+  /** Display name of the owner (for the dialog header) */
   ownerName: string
-  // Subtitle (e.g. media name or NIP)
+  /** Subtitle (e.g. media name or NIP) */
   ownerSubtitle?: string
-  // Number of months the subscription/salary is for (1-12). When set,
-  // unpaid months beyond this range are shown dimmed.
+  /** Number of months the subscription/salary is for (1-12). When set,
+   *  unpaid months beyond this range are shown dimmed. */
   durationMonths?: number
-  // Default amount per month (pre-fill when marking a month as paid)
+  /** Default amount per month (pre-fill when recording a payment) */
   defaultAmount: number
-  // For salary: optional default lesson count per month
+  /** For salary: optional default lesson count per month */
   defaultLessonCount?: number
-  // Show lesson count input (salary) or not (media)
+  /** Show lesson count input (salary) or not (media) */
   showLessonCount?: boolean
-  // API endpoint base, e.g. "/api/media/abc123/payments"
+  /** API endpoint base, e.g. "/api/media/abc123/payments" */
   apiBase: string
+  /** Callback when a payment is added/removed (so parent can refresh totals) */
+  onPaymentChange?: () => void
 }
 
 const MONTH_NAMES = [
@@ -86,22 +90,25 @@ export function PaymentDialog({
   defaultLessonCount,
   showLessonCount = false,
   apiBase,
+  onPaymentChange,
 }: PaymentDialogProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [year, setYear] = useState<number>(new Date().getFullYear())
-  const [editingMonth, setEditingMonth] = useState<number | null>(null)
-  // Edit form state
-  const [editAmount, setEditAmount] = useState<number>(0)
-  const [editLessonCount, setEditLessonCount] = useState<number>(0)
-  const [saving, setSaving] = useState(false)
-  const [removing, setRemoving] = useState(false)
 
-  const fetchPayments = useCallback(async (y: number) => {
+  // "Catat Pembayaran" form state
+  const [formMonth, setFormMonth] = useState<number>(new Date().getMonth() + 1)
+  const [formYear, setFormYear] = useState<number>(new Date().getFullYear())
+  const [formAmount, setFormAmount] = useState<number>(0)
+  const [formLessonCount, setFormLessonCount] = useState<number>(0)
+  const [saving, setSaving] = useState(false)
+  const [removing, setRemoving] = useState<string | null>(null)
+
+  const fetchPayments = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${apiBase}?year=${y}`)
+      const res = await fetch(`${apiBase}?year=${year}`)
       if (!res.ok) throw new Error('Gagal')
       const data = await res.json()
       setPayments(data)
@@ -110,47 +117,49 @@ export function PaymentDialog({
     } finally {
       setLoading(false)
     }
-  }, [apiBase, toast])
+  }, [apiBase, year, toast])
 
   useEffect(() => {
     if (open && ownerId) {
-      fetchPayments(year)
+      fetchPayments()
     }
   }, [open, ownerId, year, fetchPayments])
 
-  // Reset editing state when dialog closes
+  // Reset form when dialog opens
   useEffect(() => {
-    if (!open) {
-      setEditingMonth(null)
+    if (open) {
+      const now = new Date()
+      setFormMonth(now.getMonth() + 1)
+      setFormYear(now.getFullYear())
+      setFormAmount(defaultAmount)
+      setFormLessonCount(defaultLessonCount ?? 0)
+      setYear(now.getFullYear())
+    } else {
       setPayments([])
+      setFormAmount(0)
+      setFormLessonCount(0)
     }
-  }, [open])
+  }, [open, defaultAmount, defaultLessonCount])
 
-  // Helper: find payment record for a given month
+  // Helper: find payment record for a given month in the currently viewed year
   function paymentFor(month: number): PaymentRecord | undefined {
-    return payments.find((p) => p.month === month)
+    return payments.find((p) => p.month === month && p.year === year)
   }
 
-  function startEdit(month: number) {
-    const existing = paymentFor(month)
-    setEditingMonth(month)
-    setEditAmount(existing?.amount ?? defaultAmount)
-    setEditLessonCount(existing?.lessonCount ?? defaultLessonCount ?? 0)
-  }
-
-  function cancelEdit() {
-    setEditingMonth(null)
-  }
-
-  async function savePayment(month: number) {
+  // ── Catat Pembayaran ──
+  async function handleAddPayment() {
+    if (formAmount <= 0) {
+      toast({ title: 'Validasi', description: 'Jumlah pembayaran harus > 0', variant: 'destructive' })
+      return
+    }
     setSaving(true)
     try {
       const payload: { year: number; month: number; amount: number; notes?: string; lessonCount?: number } = {
-        year,
-        month,
-        amount: editAmount,
+        year: formYear,
+        month: formMonth,
+        amount: formAmount,
       }
-      if (showLessonCount) payload.lessonCount = editLessonCount
+      if (showLessonCount) payload.lessonCount = formLessonCount
 
       const res = await fetch(apiBase, {
         method: 'POST',
@@ -159,11 +168,19 @@ export function PaymentDialog({
       })
       if (!res.ok) throw new Error('Gagal')
       toast({
-        title: 'Berhasil',
-        description: `Pembayaran ${MONTH_NAMES[month - 1]} ${year} ditandai lunas`,
+        title: 'Pembayaran Tercatat',
+        description: `${MONTH_NAMES[formMonth - 1]} ${formYear}: Rp ${formatNumberPrint(formAmount)}`,
       })
-      setEditingMonth(null)
-      await fetchPayments(year)
+      // Switch view to the year of the payment if different
+      if (formYear !== year) setYear(formYear)
+      await fetchPayments()
+      onPaymentChange?.()
+      // Auto-advance to next month for convenience
+      if (formMonth < 12) {
+        setFormMonth(formMonth + 1)
+        setFormAmount(defaultAmount)
+        setFormLessonCount(defaultLessonCount ?? 0)
+      }
     } catch {
       toast({ title: 'Error', description: 'Gagal menyimpan pembayaran', variant: 'destructive' })
     } finally {
@@ -171,21 +188,22 @@ export function PaymentDialog({
     }
   }
 
-  async function deletePayment(month: number) {
-    setRemoving(true)
+  // ── Hapus Pembayaran ──
+  async function handleDeletePayment(month: number, paymentYear: number) {
+    setRemoving(`${paymentYear}-${month}`)
     try {
-      const res = await fetch(`${apiBase}?year=${year}&month=${month}`, { method: 'DELETE' })
+      const res = await fetch(`${apiBase}?year=${paymentYear}&month=${month}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Gagal')
       toast({
-        title: 'Berhasil',
-        description: `Pembayaran ${MONTH_NAMES[month - 1]} ${year} ditandai belum bayar`,
+        title: 'Pembayaran Dihapus',
+        description: `${MONTH_NAMES[month - 1]} ${paymentYear} ditandai belum bayar`,
       })
-      setEditingMonth(null)
-      await fetchPayments(year)
+      await fetchPayments()
+      onPaymentChange?.()
     } catch {
       toast({ title: 'Error', description: 'Gagal menghapus pembayaran', variant: 'destructive' })
     } finally {
-      setRemoving(false)
+      setRemoving(null)
     }
   }
 
@@ -197,8 +215,12 @@ export function PaymentDialog({
   const paidCount = payments.length
   const paidTotal = payments.reduce((s, p) => s + (p.amount || 0), 0)
   const expectedMonths = durationMonths && durationMonths > 0 ? Math.min(durationMonths, 12) : 12
-  const expectedTotal = expectedMonths * defaultAmount
   const unpaidCount = Math.max(0, expectedMonths - paidCount)
+
+  // Check if the selected month/year is already paid
+  const selectedAlreadyPaid = payments.some(
+    (p) => p.month === formMonth && p.year === formYear
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -213,17 +235,83 @@ export function PaymentDialog({
             {ownerSubtitle ? <span className="ml-2 text-muted-foreground">— {ownerSubtitle}</span> : null}
             <br />
             <span className="text-xs">
-              Klik bulan untuk menandai sudah dibayar / belum dibayar. Total {expectedMonths} bulan langganan.
+              Pilih bulan &amp; tahun, lalu klik &quot;Catat Pembayaran&quot;. Total penerimaan otomatis terupdate.
             </span>
           </DialogDescription>
         </DialogHeader>
 
-        {/* Year selector + Summary */}
+        {/* ── Catat Pembayaran form ── */}
+        <div className="rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Plus className="size-4 text-primary" />
+            <h4 className="text-sm font-semibold">Catat Pembayaran Baru</h4>
+            {selectedAlreadyPaid && (
+              <Badge variant="outline" className="ml-auto gap-1 border-amber-400 text-amber-600">
+                <CheckCircle2 className="size-3" />
+                Sudah dibayar — akan diperbarui
+              </Badge>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Bulan</Label>
+              <Select value={String(formMonth)} onValueChange={(v) => setFormMonth(Number(v))}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MONTH_NAMES.map((m, i) => (
+                    <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Tahun</Label>
+              <Select value={String(formYear)} onValueChange={(v) => setFormYear(Number(v))}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {yearOptions.map((y) => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {showLessonCount ? (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Jml Les</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={formLessonCount}
+                  onChange={(e) => setFormLessonCount(Number(e.target.value) || 0)}
+                  className="h-9"
+                />
+              </div>
+            ) : null}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Jumlah (Rp)</Label>
+              <CurrencyInput
+                value={formAmount}
+                onChange={(v) => setFormAmount(v)}
+                className="h-9"
+              />
+            </div>
+          </div>
+          <Button
+            className="mt-3 w-full"
+            onClick={handleAddPayment}
+            disabled={saving}
+          >
+            {saving ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Plus className="size-4 mr-2" />}
+            Catat Pembayaran {MONTH_NAMES[formMonth - 1]} {formYear}
+          </Button>
+        </div>
+
+        {/* ── Summary + Year selector for grid ── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Tahun:</Label>
+            <Label className="text-sm">Lihat tahun:</Label>
             <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {yearOptions.map((y) => (
                   <SelectItem key={y} value={String(y)}>{y}</SelectItem>
@@ -243,15 +331,10 @@ export function PaymentDialog({
             <Badge variant="secondary" className="font-semibold">
               Total: Rp {formatNumberPrint(paidTotal)}
             </Badge>
-            {expectedTotal > 0 && (
-              <Badge variant="outline" className="text-muted-foreground">
-                Diharapkan: Rp {formatNumberPrint(expectedTotal)}
-              </Badge>
-            )}
           </div>
         </div>
 
-        {/* 12-month grid */}
+        {/* ── 12-month grid (status only) ── */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -264,107 +347,61 @@ export function PaymentDialog({
               const payment = paymentFor(month)
               const isPaid = !!payment
               const isOutOfRange = durationMonths && durationMonths > 0 && month > durationMonths
-              const isEditing = editingMonth === month
 
               return (
                 <div
                   key={month}
-                  className={`rounded-md border p-3 transition-colors ${
-                    isEditing
-                      ? 'border-primary ring-1 ring-primary'
-                      : isPaid
-                        ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/40'
-                        : 'border-border bg-card'
-                  } ${isOutOfRange ? 'opacity-50' : ''}`}
+                  className={`relative rounded-md border p-3 transition-colors ${
+                    isPaid
+                      ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/40'
+                      : 'border-border bg-card'
+                  } ${isOutOfRange && !isPaid ? 'opacity-40' : ''}`}
                 >
-                  <div className="mb-2 flex items-center justify-between">
+                  <div className="mb-1.5 flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-medium text-muted-foreground">{SHORT_MONTH[idx]}</span>
-                      <span className="text-sm font-semibold">{monthName}</span>
+                      <span className="text-[10px] font-medium text-muted-foreground">{SHORT_MONTH[idx]}</span>
+                      <span className="text-xs font-semibold">{monthName}</span>
                     </div>
                     {isPaid ? (
                       <CheckCircle2 className="size-4 text-emerald-600" />
                     ) : (
-                      <Circle className="size-4 text-muted-foreground" />
+                      <Circle className="size-3.5 text-muted-foreground" />
                     )}
                   </div>
-
-                  {isEditing ? (
-                    <div className="space-y-2">
-                      {showLessonCount && (
-                        <div className="space-y-1">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Jml Les</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={editLessonCount}
-                            onChange={(e) => setEditLessonCount(Number(e.target.value) || 0)}
-                            className="h-8 text-sm"
-                          />
+                  {isPaid ? (
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                        Rp {formatNumberPrint(payment?.amount ?? 0)}
+                      </div>
+                      {showLessonCount && payment?.lessonCount !== undefined && (
+                        <div className="text-[10px] text-muted-foreground">
+                          {payment.lessonCount} les
                         </div>
                       )}
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase text-muted-foreground">Jumlah (Rp)</Label>
-                        <CurrencyInput
-                          value={editAmount}
-                          onChange={(v) => setEditAmount(v)}
-                          className="h-8 text-sm"
-                        />
+                      <div className="text-[10px] text-muted-foreground">
+                        {payment?.paidAt
+                          ? new Date(payment.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : 'Lunas'}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button size="sm" className="h-7 flex-1 text-xs" onClick={() => savePayment(month)} disabled={saving}>
-                          {saving ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Save className="size-3 mr-1" />}
-                          Simpan
-                        </Button>
-                        {isPaid && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                            onClick={() => deletePayment(month)}
-                            disabled={removing}
-                            title="Tandai belum bayar"
-                          >
-                            {removing ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
-                          </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="mt-1 h-6 w-full gap-1 text-[10px] text-destructive hover:text-destructive"
+                        onClick={() => handleDeletePayment(month, year)}
+                        disabled={removing === `${year}-${month}`}
+                      >
+                        {removing === `${year}-${month}` ? (
+                          <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                          <X className="size-3" />
                         )}
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={cancelEdit} disabled={saving || removing}>
-                          Batal
-                        </Button>
-                      </div>
+                        Hapus
+                      </Button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => startEdit(month)}
-                      className="w-full text-left"
-                    >
-                      {isPaid ? (
-                        <div className="space-y-0.5">
-                          <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                            Rp {formatNumberPrint(payment?.amount ?? 0)}
-                          </div>
-                          {showLessonCount && (payment as any)?.lessonCount !== undefined && (
-                            <div className="text-[10px] text-muted-foreground">
-                              {((payment as any).lessonCount ?? 0)} les
-                            </div>
-                          )}
-                          <div className="text-[10px] text-muted-foreground">
-                            {payment?.paidAt
-                              ? new Date(payment.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-                              : 'Lunas'}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">
-                          {isOutOfRange ? (
-                            <span>Diluar jangka</span>
-                          ) : (
-                            <span>Klik untuk tandai bayar</span>
-                          )}
-                        </div>
-                      )}
-                    </button>
+                    <div className="text-[11px] text-muted-foreground">
+                      {isOutOfRange ? 'Diluar jangka' : 'Belum dibayar'}
+                    </div>
                   )}
                 </div>
               )
@@ -372,13 +409,13 @@ export function PaymentDialog({
           </div>
         )}
 
-        {/* Full breakdown table for print */}
+        {/* ── Rincian Pembayaran table (expandable) ── */}
         {payments.length > 0 && (
-          <details className="mt-2 rounded-md border">
+          <details className="mt-2 rounded-md border" open>
             <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
-              Rincian Pembayaran ({payments.length} bulan)
+              Rincian Pembayaran ({payments.length} catatan)
             </summary>
-            <div className="max-h-60 overflow-y-auto px-3 pb-3">
+            <div className="max-h-48 overflow-y-auto px-3 pb-3">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-background">
                   <tr className="border-b text-left">
@@ -386,19 +423,35 @@ export function PaymentDialog({
                     <th className="py-2 pr-2 text-right">Jumlah</th>
                     {showLessonCount && <th className="py-2 pr-2 text-right">Les</th>}
                     <th className="py-2 text-right">Tgl Bayar</th>
+                    <th className="py-2 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments
                     .slice()
-                    .sort((a, b) => a.month - b.month)
+                    .sort((a, b) => (a.year - b.year) || (a.month - b.month))
                     .map((p) => (
                       <tr key={p.id} className="border-b last:border-0">
                         <td className="py-1.5 pr-2">{MONTH_NAMES[p.month - 1]} {p.year}</td>
                         <td className="py-1.5 pr-2 text-right tabular-nums">Rp {formatNumberPrint(p.amount)}</td>
-                        {showLessonCount && <td className="py-1.5 pr-2 text-right tabular-nums">{(p as any).lessonCount ?? 0}</td>}
+                        {showLessonCount && <td className="py-1.5 pr-2 text-right tabular-nums">{p.lessonCount ?? 0}</td>}
                         <td className="py-1.5 text-right text-muted-foreground">
                           {p.paidAt ? new Date(p.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                        </td>
+                        <td className="py-1.5 text-right">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-destructive hover:text-destructive"
+                            onClick={() => handleDeletePayment(p.month, p.year)}
+                            disabled={removing === `${p.year}-${p.month}`}
+                          >
+                            {removing === `${p.year}-${p.month}` ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="size-3" />
+                            )}
+                          </Button>
                         </td>
                       </tr>
                     ))}

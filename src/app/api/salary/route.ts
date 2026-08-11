@@ -9,6 +9,9 @@ export async function GET() {
 
     const entries = await db.salaryEntry.findMany({
       orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { payments: true } },
+      },
     });
 
     return NextResponse.json(entries);

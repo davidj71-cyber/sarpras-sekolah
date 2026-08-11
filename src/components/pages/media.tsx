@@ -59,6 +59,7 @@ import {
   Printer,
   FileSpreadsheet,
   CalendarCheck,
+  CheckCircle2,
 } from 'lucide-react'
 import {
   fetchPrintSettings,
@@ -87,6 +88,7 @@ interface MediaData {
   period: string
   createdAt: string
   updatedAt: string
+  _count?: { payments: number }
 }
 
 interface FormData {
@@ -412,7 +414,17 @@ export function MediaPage() {
                       <TableCell className="text-center tabular-nums">
                         <Badge variant="outline" className="font-medium">{e.unitCount} bln</Badge>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">Rp {formatNumberPrint(e.totalReceived)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="tabular-nums font-medium">Rp {formatNumberPrint(e.totalReceived)}</div>
+                        {e._count?.payments !== undefined && e._count.payments > 0 && (
+                          <div className="mt-0.5">
+                            <Badge variant="secondary" className="gap-1 text-[10px]">
+                              <CheckCircle2 className="size-2.5 text-emerald-600" />
+                              {e._count.payments} bln dibayar
+                            </Badge>
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
                           <Button
@@ -548,6 +560,7 @@ export function MediaPage() {
           durationMonths={paymentEntry.unitCount}
           defaultAmount={paymentEntry.pricePerMonth}
           apiBase={`/api/media/${paymentEntry.id}/payments`}
+          onPaymentChange={fetchEntries}
         />
       )}
     </PageContainer>

@@ -82,6 +82,18 @@ export async function POST(
       },
     });
 
+    // ── Auto-update totalReceived on the parent SalaryEntry ──
+    // totalReceived = sum of ALL payment amounts for this salary.
+    const allPayments = await db.salaryPayment.findMany({
+      where: { salaryId: id },
+      select: { amount: true },
+    });
+    const totalReceived = allPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    await db.salaryEntry.update({
+      where: { id },
+      data: { totalReceived },
+    });
+
     return NextResponse.json(payment, { status: 201 });
   } catch (error) {
     console.error("Error upserting salary payment:", error);
@@ -122,7 +134,18 @@ export async function DELETE(
       // Already deleted — treat as success.
     }
 
-    return NextResponse.json({ message: "Catatan pembayaran dihapus" });
+    // ── Auto-update totalReceived on the parent SalaryEntry ──
+    const remainingPayments = await db.salaryPayment.findMany({
+      where: { salaryId: id },
+      select: { amount: true },
+    });
+    const totalReceived = remainingPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    await db.salaryEntry.update({
+      where: { id },
+      data: { totalReceived },
+    });
+
+    return NextResponse.json({ message: "Catatan pembayaran dihapus", totalReceived });
   } catch (error) {
     console.error("Error deleting salary payment:", error);
     return NextResponse.json(

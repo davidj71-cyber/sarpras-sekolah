@@ -61,6 +61,7 @@ import {
   FileSpreadsheet,
   Banknote,
   CalendarCheck,
+  CheckCircle2,
 } from 'lucide-react'
 import {
   fetchPrintSettings,
@@ -90,6 +91,7 @@ interface SalaryData {
   period: string
   createdAt: string
   updatedAt: string
+  _count?: { payments: number }
 }
 
 interface FormData {
@@ -491,7 +493,17 @@ export function SalaryPage() {
                       <TableCell className="text-right tabular-nums">{e.lessonCount}</TableCell>
                       <TableCell>{e.unit || '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">Rp {formatNumberPrint(e.pricePerLesson)}</TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">Rp {formatNumberPrint(e.totalReceived)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="tabular-nums font-medium">Rp {formatNumberPrint(e.totalReceived)}</div>
+                        {e._count?.payments !== undefined && e._count.payments > 0 && (
+                          <div className="mt-0.5">
+                            <Badge variant="secondary" className="gap-1 text-[10px]">
+                              <CheckCircle2 className="size-2.5 text-emerald-600" />
+                              {e._count.payments} bln dibayar
+                            </Badge>
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
                           <Button
@@ -635,10 +647,11 @@ export function SalaryPage() {
           ownerName={paymentEntry.name}
           ownerSubtitle={paymentEntry.nip ? `NIP. ${paymentEntry.nip}` : undefined}
           durationMonths={12}
-          defaultAmount={paymentEntry.totalReceived}
+          defaultAmount={paymentEntry.pricePerLesson * paymentEntry.lessonCount}
           defaultLessonCount={paymentEntry.lessonCount}
           showLessonCount
           apiBase={`/api/salary/${paymentEntry.id}/payments`}
+          onPaymentChange={fetchEntries}
         />
       )}
     </PageContainer>

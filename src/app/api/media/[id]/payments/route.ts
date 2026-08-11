@@ -79,6 +79,18 @@ export async function POST(
       },
     });
 
+    // ── Auto-update totalReceived on the parent MediaEntry ──
+    // totalReceived = sum of ALL payment amounts for this media.
+    const allPayments = await db.mediaPayment.findMany({
+      where: { mediaId: id },
+      select: { amount: true },
+    });
+    const totalReceived = allPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    await db.mediaEntry.update({
+      where: { id },
+      data: { totalReceived },
+    });
+
     return NextResponse.json(payment, { status: 201 });
   } catch (error) {
     console.error("Error upserting media payment:", error);
@@ -119,7 +131,18 @@ export async function DELETE(
       // Already deleted — treat as success.
     }
 
-    return NextResponse.json({ message: "Catatan pembayaran dihapus" });
+    // ── Auto-update totalReceived on the parent MediaEntry ──
+    const remainingPayments = await db.mediaPayment.findMany({
+      where: { mediaId: id },
+      select: { amount: true },
+    });
+    const totalReceived = remainingPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    await db.mediaEntry.update({
+      where: { id },
+      data: { totalReceived },
+    });
+
+    return NextResponse.json({ message: "Catatan pembayaran dihapus", totalReceived });
   } catch (error) {
     console.error("Error deleting media payment:", error);
     return NextResponse.json(
