@@ -856,10 +856,10 @@ export function OrdersPage() {
       <!-- Tanda Tangan -->
       <div style="margin-top: 32px; font-size: 12pt; text-align: left;">
         <div>an. Kepala ${settings.schoolName || 'Sekolah'}</div>
-        <div style="padding-left: 48px;">Bendahara Sekolah,</div>
-        <div style="height: 72px;"></div>
-        <div style="padding-left: 36px; text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</div>
-        <div style="padding-left: 36px;">${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</div>
+        <div style="padding-left: 48px; margin-top: 4px;">Bendahara Sekolah,</div>
+        <div style="padding-left: 48px; height: 72px;"></div>
+        <div style="padding-left: 48px; text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</div>
+        <div style="padding-left: 48px;">${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</div>
       </div>
     `
 
