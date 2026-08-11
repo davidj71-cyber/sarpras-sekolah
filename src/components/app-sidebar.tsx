@@ -10,6 +10,7 @@ import {
   Archive,
   UserCog,
   LogOut,
+  Building2,
 } from 'lucide-react'
 
 import {
@@ -26,6 +27,7 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar'
 import { useNavigationStore, type Page } from '@/lib/navigation-store'
+import { useSchoolBranding } from '@/lib/use-school-branding'
 
 const navItems: {
   page: Page
@@ -43,19 +45,30 @@ const navItems: {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { currentPage, setPage, authUser, logout } = useNavigationStore()
+  const { logo, schoolName } = useSchoolBranding()
+  const brandName = 'SIMAPRAS'
+  const brandSubtitle = schoolName?.trim() ? schoolName.trim() : 'Manajemen Sarpras'
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="Sarpras Sekolah" className="group/header">
-              <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shadow-sm transition-shadow group-hover/header:shadow-md">
-                <ClipboardList className="size-4" />
-              </div>
+            <SidebarMenuButton size="lg" tooltip={brandName} className="group/header">
+              {logo ? (
+                <img
+                  src={logo}
+                  alt={`${brandName} logo`}
+                  className="aspect-square size-8 rounded-lg object-contain ring-1 ring-border/40 bg-card p-0.5"
+                />
+              ) : (
+                <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shadow-sm transition-shadow group-hover/header:shadow-md">
+                  <Building2 className="size-4" />
+                </div>
+              )}
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold tracking-tight">Sarpras Sekolah</span>
-                <span className="text-muted-foreground truncate text-xs">Manajemen Inventaris</span>
+                <span className="truncate font-semibold tracking-tight">{brandName}</span>
+                <span className="text-muted-foreground truncate text-xs">{brandSubtitle}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

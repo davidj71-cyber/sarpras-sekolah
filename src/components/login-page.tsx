@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useNavigationStore } from '@/lib/navigation-store'
+import { useSchoolBranding } from '@/lib/use-school-branding'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,15 +13,23 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { ClipboardList, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Building2, Loader2, Eye, EyeOff } from 'lucide-react'
 
 export function LoginPage() {
   const { login } = useNavigationStore()
+  const { logo, schoolName, loading } = useSchoolBranding()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loadingState, setLoadingState] = useState(false)
   const [error, setError] = useState('')
+
+  // SIMAPRAS is always the app brand (matches the favicon/tab name).
+  // The configured school name, if any, is shown as a subtitle.
+  const brandName = 'SIMAPRAS'
+  const brandTagline = schoolName?.trim()
+    ? schoolName.trim()
+    : 'Sistem Informasi Manajemen Sarana Prasarana'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -31,7 +40,7 @@ export function LoginPage() {
       return
     }
 
-    setLoading(true)
+    setLoadingState(true)
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
@@ -55,7 +64,7 @@ export function LoginPage() {
     } catch {
       setError('Terjadi kesalahan jaringan')
     } finally {
-      setLoading(false)
+      setLoadingState(false)
     }
   }
 
@@ -64,13 +73,23 @@ export function LoginPage() {
       <Card className="w-full max-w-md shadow-xl border-border/50">
         <CardHeader className="text-center space-y-4 pb-2">
           <div className="flex justify-center">
-            <div className="bg-primary text-primary-foreground flex size-16 items-center justify-center rounded-2xl shadow-lg shadow-primary/25">
-              <ClipboardList className="size-8" />
-            </div>
+            {logo ? (
+              <img
+                src={logo}
+                alt={`${brandName} logo`}
+                className="size-20 rounded-2xl object-contain shadow-lg shadow-primary/10 ring-1 ring-border/40 bg-card p-1.5"
+              />
+            ) : (
+              <div className="bg-primary text-primary-foreground flex size-16 items-center justify-center rounded-2xl shadow-lg shadow-primary/25">
+                <Building2 className="size-8" />
+              </div>
+            )}
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold tracking-tight">Sarpras Sekolah</CardTitle>
-            <CardDescription className="mt-1">Masuk ke Sistem Manajemen Inventaris</CardDescription>
+            <CardTitle className="text-2xl font-bold tracking-tight">{brandName}</CardTitle>
+            <CardDescription className="mt-1">
+              {loading ? 'Memuat...' : brandTagline}
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -89,7 +108,7 @@ export function LoginPage() {
                 placeholder="Masukkan username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                disabled={loading}
+                disabled={loadingState}
                 autoComplete="username"
                 className="h-11"
               />
@@ -104,7 +123,7 @@ export function LoginPage() {
                   placeholder="Masukkan password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
+                  disabled={loadingState}
                   autoComplete="current-password"
                   className="h-11 pr-10"
                 />
@@ -119,8 +138,8 @@ export function LoginPage() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full h-11 text-base" disabled={loadingState}>
+              {loadingState ? (
                 <>
                   <Loader2 className="size-4 mr-2 animate-spin" />
                   Masuk...

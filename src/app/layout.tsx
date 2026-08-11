@@ -15,14 +15,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sarana Prasarana Sekolah",
-  description: "Aplikasi Manajemen Inventaris Sarana Prasarana Sekolah",
-  keywords: ["Sarpras", "Inventaris", "Sekolah", "KIB", "Manajemen"],
-  authors: [{ name: "Sarpras Sekolah" }],
+  title: {
+    default: "SIMAPRAS",
+    template: "SIMAPRAS · %s",
+  },
+  applicationName: "SIMAPRAS",
+  description: "Sistem Informasi Manajemen Sarana Prasarana Sekolah",
+  keywords: ["SIMAPRAS", "Sarpras", "Inventaris", "Sekolah", "KIB", "Manajemen"],
+  authors: [{ name: "SIMAPRAS" }],
   icons: {
-    icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-    ],
+    icon: [{ url: "/api/logo" }],
+    shortcut: [{ url: "/api/logo" }],
+    apple: [{ url: "/api/logo" }],
   },
 };
 
