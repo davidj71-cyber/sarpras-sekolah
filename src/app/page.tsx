@@ -8,20 +8,35 @@ import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2 } from 'lucide-react'
 import type { StoreSubPage, RoomSubPage } from '@/lib/navigation-store'
+import { LoginPage } from '@/components/login-page'
+import { PageLoading } from '@/components/ui/loading-skeleton'
 
-// Dynamic imports to reduce initial compilation memory usage
-const DashboardPage = dynamic(() => import('@/components/pages/dashboard').then(m => ({ default: m.DashboardPage })), { ssr: false })
-const SettingsPage = dynamic(() => import('@/components/pages/settings').then(m => ({ default: m.SettingsPage })), { ssr: false })
-const StoresPage = dynamic(() => import('@/components/pages/stores').then(m => ({ default: m.StoresPage })), { ssr: false })
-const EmployeesPage = dynamic(() => import('@/components/pages/employees').then(m => ({ default: m.EmployeesPage })), { ssr: false })
-const KibPage = dynamic(() => import('@/components/pages/kib').then(m => ({ default: m.KibPage })), { ssr: false })
-const RoomsPage = dynamic(() => import('@/components/pages/rooms').then(m => ({ default: m.RoomsPage })), { ssr: false })
-const OrdersPage = dynamic(() => import('@/components/pages/orders').then(m => ({ default: m.OrdersPage })), { ssr: false })
-const BarangMasukPage = dynamic(() => import('@/components/pages/barang-masuk').then(m => ({ default: m.BarangMasukPage })), { ssr: false })
-const RoomItemsPage = dynamic(() => import('@/components/pages/room-items').then(m => ({ default: m.RoomItemsPage })), { ssr: false })
-const BuildingsPage = dynamic(() => import('@/components/pages/buildings').then(m => ({ default: m.BuildingsPage })), { ssr: false })
-const AccountsPage = dynamic(() => import('@/components/pages/accounts').then(m => ({ default: m.AccountsPage })), { ssr: false })
-const LoginPage = dynamic(() => import('@/components/login-page').then(m => ({ default: m.LoginPage })), { ssr: false })
+// Reusable loading skeleton passed to every dynamic import so the user
+// sees a structured placeholder while the page chunk downloads instead
+// of a blank white area. This single change dramatically reduces the
+// perceived loading time on slow connections.
+const loadingFallback = () => (
+  <div className="flex items-center justify-center py-20">
+    <PageLoading label="Memuat halaman..." />
+  </div>
+)
+
+// Dynamic imports to reduce initial compilation memory usage.
+// `ssr: false` keeps heavy client-only code (recharts, dnd-kit, etc.)
+// out of the server bundle, while `loading` shows a skeleton during
+// chunk download. `preload` (default true in dev) keeps cold navigations
+// feeling instant after the first visit.
+const DashboardPage = dynamic(() => import('@/components/pages/dashboard').then(m => ({ default: m.DashboardPage })), { ssr: false, loading: loadingFallback })
+const SettingsPage = dynamic(() => import('@/components/pages/settings').then(m => ({ default: m.SettingsPage })), { ssr: false, loading: loadingFallback })
+const StoresPage = dynamic(() => import('@/components/pages/stores').then(m => ({ default: m.StoresPage })), { ssr: false, loading: loadingFallback })
+const EmployeesPage = dynamic(() => import('@/components/pages/employees').then(m => ({ default: m.EmployeesPage })), { ssr: false, loading: loadingFallback })
+const KibPage = dynamic(() => import('@/components/pages/kib').then(m => ({ default: m.KibPage })), { ssr: false, loading: loadingFallback })
+const RoomsPage = dynamic(() => import('@/components/pages/rooms').then(m => ({ default: m.RoomsPage })), { ssr: false, loading: loadingFallback })
+const OrdersPage = dynamic(() => import('@/components/pages/orders').then(m => ({ default: m.OrdersPage })), { ssr: false, loading: loadingFallback })
+const BarangMasukPage = dynamic(() => import('@/components/pages/barang-masuk').then(m => ({ default: m.BarangMasukPage })), { ssr: false, loading: loadingFallback })
+const RoomItemsPage = dynamic(() => import('@/components/pages/room-items').then(m => ({ default: m.RoomItemsPage })), { ssr: false, loading: loadingFallback })
+const BuildingsPage = dynamic(() => import('@/components/pages/buildings').then(m => ({ default: m.BuildingsPage })), { ssr: false, loading: loadingFallback })
+const AccountsPage = dynamic(() => import('@/components/pages/accounts').then(m => ({ default: m.AccountsPage })), { ssr: false, loading: loadingFallback })
 
 const kibItems = [
   { type: 'A', label: 'KIB A - Tanah' },
