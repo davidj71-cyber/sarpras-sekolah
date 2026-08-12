@@ -67,6 +67,8 @@ interface SalaryPrintDialogProps {
     name: string
     nip: string
     bankAccount: string
+    jabatan: string
+    status: string
     lessonCount: number
     unit: string
     pricePerLesson: number
@@ -100,6 +102,7 @@ export function SalaryPrintDialog({
   const [honorType, setHonorType] = useState('HONOR')
   const [printDate, setPrintDate] = useState('')
   const [search, setSearch] = useState('')
+  const [jabatanFilter, setJabatanFilter] = useState('')
   const [selectedSalaryIds, setSelectedSalaryIds] = useState<Set<string>>(new Set())
   const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set())
   const [payments, setPayments] = useState<PaymentRecord[]>([])
@@ -114,6 +117,7 @@ export function SalaryPrintDialog({
       setSelectedSalaryIds(new Set())
       setSelectedMonths(new Set())
       setSearch('')
+      setJabatanFilter('')
     }
   }, [open, defaultPlace])
 
@@ -136,16 +140,24 @@ export function SalaryPrintDialog({
     if (open) fetchPayments()
   }, [open, fetchPayments])
 
-  // Filtered entries based on search (by name OR NIP)
+  // Daftar Jabatan unik dari entries — untuk dropdown filter.
+  const jabatanOptions = useMemo(
+    () => Array.from(new Set(entries.map((e) => e.jabatan).filter(Boolean))).sort(),
+    [entries]
+  )
+
+  // Filtered entries based on search (by name OR NIP) AND jabatan filter
   const filteredEntries = useMemo(() => {
-    if (!search.trim()) return entries
-    const q = search.toLowerCase()
-    return entries.filter(
-      (e) =>
+    const q = search.trim().toLowerCase()
+    const j = jabatanFilter.trim()
+    return entries.filter((e) => {
+      const matchSearch = !q ||
         e.name.toLowerCase().includes(q) ||
         e.nip.toLowerCase().includes(q)
-    )
-  }, [entries, search])
+      const matchJabatan = !j || (e.jabatan || '') === j
+      return matchSearch && matchJabatan
+    })
+  }, [entries, search, jabatanFilter])
 
   // Map: salaryId → Set of paid months for the selected year
   const paidMonthsBySalary = useMemo(() => {
@@ -340,7 +352,7 @@ export function SalaryPrintDialog({
             </div>
           </div>
 
-          {/* Honor Type + Search */}
+          {/* Honor Type + Jabatan Filter + Search */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-2 sm:col-span-1">
               <Label htmlFor="sal-honor-type">Jenis Honor (untuk judul)</Label>
@@ -354,7 +366,29 @@ export function SalaryPrintDialog({
                 Judul: &ldquo;TANDA TERIMA PEMBAYARAN {honorType || 'HONOR'} BULAN ...&rdquo;
               </p>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-1">
+              <Label htmlFor="sal-jabatan-filter">Filter Jabatan</Label>
+              <Select
+                value={jabatanFilter || '__all__'}
+                onValueChange={(v) => setJabatanFilter(v === '__all__' ? '' : v)}
+              >
+                <SelectTrigger id="sal-jabatan-filter">
+                  <SelectValue placeholder="Semua Jabatan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Semua Jabatan</SelectItem>
+                  {jabatanOptions.map((j) => (
+                    <SelectItem key={j} value={j}>{j}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {jabatanFilter
+                  ? `Menampilkan hanya: ${jabatanFilter}`
+                  : 'Tampilkan semua jabatan'}
+              </p>
+            </div>
+            <div className="space-y-2 sm:col-span-1">
               <Label htmlFor="sal-search">Cari Guru</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -427,6 +461,7 @@ export function SalaryPrintDialog({
                     <th className="w-10 p-2"></th>
                     <th className="text-left p-2">Nama</th>
                     <th className="text-left p-2 hidden sm:table-cell">NIP</th>
+                    <th className="text-left p-2 hidden md:table-cell">Jabatan</th>
                     <th className="text-left p-2 hidden md:table-cell">No. Rekening</th>
                     <th className="text-right p-2 hidden sm:table-cell">Honor/Les</th>
                   </tr>
@@ -434,7 +469,7 @@ export function SalaryPrintDialog({
                 <tbody>
                   {filteredEntries.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                      <td colSpan={6} className="p-4 text-center text-muted-foreground">
                         {loading ? 'Memuat data...' : 'Tidak ada guru ditemukan'}
                       </td>
                     </tr>
@@ -454,6 +489,7 @@ export function SalaryPrintDialog({
                           </td>
                           <td className="p-2 font-medium">{e.name || '-'}</td>
                           <td className="p-2 hidden sm:table-cell text-muted-foreground">{e.nip || '-'}</td>
+                          <td className="p-2 hidden md:table-cell text-muted-foreground">{e.jabatan || '-'}</td>
                           <td className="p-2 hidden md:table-cell text-muted-foreground">{e.bankAccount || '-'}</td>
                           <td className="p-2 hidden sm:table-cell text-right">
                             Rp {new Intl.NumberFormat('id-ID').format(e.pricePerLesson)}

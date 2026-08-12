@@ -811,6 +811,8 @@ export function SalaryPage() {
           name: e.name,
           nip: e.nip,
           bankAccount: e.bankAccount || '',
+          jabatan: e.jabatan || '',
+          status: e.status || '',
           lessonCount: e.lessonCount,
           unit: e.unit,
           pricePerLesson: e.pricePerLesson,
