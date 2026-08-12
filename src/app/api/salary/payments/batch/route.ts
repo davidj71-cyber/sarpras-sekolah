@@ -54,26 +54,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── 1. INSERT SEMUA SEKALIGUS dengan skipDuplicates ──
-    // skipDuplicates penting karena dialog sudah memfilter bulan belum-bayar,
-    // tapi sebagai safety net kalau ada race condition.
-    const now = new Date();
-    const result = await db.salaryPayment.createMany({
-      data: items.map((it) => ({
-        salaryId: it.salaryId,
-        year,
-        month: it.month,
-        lessonCount: it.lessonCount,
-        amount: it.amount,
-        paidAt: now,
-      })),
-      skipDuplicates: true,
-    });
-
-    const insertedCount = result.count;
-
-    // ── 2. Recompute totalReceived untuk tiap salary yang terdampak ──
+    // ── 1. Filter kombinasi (salaryId, month) yang SUDAH dibayar ──
+    // Catatan: argumen `skipDuplicates` pada Prisma createMany TIDAK didukung
+    // oleh SQLite (database dev). Schema memiliki @@unique([salaryId, year, month]),
+    // jadi duplikat akan throw unique-constraint error bila tidak difilter dulu.
+    // Solusi: query pembayaran yang sudah ada untuk tahun ini, lalu filter di
+    // aplikasi. Kompatibel dengan SQLite (dev) maupun PostgreSQL (prod).
     const affectedSalaryIds = Array.from(new Set(items.map((it) => it.salaryId)));
+    const affectedMonths = Array.from(new Set(items.map((it) => it.month)));
+
+    const existing = await db.salaryPayment.findMany({
+      where: {
+        year,
+        salaryId: { in: affectedSalaryIds },
+        month: { in: affectedMonths },
+      },
+      select: { salaryId: true, month: true },
+    });
+    const existingKeys = new Set(existing.map((e) => `${e.salaryId}|${e.month}`));
+
+    const newItems = items.filter(
+      (it) => !existingKeys.has(`${it.salaryId}|${it.month}`)
+    );
+    const skippedCount = items.length - newItems.length;
+
+    // ── 2. INSERT hanya item baru (tanpa skipDuplicates) ──
+    let insertedCount = 0;
+    if (newItems.length > 0) {
+      const now = new Date();
+      const result = await db.salaryPayment.createMany({
+        data: newItems.map((it) => ({
+          salaryId: it.salaryId,
+          year,
+          month: it.month,
+          lessonCount: it.lessonCount,
+          amount: it.amount,
+          paidAt: now,
+        })),
+      });
+      insertedCount = result.count;
+    }
+
+    // ── 3. Recompute totalReceived untuk tiap salary yang terdampak ──
 
     const sums = await db.salaryPayment.groupBy({
       by: ["salaryId"],
@@ -94,7 +116,7 @@ export async function POST(request: NextRequest) {
       recorded: insertedCount,
       requested: items.length,
       affectedSalary: affectedSalaryIds.length,
-      skipped: items.length - insertedCount,
+      skipped: skippedCount,
     });
   } catch (error) {
     console.error("Error batch recording salary payments:", error);

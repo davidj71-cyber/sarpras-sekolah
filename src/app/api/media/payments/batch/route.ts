@@ -53,26 +53,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── 1. INSERT SEMUA SEKALIGUS dengan skipDuplicates ──
-    // skipDuplicates penting karena dialog sudah memfilter bulan belum-bayar,
-    // tapi sebagai safety net kalau ada race condition.
-    const now = new Date();
-    const result = await db.mediaPayment.createMany({
-      data: items.map((it) => ({
-        mediaId: it.mediaId,
-        year,
-        month: it.month,
-        amount: it.amount,
-        paidAt: now,
-      })),
-      skipDuplicates: true,
-    });
-
-    const insertedCount = result.count; // jumlah baris benar-benar baru
-
-    // ── 2. Recompute totalReceived untuk tiap media yang terdampak ──
-    // Pakai groupBy untuk ambil semua sum dalam 1 query.
+    // ── 1. Filter kombinasi (mediaId, month) yang SUDAH dibayar ──
+    // Catatan: argumen `skipDuplicates` pada Prisma createMany TIDAK didukung
+    // oleh SQLite (database dev). Schema memiliki @@unique([mediaId, year, month]),
+    // jadi duplikat akan throw unique-constraint error bila tidak difilter dulu.
+    // Solusi: query pembayaran yang sudah ada untuk tahun ini, lalu filter di
+    // aplikasi. Kompatibel dengan SQLite (dev) maupun PostgreSQL (prod).
     const affectedMediaIds = Array.from(new Set(items.map((it) => it.mediaId)));
+    const affectedMonths = Array.from(new Set(items.map((it) => it.month)));
+
+    const existing = await db.mediaPayment.findMany({
+      where: {
+        year,
+        mediaId: { in: affectedMediaIds },
+        month: { in: affectedMonths },
+      },
+      select: { mediaId: true, month: true },
+    });
+    const existingKeys = new Set(existing.map((e) => `${e.mediaId}|${e.month}`));
+
+    const newItems = items.filter(
+      (it) => !existingKeys.has(`${it.mediaId}|${it.month}`)
+    );
+    const skippedCount = items.length - newItems.length;
+
+    // ── 2. INSERT hanya item baru (tanpa skipDuplicates) ──
+    let insertedCount = 0;
+    if (newItems.length > 0) {
+      const now = new Date();
+      const result = await db.mediaPayment.createMany({
+        data: newItems.map((it) => ({
+          mediaId: it.mediaId,
+          year,
+          month: it.month,
+          amount: it.amount,
+          paidAt: now,
+        })),
+      });
+      insertedCount = result.count;
+    }
+
+    // ── 3. Recompute totalReceived untuk tiap media yang terdampak ──
+    // Pakai groupBy untuk ambil semua sum dalam 1 query.
 
     const sums = await db.mediaPayment.groupBy({
       by: ["mediaId"],
@@ -94,7 +116,7 @@ export async function POST(request: NextRequest) {
       recorded: insertedCount,
       requested: items.length,
       affectedMedia: affectedMediaIds.length,
-      skipped: items.length - insertedCount, // duplikat yang di-skip
+      skipped: skippedCount,
     });
   } catch (error) {
     console.error("Error batch recording media payments:", error);
