@@ -75,6 +75,32 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { PageLoading } from '@/components/ui/loading-skeleton'
 import { Badge } from '@/components/ui/badge'
 
+// ─── Settings cache (module-level) ───────────────────────────────────────────
+// Settings sekolah (KOP, nama kepsek, bendahara, kode anggaran, dst.) hampir
+// tidak pernah berubah saat user aktif. Cache di level modul supaya:
+//   - Klik cetak ke-2, 3, dst. → instant (tidak perlu fetch /api/settings lagi)
+//   - Prefetch bisa dilakukan saat dialog cetak terbuka, sebelum user klik
+//     tombol "Cetak" — sehingga saat tombol ditekan, settings sudah siap.
+let settingsCache: Record<string, unknown> | null = null
+let settingsPromise: Promise<Record<string, unknown>> | null = null
+
+function fetchSettingsCached(): Promise<Record<string, unknown>> {
+  if (settingsCache) return Promise.resolve(settingsCache)
+  if (settingsPromise) return settingsPromise
+  settingsPromise = fetch('/api/settings')
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((d) => {
+      settingsCache = d as Record<string, unknown>
+      settingsPromise = null
+      return d as Record<string, unknown>
+    })
+    .catch(() => {
+      settingsPromise = null
+      return {}
+    })
+  return settingsPromise
+}
+
 interface MediaData {
   id: string
   name: string
@@ -275,44 +301,37 @@ export function MediaPage() {
 
     setPrinting(true)
 
-    // ── 1. Catat pembayaran untuk setiap (media, bulan) yang belum dibayar ──
-    // API melakukan upsert, jadi aman jika sudah ada (tidak akan duplikat).
-    let recordedCount = 0
-    let failedCount = 0
+    // ── 1. Kumpulkan semua (mediaId, month) yang akan dicatat ────────────────
+    const batchItems: Array<{ mediaId: string; month: number; amount: number }> = []
     for (const item of plan.items) {
       for (const month of item.months) {
-        try {
-          const res = await fetch(`/api/media/${item.mediaId}/payments`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              year: Number(plan.year),
-              month,
-              amount: item.pricePerMonth,
-            }),
-          })
-          if (res.ok) recordedCount++
-          else failedCount++
-        } catch {
-          failedCount++
-        }
+        batchItems.push({
+          mediaId: item.mediaId,
+          month,
+          amount: item.pricePerMonth,
+        })
       }
     }
 
-    if (failedCount > 0) {
-      toast({
-        title: 'Peringatan',
-        description: `${recordedCount} pembayaran tercatat, ${failedCount} gagal. Laporan tetap dicetak.`,
-        variant: 'destructive',
-      })
-    }
+    // ── 2. Background: catat SEMUA pembayaran dalam 1 request batch ──────────
+    // Tidak di-await! Jalan paralel dengan render print window.
+    // 1 HTTP request + 1 INSERT createMany + 1 groupBy aggregate + N update paralel
+    // vs. sebelumnya: N×M sequential POST (bisa 30+ detik untuk 60 baris).
+    const recordPromise = batchItems.length > 0
+      ? fetch('/api/media/payments/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            year: Number(plan.year),
+            items: batchItems,
+          }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null)
+      : Promise.resolve({ recorded: 0, skipped: 0 })
 
-    // ── 2. Ambil settings lengkap ───────────────────────────────────────────
-    let raw: Record<string, unknown> = {}
-    try {
-      const res = await fetch('/api/settings')
-      if (res.ok) raw = await res.json()
-    } catch { /* ignore — fallback ke default */ }
+    // ── 3. Ambil settings (dari cache kalau ada — instant!) ─────────────────
+    const raw = await fetchSettingsCached()
 
     const schoolName = (raw.schoolName as string) || ''
     const province = (raw.province as string) || 'SUMATERA UTARA'
@@ -328,14 +347,14 @@ export function MediaPage() {
 
     const { year, place, orientation, allMonths, items } = plan
 
-    // ── 3. Watermark logo di tengah halaman (opacity rendah) ──────────────────
+    // ── 4. Watermark logo di tengah halaman (opacity rendah) ──────────────────
     const watermarkHtml = logo
       ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: 0; pointer-events: none;">
            <img src="${logo}" style="width: 380px; height: 380px; object-fit: contain;" alt="watermark" />
          </div>`
       : ''
 
-    // ── 4. Blok metadata (rata KANAN, di atas judul) ─────────────────────────
+    // ── 5. Blok metadata (rata KANAN, di atas judul) ─────────────────────────
     const metaBlock = `
       <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
         <table style="border: none; font-size: 10pt; line-height: 1.5; width: auto;">
@@ -350,9 +369,7 @@ export function MediaPage() {
       </div>
     `
 
-    // ── 5. Judul (center, bold, uppercase, 2 baris) ───────────────────────────
-    // Baris 1: "DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH BULAN X SAMPAI Y"
-    // Baris 2: "DI LINGKUNGAN [SEKOLAH] PROVINSI [PROV] TAHUN [YEAR]"
+    // ── 6. Judul (center, bold, uppercase, 2 baris) ───────────────────────────
     const monthLabel = buildMonthRangeLabel(allMonths)
     const titleHtml = `
       <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: 12pt; line-height: 1.5; margin: 4px 0 12px; position: relative; z-index: 1;">
@@ -361,10 +378,7 @@ export function MediaPage() {
       </div>
     `
 
-    // ── 6. Tabel 7 kolom ──────────────────────────────────────────────────────
-    // Kolom: NO | PENERIMA | NAMA MEDIA | JUMLAH BULAN | URAIAN IURAN/BULAN | PENERIMAAN BERSIH | TANDA TANGAN
-    // JUMLAH BULAN = jumlah bulan belum-bayar untuk media ini
-    // PENERIMAAN BERSIH = JUMLAH BULAN × pricePerMonth
+    // ── 7. Tabel 7 kolom ──────────────────────────────────────────────────────
     const grandTotalPrint = items.reduce((s, it) => s + it.months.length * it.pricePerMonth, 0)
 
     const rows = items.map((it, idx) => {
@@ -412,7 +426,7 @@ export function MediaPage() {
       </table>
     `
 
-    // ── 7. Blok tanda tangan (2 kolom paralel) ───────────────────────────────
+    // ── 8. Blok tanda tangan (2 kolom paralel) ───────────────────────────────
     const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
     const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
 
@@ -438,7 +452,8 @@ export function MediaPage() {
       </div>
     `
 
-    // ── 8. Gabungkan semua + cetak ───────────────────────────────────────────
+    // ── 9. Gabungkan semua + BUKA print window segera ────────────────────────
+    // Tunggu settings saja (sudah cached). Recording masih jalan di background.
     const bodyHtml = `
       ${watermarkHtml}
       ${metaBlock}
@@ -453,16 +468,42 @@ export function MediaPage() {
       orientation,
     )
 
-    // ── 9. Refresh data media (update badge & total) ─────────────────────────
-    await fetchEntries()
+    // ── 10. Lepaskan spinner tombol cetak SEGERA ─────────────────────────────
+    // Print window sudah terbuka, user bisa langsung lihat preview.
+    // Recording masih jalan di background, tidak menghalangi UI.
     setPrinting(false)
 
-    if (recordedCount > 0 && failedCount === 0) {
-      toast({
-        title: 'Berhasil',
-        description: `${recordedCount} pembayaran tercatat. Laporan sedang dicetak.`,
+    // ── 11. Tunggu recording selesai di background → refresh + toast ────────
+    // Pakai .then() bukan await supaya tidak block return fungsi ini.
+    recordPromise
+      .then((result) => {
+        // Refresh data media untuk update badge pembayaran & total
+        fetchEntries()
+        if (result && typeof result.recorded === 'number') {
+          if (result.recorded > 0) {
+            toast({
+              title: 'Berhasil',
+              description: `${result.recorded} pembayaran tercatat di database.`,
+            })
+          } else if (batchItems.length > 0) {
+            // Semua sudah dibayar sebelumnya (skipDuplicates) — bukan error
+            toast({
+              title: 'Info',
+              description: 'Semua pembayaran sudah tercatat sebelumnya.',
+            })
+          }
+        } else if (batchItems.length > 0) {
+          toast({
+            title: 'Peringatan',
+            description: 'Laporan dicetak, tapi sebagian pembayaran gagal tercatat.',
+            variant: 'destructive',
+          })
+        }
       })
-    }
+      .catch(() => {
+        // Fallback: tetap refresh agar badge sinkron dengan server
+        fetchEntries()
+      })
   }
 
   async function handleExportExcel() {
@@ -506,7 +547,12 @@ export function MediaPage() {
         icon={Newspaper}
         actions={
           <>
-            <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredEntries.length === 0}>
+            <Button variant="outline" onClick={() => {
+              // Prefetch settings saat dialog cetak dibuka — saat user nanti
+              // klik tombol "Cetak" di dialog, settings sudah siap di cache.
+              fetchSettingsCached()
+              setPrintDialogOpen(true)
+            }} disabled={loading || filteredEntries.length === 0}>
               <Printer className="size-4 mr-2" />
               Cetak
             </Button>
