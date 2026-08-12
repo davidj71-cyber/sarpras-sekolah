@@ -350,11 +350,17 @@ export function MediaPage() {
 
     // ── 4. Watermark logo di tengah halaman (opacity rendah) ──────────────────
     // Pakai logo APLIKASI (bukan KOP) supaya lebih relevan sebagai background.
-    // Ukuran diperbesar dari 600px → 800px supaya lebih terlihat sebagai watermark.
-    // Opacity dinaikkan 0.10 → 0.15 supaya logo lebih jelas terlihat.
+    //
+    // Agar logo TIDAK terpotong di ujung:
+    // - width: 95% (relatif ke lebar halaman/viewport — adaptif portrait & landscape)
+    // - max-width: 800px (cap ukuran maksimal supaya tidak oversized di landscape)
+    // - height: auto + max-height: 90vh (jaga tinggi tidak melebihi halaman)
+    // - object-fit: contain (logo utuh, tidak distorsi)
+    // Sebelumnya pakai width/height fix 800px yang lebih lebar dari area cetak
+    // A4 portrait (~718px setelah margin) → ujung kiri/kanan terpotong.
     const watermarkHtml = appLogo
-      ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.15; z-index: 0; pointer-events: none;">
-           <img src="${appLogo}" style="width: 800px; height: 800px; object-fit: contain;" alt="watermark" />
+      ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.15; z-index: 0; pointer-events: none; width: 95%; max-width: 800px; text-align: center;">
+           <img src="${appLogo}" style="width: 100%; height: auto; max-height: 90vh; object-fit: contain; display: block; margin: 0 auto;" alt="watermark" />
          </div>`
       : ''
 
