@@ -62,15 +62,13 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import {
-  fetchPrintSettings,
-  buildKopHtml,
   openPrintWindow,
   formatRupiahPrint,
   formatNumberPrint,
 } from '@/lib/print-utils'
-import type { PrintOrientation } from '@/lib/print-utils'
+import { terbilangRupiah } from '@/lib/terbilang'
 import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
-import { PrintDialog } from '@/components/print-dialog'
+import { MediaPrintDialog, type MediaPrintOptions } from '@/components/media-print-dialog'
 import { PaymentDialog } from '@/components/payment-dialog'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -127,6 +125,7 @@ export function MediaPage() {
 
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
   const [paymentEntry, setPaymentEntry] = useState<MediaData | null>(null)
+  const [defaultPrintPlace, setDefaultPrintPlace] = useState('')
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
@@ -143,6 +142,21 @@ export function MediaPage() {
   }, [toast])
 
   useEffect(() => { fetchEntries() }, [fetchEntries])
+
+  // Ambil tempat default dari address sekolah (kota pertama sebelum koma)
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((data) => {
+        const addr = (data?.address || '').trim()
+        if (addr) {
+          // Ambil token pertama sebelum koma sebagai kota
+          const city = addr.split(',')[0].trim()
+          if (city) setDefaultPrintPlace(city)
+        }
+      })
+      .catch(() => { /* ignore — defaultPlace tetap kosong */ })
+  }, [])
 
   function openAddDialog() {
     setEditing(null)
@@ -224,78 +238,160 @@ export function MediaPage() {
 
   const grandTotal = filteredEntries.reduce((s, e) => s + (e.totalReceived || 0), 0)
 
-  // ─── Cetak — format dengan kolom tanda tangan ──────────────────────────────
-  async function handlePrint(orientation: PrintOrientation) {
+  // ─── Cetak — format DAFTAR PEMBAYARAN IURAN KORAN & MAJALAH ──────────────────
+  // Format ini TIDAK memakai KOP sekolah (sesuai permintaan user).
+  // Struktur: watermark logo + metadata kanan-atas + judul 2 baris + tabel 7 kolom
+  // + baris total (terbilang) + 2 blok tanda tangan (Mengetahui & Bendahara).
+  async function handlePrint(options: MediaPrintOptions) {
     if (filteredEntries.length === 0) {
       toast({ title: 'Info', description: 'Tidak ada data untuk dicetak' })
       return
     }
-    const settings = await fetchPrintSettings()
-    const kopHtml = buildKopHtml(settings)
 
+    // Ambil settings lengkap (termasuk kode anggaran & provinsi yang tidak ada di PrintSettings)
+    let raw: Record<string, unknown> = {}
+    try {
+      const res = await fetch('/api/settings')
+      if (res.ok) raw = await res.json()
+    } catch { /* ignore — fallback ke default */ }
+
+    const schoolName = (raw.schoolName as string) || ''
+    const province = (raw.province as string) || 'SUMATERA UTARA'
+    const logo = (raw.logo as string) || null
+    const principalName = (raw.principalName as string) || ''
+    const principalNip = (raw.principalNip as string) || ''
+    const treasurerName = (raw.treasurerName as string) || ''
+    const treasurerNip = (raw.treasurerNip as string) || ''
+    const mediaKode = (raw.mediaKode as string) || ''
+    const mediaKodeProgram = (raw.mediaKodeProgram as string) || '03.03.16.'
+    const mediaKodeKegiatan = (raw.mediaKodeKegiatan as string) || '03.03.'
+    const mediaKodeRekening = (raw.mediaKodeRekening as string) || '5.1.02.01.01.0055'
+
+    const { startMonth, endMonth, year, place, orientation } = options
+
+    // ── 1. Watermark logo di tengah halaman (opacity rendah) ──────────────────
+    const watermarkHtml = logo
+      ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: 0; pointer-events: none;">
+           <img src="${logo}" style="width: 380px; height: 380px; object-fit: contain;" alt="watermark" />
+         </div>`
+      : ''
+
+    // ── 2. Blok metadata (rata kanan, di atas judul) ──────────────────────────
+    const metaBlock = `
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+        <table style="border: none; font-size: 10pt; line-height: 1.5;">
+          <tbody>
+            <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${mediaKode}</td></tr>
+            <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode Program</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${mediaKodeProgram}</td></tr>
+            <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode Kegiatan</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${mediaKodeKegiatan}</td></tr>
+            <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode Rekening</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${mediaKodeRekening}</td></tr>
+            <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Tahun Anggaran</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${year}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `
+
+    // ── 3. Judul (center, bold, uppercase, 2 baris) ───────────────────────────
+    const titleHtml = `
+      <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: 12pt; line-height: 1.5; margin: 4px 0 12px; position: relative; z-index: 1;">
+        <div>DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH</div>
+        <div>BULAN ${startMonth.toUpperCase()} SAMPAI ${endMonth.toUpperCase()}</div>
+        <div>DI LINGKUNGAN ${schoolName.toUpperCase()} PROVINSI ${province.toUpperCase()} TAHUN ${year}</div>
+      </div>
+    `
+
+    // ── 4. Tabel 7 kolom ──────────────────────────────────────────────────────
+    // Kolom: NO | PENERIMA | NAMA MEDIA | JUMLAH BULAN | URAIAN IURAN/BULAN | PENERIMAAN BERSIH | TANDA TANGAN
     const rows = filteredEntries.map((e, idx) => `
       <tr>
-        <td class="text-center">${idx + 1}</td>
-        <td>${e.name || '-'}</td>
-        <td>${e.mediaName || '-'}</td>
-        <td class="text-center">${e.paymentType || '-'}</td>
-        <td class="text-right">Rp ${formatNumberPrint(e.pricePerMonth)}</td>
-        <td class="text-center">${formatNumberPrint(e.unitCount)}</td>
-        <td class="text-right">Rp ${formatNumberPrint(e.totalReceived)}</td>
-        <td style="height: 50px;"></td>
+        <td style="text-align: center; vertical-align: middle;">${idx + 1}</td>
+        <td style="vertical-align: middle;">${e.name || '-'}</td>
+        <td style="vertical-align: middle;">${e.mediaName || '-'}</td>
+        <td style="text-align: center; vertical-align: middle;">
+          <div>${formatNumberPrint(e.unitCount)}</div>
+          <div style="font-size: 9pt;">OB</div>
+        </td>
+        <td style="text-align: left; vertical-align: middle;">
+          <div>Rp</div>
+          <div>${formatNumberPrint(e.pricePerMonth)}</div>
+        </td>
+        <td style="text-align: left; vertical-align: middle;">
+          <div>Rp</div>
+          <div>${formatNumberPrint(e.totalReceived)}</div>
+        </td>
+        <td style="height: 48px; vertical-align: middle;"></td>
       </tr>
     `).join('')
 
-    const periodLabel = periodFilter.trim() ? `Periode: ${periodFilter.trim()}` : ''
-    const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    // Baris total: kolom 1-5 merge "JUMLAH KESELURUHAN", kolom 6 = terbilang, kolom 7 = "Rp X,-"
+    const totalRow = `
+      <tr>
+        <td colspan="5" style="text-align: center; font-weight: bold; vertical-align: middle;">JUMLAH KESELURUHAN</td>
+        <td style="text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotal)}</td>
+        <td style="text-align: center; font-weight: bold; vertical-align: middle;">Rp ${formatNumberPrint(grandTotal)},-</td>
+      </tr>
+    `
 
-    const contentHtml = `
-      ${periodLabel ? `<div style="margin: 8px 0 12px; font-size: 11pt;"><strong>${periodLabel}</strong></div>` : ''}
-      <table>
+    const tableHtml = `
+      <table style="width: 100%; border-collapse: collapse; position: relative; z-index: 1;">
         <thead>
           <tr>
-            <th style="width: 30px;">No</th>
-            <th>Nama</th>
-            <th>Nama Media</th>
-            <th style="width: 80px;">Pembayaran</th>
-            <th style="width: 110px;">Harga Perbulan</th>
-            <th style="width: 60px;">Satuan</th>
-            <th style="width: 120px;">Penerimaan</th>
-            <th style="width: 130px;">Tanda Tangan</th>
+            <th style="width: 5%; padding: 6px 4px;">NO.</th>
+            <th style="width: 20%; padding: 6px 4px;">PENERIMA</th>
+            <th style="width: 15%; padding: 6px 4px;">NAMA MEDIA</th>
+            <th style="width: 10%; padding: 6px 4px;">JUMLAH BULAN</th>
+            <th style="width: 15%; padding: 6px 4px;">URAIAN IURAN/BULAN</th>
+            <th style="width: 15%; padding: 6px 4px;">PENERIMAAN BERSIH</th>
+            <th style="width: 20%; padding: 6px 4px;">TANDA TANGAN</th>
           </tr>
         </thead>
         <tbody>
           ${rows}
-          <tr style="background-color: #e8e8e8;">
-            <td colspan="6" style="text-align: right; font-weight: bold;">Total</td>
-            <td style="text-align: right; font-weight: bold;">Rp ${formatNumberPrint(grandTotal)}</td>
-            <td></td>
-          </tr>
+          ${totalRow}
         </tbody>
       </table>
-
-      <div style="margin-top: 32px; font-size: 12pt;">
-        <div style="display:flex; justify-content:space-between;">
-          <div style="text-align:center; width: 45%;">
-            <div>Mengetahui,</div>
-            <div>Kepala ${settings.schoolName || 'Sekolah'}</div>
-            <div style="height: 60px;"></div>
-            <div style="text-decoration: underline; font-weight: bold;">${settings.principalName || '____________________'}</div>
-            <div>${settings.principalNip ? `NIP. ${settings.principalNip}` : '&nbsp;'}</div>
-          </div>
-          <div style="text-align:center; width: 45%;">
-            <div>${today}</div>
-            <div>Bendahara</div>
-            <div style="height: 60px;"></div>
-            <div style="text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</div>
-            <div>${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</div>
-          </div>
-        </div>
-      </div>
-      <div class="footer-info">Dicetak pada: ${today}</div>
     `
 
-    openPrintWindow(`Daftar Media - ${periodLabel || 'Semua Periode'}`, `${kopHtml}<div class="title">DAFTAR MEDIA</div>${contentHtml}`, orientation)
+    // ── 5. Blok tanda tangan (2 kolom paralel) ───────────────────────────────
+    const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
+
+    const signatureHtml = `
+      <div style="display: flex; justify-content: space-between; margin-top: 24px; font-size: 10pt; position: relative; z-index: 1;">
+        <div style="width: 45%; text-align: left;">
+          <div>Mengetahui/</div>
+          <div>Setuju Bayar:</div>
+          <div>Kepala ${schoolName || 'Sekolah'},</div>
+          <div style="height: 60px;"></div>
+          <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
+          <div>${principalNip ? `NIP. ${principalNip}` : '&nbsp;'}</div>
+        </div>
+        <div style="width: 45%; text-align: left;">
+          <div>${placeDate}</div>
+          <div>&nbsp;</div>
+          <div>Bayar lunas :</div>
+          <div>Bendahara ${schoolName || 'Sekolah'}</div>
+          <div style="height: 60px;"></div>
+          <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
+          <div>${treasurerNip ? `NIP. ${treasurerNip}` : '&nbsp;'}</div>
+        </div>
+      </div>
+    `
+
+    // ── 6. Gabungkan semua ────────────────────────────────────────────────────
+    const bodyHtml = `
+      ${watermarkHtml}
+      ${metaBlock}
+      ${titleHtml}
+      ${tableHtml}
+      ${signatureHtml}
+    `
+
+    openPrintWindow(
+      `Daftar Pembayaran Media - ${startMonth} sampai ${endMonth} ${year}`,
+      bodyHtml,
+      orientation,
+    )
   }
 
   async function handleExportExcel() {
@@ -541,12 +637,14 @@ export function MediaPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <PrintDialog
+      <MediaPrintDialog
+        key={defaultPrintPlace || 'no-place'}
         open={printDialogOpen}
         onOpenChange={setPrintDialogOpen}
         onPrint={handlePrint}
-        title="Cetak Daftar Media"
-        description="Format dengan kolom tanda tangan"
+        title="Cetak Daftar Pembayaran Media"
+        description="Atur periode bulan, tahun, dan tempat sebelum mencetak"
+        defaultPlace={defaultPrintPlace}
       />
 
       {paymentEntry && (
