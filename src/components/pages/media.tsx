@@ -346,7 +346,7 @@ export function MediaPage() {
     const mediaKodeKegiatan = (raw.mediaKodeKegiatan as string) || '03.03.'
     const mediaKodeRekening = (raw.mediaKodeRekening as string) || '5.1.02.01.01.0055'
 
-    const { year, place, orientation, allMonths, items } = plan
+    const { year, place, orientation, printDate, allMonths, items } = plan
 
     // ── 4. Watermark logo di tengah halaman (opacity rendah) ──────────────────
     // Pakai logo APLIKASI (bukan KOP) supaya lebih relevan sebagai background.
@@ -435,7 +435,11 @@ export function MediaPage() {
     `
 
     // ── 8. Blok tanda tangan (2 kolom paralel) ───────────────────────────────
-    const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    // Tanggal cetak: pakai printDate user kalau diisi, fallback ke hari ini.
+    // printDate format ISO yyyy-mm-dd (dari <input type="date">), format ke "12 Agustus 2026".
+    const today = printDate
+      ? new Date(printDate + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
     const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
 
     const signatureHtml = `

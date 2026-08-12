@@ -46,6 +46,9 @@ export interface MediaPrintPlan {
   year: string
   place: string
   orientation: Orientation
+  // Tanggal cetak yang dipilih user (ISO yyyy-mm-dd).
+  // String kosong = pakai tanggal hari ini (default).
+  printDate: string
   // Sorted unique list of all months covered by the plan (for the title)
   allMonths: number[]
   items: MediaPrintPlanItem[]
@@ -89,6 +92,8 @@ export function MediaPrintDialog({
   const [year, setYear] = useState(String(currentYear))
   const [place, setPlace] = useState(defaultPlace)
   const [orientation, setOrientation] = useState<Orientation>('portrait')
+  // Tanggal cetak custom (ISO yyyy-mm-dd). Empty = pakai tanggal hari ini.
+  const [printDate, setPrintDate] = useState('')
   const [search, setSearch] = useState('')
   const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set())
   const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set())
@@ -99,6 +104,7 @@ export function MediaPrintDialog({
   useEffect(() => {
     if (open) {
       setPlace(defaultPlace)
+      setPrintDate('')
       setSelectedMediaIds(new Set())
       setSelectedMonths(new Set())
       setSearch('')
@@ -235,6 +241,7 @@ export function MediaPrintDialog({
       year,
       place,
       orientation,
+      printDate,
       allMonths,
       items,
     })
@@ -271,8 +278,8 @@ export function MediaPrintDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Year + Place + Orientation */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {/* Year + Place + Print Date + Orientation */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="med-year">Tahun Anggaran</Label>
               <Select
@@ -302,6 +309,18 @@ export function MediaPrintDialog({
                 value={place}
                 onChange={(e) => setPlace(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="med-print-date">Tanggal Cetak</Label>
+              <Input
+                id="med-print-date"
+                type="date"
+                value={printDate}
+                onChange={(e) => setPrintDate(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {printDate ? 'Dipakai di tanda tangan' : 'Kosong = tanggal hari ini'}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Orientasi</Label>
