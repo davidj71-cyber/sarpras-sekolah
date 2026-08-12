@@ -380,7 +380,7 @@ export function MediaPage() {
     const titleHtml = `
       <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: 20pt; line-height: 1.4; margin: 8px 0 18px; position: relative; z-index: 1;">
         <div>DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH ${monthLabel}</div>
-        <div>DI LINGKUNGAN ${schoolName.toUpperCase()} PROVINSI ${province.toUpperCase()} TAHUN ${year}</div>
+        <div>DI LINGKUNGAN ${schoolName.toUpperCase()} TAHUN ${year}</div>
       </div>
     `
 
