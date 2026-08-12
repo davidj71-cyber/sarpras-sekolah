@@ -351,16 +351,22 @@ export function MediaPage() {
     // ── 4. Watermark logo di tengah halaman (opacity rendah) ──────────────────
     // Pakai logo APLIKASI (bukan KOP) supaya lebih relevan sebagai background.
     //
-    // Agar logo TIDAK terpotong di ujung:
-    // - width: 95% (relatif ke lebar halaman/viewport — adaptif portrait & landscape)
-    // - max-width: 800px (cap ukuran maksimal supaya tidak oversized di landscape)
-    // - height: auto + max-height: 90vh (jaga tinggi tidak melebihi halaman)
-    // - object-fit: contain (logo utuh, tidak distorsi)
-    // Sebelumnya pakai width/height fix 800px yang lebih lebar dari area cetak
-    // A4 portrait (~718px setelah margin) → ujung kiri/kanan terpotong.
+    // Agar logo SEBESAR MUGKIN TAPI tidak terpotong:
+    // Pakai unit fisik mm (bukan %) yang presisi sesuai usable area A4 setelah
+    // @page margin (12mm kiri + 10mm kanan + 10mm atas + 10mm bawah).
+    //   A4 portrait  usable = 188mm × 277mm
+    //   A4 landscape usable = 275mm × 190mm
+    // Box watermark = seluruh usable area. Logo di-scale contain di dalamnya
+    // (utuh, tidak distorsi, mungkin ada letterbox untuk logo non-persegi).
+    //
+    // Sebelumnya pakai width: 95% (relatif viewport = full page termasuk margin)
+    // → 95% × 793px = 753px > usable 711px → terpotong 42px di ujung.
+    const watermarkW = orientation === 'portrait' ? '188mm' : '275mm'
+    const watermarkH = orientation === 'portrait' ? '277mm' : '190mm'
+
     const watermarkHtml = appLogo
-      ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.15; z-index: 0; pointer-events: none; width: 95%; max-width: 800px; text-align: center;">
-           <img src="${appLogo}" style="width: 100%; height: auto; max-height: 90vh; object-fit: contain; display: block; margin: 0 auto;" alt="watermark" />
+      ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.15; z-index: 0; pointer-events: none;">
+           <img src="${appLogo}" style="width: ${watermarkW}; height: ${watermarkH}; object-fit: contain; display: block;" alt="watermark" />
          </div>`
       : ''
 
