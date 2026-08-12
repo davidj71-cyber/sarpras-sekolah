@@ -335,7 +335,8 @@ export function MediaPage() {
 
     const schoolName = (raw.schoolName as string) || ''
     const province = (raw.province as string) || 'SUMATERA UTARA'
-    const logo = (raw.logo as string) || null
+    // Watermark memakai logo APLIKASI (bukan logo KOP surat), fallback ke favicon.
+    const appLogo = (raw.appLogo as string) || (raw.favicon as string) || null
     const principalName = (raw.principalName as string) || ''
     const principalNip = (raw.principalNip as string) || ''
     const treasurerName = (raw.treasurerName as string) || ''
@@ -348,9 +349,11 @@ export function MediaPage() {
     const { year, place, orientation, allMonths, items } = plan
 
     // ── 4. Watermark logo di tengah halaman (opacity rendah) ──────────────────
-    const watermarkHtml = logo
-      ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: 0; pointer-events: none;">
-           <img src="${logo}" style="width: 380px; height: 380px; object-fit: contain;" alt="watermark" />
+    // Pakai logo APLIKASI (bukan KOP) supaya lebih relevan sebagai background.
+    // Ukuran diperbesar dari 380px → 600px supaya lebih terlihat sebagai watermark.
+    const watermarkHtml = appLogo
+      ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.10; z-index: 0; pointer-events: none;">
+           <img src="${appLogo}" style="width: 600px; height: 600px; object-fit: contain;" alt="watermark" />
          </div>`
       : ''
 
