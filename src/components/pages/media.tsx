@@ -373,16 +373,14 @@ export function MediaPage() {
     `
 
     // ── 6. Judul (center, bold, uppercase, 2 baris) ───────────────────────────
-    // Hierarki proporsional:
-    //   Baris 1 (judul utama): 14pt bold — menonjol
-    //   Baris 2 (info sekolah): 11pt bold — lebih kecil, tetap bold
-    //   line-height 1.35 — rapat tapi tidak berdesakan
-    //   margin atas 6px / bawah 16px — jarak seimbang dengan tabel di bawah
+    // Kedua baris ukuran SAMA (16pt bold) sesuai permintaan user.
+    // line-height 1.4 — rapat tapi lega
+    // margin atas 8px / bawah 18px — jarak seimbang dengan tabel di bawah
     const monthLabel = buildMonthRangeLabel(allMonths)
     const titleHtml = `
-      <div style="text-align: center; font-weight: bold; text-transform: uppercase; line-height: 1.35; margin: 6px 0 16px; position: relative; z-index: 1;">
-        <div style="font-size: 14pt;">DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH ${monthLabel}</div>
-        <div style="font-size: 11pt; margin-top: 2px;">DI LINGKUNGAN ${schoolName.toUpperCase()} PROVINSI ${province.toUpperCase()} TAHUN ${year}</div>
+      <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: 16pt; line-height: 1.4; margin: 8px 0 18px; position: relative; z-index: 1;">
+        <div>DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH ${monthLabel}</div>
+        <div>DI LINGKUNGAN ${schoolName.toUpperCase()} PROVINSI ${province.toUpperCase()} TAHUN ${year}</div>
       </div>
     `
 
