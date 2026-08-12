@@ -350,10 +350,11 @@ export function MediaPage() {
 
     // ── 4. Watermark logo di tengah halaman (opacity rendah) ──────────────────
     // Pakai logo APLIKASI (bukan KOP) supaya lebih relevan sebagai background.
-    // Ukuran diperbesar dari 380px → 600px supaya lebih terlihat sebagai watermark.
+    // Ukuran diperbesar dari 600px → 800px supaya lebih terlihat sebagai watermark.
+    // Opacity dinaikkan 0.10 → 0.15 supaya logo lebih jelas terlihat.
     const watermarkHtml = appLogo
-      ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.10; z-index: 0; pointer-events: none;">
-           <img src="${appLogo}" style="width: 600px; height: 600px; object-fit: contain;" alt="watermark" />
+      ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.15; z-index: 0; pointer-events: none;">
+           <img src="${appLogo}" style="width: 800px; height: 800px; object-fit: contain;" alt="watermark" />
          </div>`
       : ''
 
@@ -392,13 +393,13 @@ export function MediaPage() {
       const penerimaan = jumlahBulan * it.pricePerMonth
       return `
         <tr>
-          <td style="text-align: center; vertical-align: middle; white-space: nowrap;">${idx + 1}</td>
-          <td style="vertical-align: middle;">${it.name || '-'}</td>
-          <td style="vertical-align: middle;">${it.mediaName || '-'}</td>
-          <td style="text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlahBulan)} OB</td>
-          <td style="text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(it.pricePerMonth)}</td>
-          <td style="text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(penerimaan)}</td>
-          <td style="height: 48px; vertical-align: middle;"></td>
+          <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${idx + 1}</td>
+          <td style="background: transparent; vertical-align: middle;">${it.name || '-'}</td>
+          <td style="background: transparent; vertical-align: middle;">${it.mediaName || '-'}</td>
+          <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlahBulan)} OB</td>
+          <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(it.pricePerMonth)}</td>
+          <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(penerimaan)}</td>
+          <td style="background: transparent; height: 48px; vertical-align: middle;"></td>
         </tr>
       `
     }).join('')
@@ -406,23 +407,27 @@ export function MediaPage() {
     // Baris total: kolom 1-5 merge "JUMLAH KESELURUHAN", kolom 6 = terbilang, kolom 7 = "Rp X,-"
     const totalRow = `
       <tr>
-        <td colspan="5" style="text-align: center; font-weight: bold; vertical-align: middle;">JUMLAH KESELURUHAN</td>
-        <td style="text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
-        <td style="text-align: center; font-weight: bold; vertical-align: middle;">Rp ${formatNumberPrint(grandTotalPrint)},-</td>
+        <td colspan="5" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">JUMLAH KESELURUHAN</td>
+        <td style="background: transparent; text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
+        <td style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">Rp ${formatNumberPrint(grandTotalPrint)},-</td>
       </tr>
     `
 
+    // Tabel: background transparent + z-index 1 (di atas watermark z-index 0)
+    // Header (th) background transparent supaya logo tembus — override CSS global
+    // yang default-nya th { background-color: #f0f0f0 } (opaque, menutupi logo).
+    // Border tetap #333 supaya struktur tabel jelas.
     const tableHtml = `
-      <table style="width: 100%; border-collapse: collapse; position: relative; z-index: 1;">
+      <table style="width: 100%; border-collapse: collapse; position: relative; z-index: 1; background: transparent;">
         <thead>
           <tr>
-            <th style="width: 5%; padding: 6px 4px;">NO.</th>
-            <th style="width: 20%; padding: 6px 4px;">PENERIMA</th>
-            <th style="width: 15%; padding: 6px 4px;">NAMA MEDIA</th>
-            <th style="width: 10%; padding: 6px 4px;">JUMLAH BULAN</th>
-            <th style="width: 15%; padding: 6px 4px;">URAIAN IURAN/BULAN</th>
-            <th style="width: 15%; padding: 6px 4px;">PENERIMAAN BERSIH</th>
-            <th style="width: 20%; padding: 6px 4px;">TANDA TANGAN</th>
+            <th style="background: transparent; width: 5%; padding: 6px 4px;">NO.</th>
+            <th style="background: transparent; width: 20%; padding: 6px 4px;">PENERIMA</th>
+            <th style="background: transparent; width: 15%; padding: 6px 4px;">NAMA MEDIA</th>
+            <th style="background: transparent; width: 10%; padding: 6px 4px;">JUMLAH BULAN</th>
+            <th style="background: transparent; width: 15%; padding: 6px 4px;">URAIAN IURAN/BULAN</th>
+            <th style="background: transparent; width: 15%; padding: 6px 4px;">PENERIMAAN BERSIH</th>
+            <th style="background: transparent; width: 20%; padding: 6px 4px;">TANDA TANGAN</th>
           </tr>
         </thead>
         <tbody>
