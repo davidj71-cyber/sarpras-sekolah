@@ -276,10 +276,13 @@ export function MediaPage() {
          </div>`
       : ''
 
-    // ── 2. Blok metadata (rata kanan, di atas judul) ──────────────────────────
+    // ── 2. Blok metadata (rata KANAN, di atas judul) ─────────────────────────
+    // Catatan: global CSS `table { width: 100% }` membuat table mengisi lebar
+    // halaman, sehingga label-label singkat tetap di kiri. Karena itu kita
+    // set `width: auto` agar flex-end benar-benar mendorong blok ke tepi kanan.
     const metaBlock = `
       <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
-        <table style="border: none; font-size: 10pt; line-height: 1.5;">
+        <table style="border: none; font-size: 10pt; line-height: 1.5; width: auto;">
           <tbody>
             <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${mediaKode}</td></tr>
             <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode Program</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${mediaKodeProgram}</td></tr>
@@ -292,10 +295,11 @@ export function MediaPage() {
     `
 
     // ── 3. Judul (center, bold, uppercase, 2 baris) ───────────────────────────
+    // Baris 1: "DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH BULAN X SAMPAI Y"
+    // Baris 2: "DI LINGKUNGAN [SEKOLAH] PROVINSI [PROV] TAHUN [YEAR]"
     const titleHtml = `
       <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: 12pt; line-height: 1.5; margin: 4px 0 12px; position: relative; z-index: 1;">
-        <div>DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH</div>
-        <div>BULAN ${startMonth.toUpperCase()} SAMPAI ${endMonth.toUpperCase()}</div>
+        <div>DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH BULAN ${startMonth.toUpperCase()} SAMPAI ${endMonth.toUpperCase()}</div>
         <div>DI LINGKUNGAN ${schoolName.toUpperCase()} PROVINSI ${province.toUpperCase()} TAHUN ${year}</div>
       </div>
     `
@@ -358,7 +362,7 @@ export function MediaPage() {
 
     const signatureHtml = `
       <div style="display: flex; justify-content: space-between; margin-top: 24px; font-size: 10pt; position: relative; z-index: 1;">
-        <div style="width: 45%; text-align: left;">
+        <div style="width: 40%; text-align: left;">
           <div>Mengetahui/</div>
           <div>Setuju Bayar:</div>
           <div>Kepala ${schoolName || 'Sekolah'},</div>
@@ -366,7 +370,7 @@ export function MediaPage() {
           <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
           <div>${principalNip ? `NIP. ${principalNip}` : '&nbsp;'}</div>
         </div>
-        <div style="width: 45%; text-align: left;">
+        <div style="width: 40%; text-align: left;">
           <div>${placeDate}</div>
           <div>&nbsp;</div>
           <div>Bayar lunas :</div>
