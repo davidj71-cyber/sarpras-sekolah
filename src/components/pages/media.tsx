@@ -372,21 +372,12 @@ export function MediaPage() {
       const penerimaan = jumlahBulan * it.pricePerMonth
       return `
         <tr>
-          <td style="text-align: center; vertical-align: middle;">${idx + 1}</td>
+          <td style="text-align: center; vertical-align: middle; white-space: nowrap;">${idx + 1}</td>
           <td style="vertical-align: middle;">${it.name || '-'}</td>
           <td style="vertical-align: middle;">${it.mediaName || '-'}</td>
-          <td style="text-align: center; vertical-align: middle;">
-            <div>${formatNumberPrint(jumlahBulan)}</div>
-            <div style="font-size: 9pt;">OB</div>
-          </td>
-          <td style="text-align: left; vertical-align: middle;">
-            <div>Rp</div>
-            <div>${formatNumberPrint(it.pricePerMonth)}</div>
-          </td>
-          <td style="text-align: left; vertical-align: middle;">
-            <div>Rp</div>
-            <div>${formatNumberPrint(penerimaan)}</div>
-          </td>
+          <td style="text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlahBulan)} OB</td>
+          <td style="text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(it.pricePerMonth)}</td>
+          <td style="text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(penerimaan)}</td>
           <td style="height: 48px; vertical-align: middle;"></td>
         </tr>
       `
