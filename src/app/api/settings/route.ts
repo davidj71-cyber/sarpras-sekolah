@@ -9,6 +9,13 @@ const schemaReady = ensureSchoolSettingsSchema().catch((e) => {
   console.error("[settings] schema warm-up failed:", e);
 });
 
+// No-cache headers untuk mencegah browser/gateway cache response error lama
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+};
+
 const defaultSettings = {
   schoolName: "",
   logo: null,
@@ -44,15 +51,15 @@ export async function GET() {
     const settings = await withSchemaHeal(() => db.schoolSettings.findFirst());
 
     if (!settings) {
-      return NextResponse.json(defaultSettings);
+      return NextResponse.json(defaultSettings, { headers: NO_CACHE_HEADERS });
     }
 
-    return NextResponse.json(settings);
+    return NextResponse.json(settings, { headers: NO_CACHE_HEADERS });
   } catch (error) {
     console.error("Error fetching settings:", error);
     return NextResponse.json(
       { error: "Gagal mengambil pengaturan sekolah" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
   }
 }
@@ -182,12 +189,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(settings);
+    return NextResponse.json(settings, { headers: NO_CACHE_HEADERS });
   } catch (error) {
     console.error("Error saving settings:", error);
     return NextResponse.json(
       { error: "Gagal menyimpan pengaturan sekolah" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
   }
 }

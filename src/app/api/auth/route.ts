@@ -49,6 +49,13 @@ async function withRetry<T>(operation: () => Promise<T>, retries = 2): Promise<T
   throw lastError
 }
 
+// No-cache headers untuk mencegah browser/gateway cache response error lama
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+}
+
 export async function POST(request: Request) {
   try {
     // Parse JSON body safely — a missing or malformed body is a client
@@ -58,14 +65,27 @@ export async function POST(request: Request) {
       body = await request.json()
     } catch {
       return NextResponse.json(
-        { error: 'Permintaan tidak valid' },
-        { status: 400 }
+        { error: 'Format permintaan tidak valid. Silakan coba lagi.' },
+        { status: 400, headers: NO_CACHE_HEADERS }
       )
     }
 
     const { username, password } = (body ?? {}) as {
       username?: unknown
       password?: unknown
+    }
+
+    // Pastikan body adalah object dengan field username & password
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('username' in body) ||
+      !('password' in body)
+    ) {
+      return NextResponse.json(
+        { error: 'Username dan password wajib diisi' },
+        { status: 400, headers: NO_CACHE_HEADERS }
+      )
     }
 
     if (
@@ -76,7 +96,7 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { error: 'Username dan password wajib diisi' },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -95,23 +115,26 @@ export async function POST(request: Request) {
     if (!user || user.password !== password.trim()) {
       return NextResponse.json(
         { error: 'Username atau password salah' },
-        { status: 401 }
+        { status: 401, headers: NO_CACHE_HEADERS }
       )
     }
 
     if (!user.active) {
       return NextResponse.json(
         { error: 'Akun tidak aktif. Hubungi administrator.' },
-        { status: 403 }
+        { status: 403, headers: NO_CACHE_HEADERS }
       )
     }
 
-    return NextResponse.json({
-      id: user.id,
-      name: user.name,
-      username: user.username,
-      role: user.role,
-    })
+    return NextResponse.json(
+      {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        role: user.role,
+      },
+      { headers: NO_CACHE_HEADERS }
+    )
   } catch (error) {
     // Log error asli lengkap untuk debugging
     console.error('Auth error:', error)
@@ -119,8 +142,8 @@ export async function POST(request: Request) {
     console.error('Auth error detail:', errMsg)
 
     return NextResponse.json(
-      { error: 'Terjadi kesalahan server' },
-      { status: 500 }
+      { error: 'Terjadi kesalahan server. Silakan coba beberapa saat lagi.' },
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }

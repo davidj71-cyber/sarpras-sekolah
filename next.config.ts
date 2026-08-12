@@ -40,6 +40,13 @@ const nextConfig: NextConfig = {
       'date-fns',
     ],
   },
+
+  // Izinkan preview panel (space-z.ai) mengakses dev server
+  allowedDevOrigins: [
+    "*.space-z.ai",
+    "localhost",
+    "127.0.0.1",
+  ],
 };
 
 export default nextConfig;

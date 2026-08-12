@@ -42,11 +42,23 @@ export function LoginPage() {
 
     setLoadingState(true)
     try {
-      const res = await fetch('/api/auth', {
+      // Cache-busting: tambahkan timestamp agar gateway/browser tidak cache response lama
+      const res = await fetch(`/api/auth?_t=${Date.now()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store',
+        },
+        cache: 'no-store',
         body: JSON.stringify({ username: username.trim(), password: password.trim() }),
       })
+
+      // Handle response non-JSON (mis. gateway/proxy error)
+      const contentType = res.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        setError(`Terjadi kesalahan koneksi (HTTP ${res.status}). Silakan coba lagi.`)
+        return
+      }
 
       const data = await res.json()
 
@@ -61,8 +73,9 @@ export function LoginPage() {
         username: data.username,
         role: data.role,
       })
-    } catch {
-      setError('Terjadi kesalahan jaringan')
+    } catch (err) {
+      setError('Terjadi kesalahan jaringan. Periksa koneksi dan coba lagi.')
+      console.error('Login fetch error:', err)
     } finally {
       setLoadingState(false)
     }
