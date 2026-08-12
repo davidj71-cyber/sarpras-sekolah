@@ -370,7 +370,7 @@ export function MediaPage() {
           <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
           <div>${principalNip ? `NIP. ${principalNip}` : '&nbsp;'}</div>
         </div>
-        <div style="width: 40%; text-align: left;">
+        <div style="text-align: left; flex: 0 0 auto;">
           <div>${placeDate}</div>
           <div>&nbsp;</div>
           <div>Bayar lunas :</div>
