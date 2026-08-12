@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { toast } from '@/hooks/use-toast'
 
@@ -104,6 +104,8 @@ interface SalaryData {
   nip: string
   bankAccount: string
   gender: string
+  status: string // Pembeda kategori pegawai (GTTS/PTTS/PNS/PPPK/Honorer) — TIDAK masuk format cetak
+  jabatan: string // Jabatan (GURU SEMENTARA/HONORER SEKOLAH/PEGAWAI SEKOLAH) — TIDAK masuk format cetak
   lessonCount: number
   unit: string
   pricePerLesson: number
@@ -118,6 +120,8 @@ interface FormData {
   name: string
   nip: string
   gender: string
+  status: string
+  jabatan: string
   lessonCount: string
   unit: string
   pricePerLesson: number
@@ -128,6 +132,8 @@ const emptyForm: FormData = {
   name: '',
   nip: '',
   gender: 'L',
+  status: '',
+  jabatan: '',
   lessonCount: '0',
   unit: 'Jam',
   pricePerLesson: 0,
@@ -140,6 +146,7 @@ export function SalaryPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [periodFilter, setPeriodFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<SalaryData | null>(null)
@@ -182,6 +189,8 @@ export function SalaryPage() {
       name: entry.name,
       nip: entry.nip,
       gender: entry.gender || 'L',
+      status: entry.status || '',
+      jabatan: entry.jabatan || '',
       lessonCount: String(entry.lessonCount ?? 0),
       unit: entry.unit || 'Jam',
       pricePerLesson: entry.pricePerLesson ?? 0,
@@ -193,6 +202,10 @@ export function SalaryPage() {
   async function handleSubmit() {
     if (!formData.name.trim()) {
       toast({ title: 'Validasi', description: 'Nama guru wajib diisi', variant: 'destructive' })
+      return
+    }
+    if (!formData.status.trim()) {
+      toast({ title: 'Validasi', description: 'Status (kategori) wajib diisi', variant: 'destructive' })
       return
     }
     setSaving(true)
@@ -239,11 +252,20 @@ export function SalaryPage() {
   const filteredEntries = entries.filter((e) => {
     const matchSearch = !search.trim() ||
       e.name.toLowerCase().includes(search.toLowerCase()) ||
-      e.nip.toLowerCase().includes(search.toLowerCase())
+      e.nip.toLowerCase().includes(search.toLowerCase()) ||
+      (e.jabatan || '').toLowerCase().includes(search.toLowerCase())
     const matchPeriod = !periodFilter.trim() ||
       (e.period || '').toLowerCase().includes(periodFilter.toLowerCase())
-    return matchSearch && matchPeriod
+    const matchStatus = !statusFilter.trim() ||
+      (e.status || '').toLowerCase() === statusFilter.toLowerCase()
+    return matchSearch && matchPeriod && matchStatus
   })
+
+  // Daftar kategori (Status) unik dari data — untuk dropdown filter.
+  const statusOptions = useMemo(
+    () => Array.from(new Set(entries.map((e) => e.status).filter(Boolean))).sort(),
+    [entries]
+  )
 
   const grandTotal = filteredEntries.reduce((s, e) => s + (e.totalReceived || 0), 0)
 
@@ -561,9 +583,23 @@ export function SalaryPage() {
                 onChange={(e) => setPeriodFilter(e.target.value)}
                 className="sm:w-56"
               />
+              <Select
+                value={statusFilter || '__all__'}
+                onValueChange={(v) => setStatusFilter(v === '__all__' ? '' : v)}
+              >
+                <SelectTrigger className="sm:w-40">
+                  <SelectValue placeholder="Semua Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Semua Status</SelectItem>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input placeholder="Cari nama / NIP..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+                <Input placeholder="Cari nama / NIP / jabatan..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
               </div>
             </div>
           </div>
@@ -575,7 +611,7 @@ export function SalaryPage() {
             <EmptyState
               icon={Wallet}
               title="Belum ada data"
-              description={search || periodFilter ? 'Tidak ditemukan data yang sesuai' : 'Klik "Tambah Data" untuk menambahkan'}
+              description={search || periodFilter || statusFilter ? 'Tidak ditemukan data yang sesuai' : 'Klik "Tambah Data" untuk menambahkan'}
             />
           ) : (
             <div className="max-h-[560px] overflow-y-auto rounded-md border">
@@ -586,6 +622,8 @@ export function SalaryPage() {
                     <TableHead>Nama</TableHead>
                     <TableHead className="whitespace-nowrap tabular-nums">NIP</TableHead>
                     <TableHead className="w-[60px] text-center">JK</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Jabatan</TableHead>
                     <TableHead className="text-right tabular-nums">Jml Les</TableHead>
                     <TableHead>Satuan</TableHead>
                     <TableHead className="text-right">Harga/Les</TableHead>
@@ -602,6 +640,14 @@ export function SalaryPage() {
                       <TableCell className="text-center">
                         <Badge variant="outline">{e.gender === 'P' ? 'P' : 'L'}</Badge>
                       </TableCell>
+                      <TableCell>
+                        {e.status ? (
+                          <Badge variant="outline" className="whitespace-nowrap">{e.status}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{e.jabatan || '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">{e.lessonCount}</TableCell>
                       <TableCell>{e.unit || '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">Rp {formatNumberPrint(e.pricePerLesson)}</TableCell>
@@ -676,6 +722,27 @@ export function SalaryPage() {
                   <SelectItem value="P">Perempuan</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status (Kategori) *</Label>
+              <MasterCombobox
+                category="statusGaji"
+                value={formData.status}
+                onChange={(val) => setFormData({ ...formData, status: val })}
+                placeholder="Pilih atau ketik status (mis. GTTS, PTTS, PNS)"
+                addNewLabel="Tambah Status"
+              />
+              <p className="text-xs text-muted-foreground">Pembeda kategori pegawai — dipakai untuk filter, tidak masuk format cetak.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Jabatan</Label>
+              <MasterCombobox
+                category="jabatanGaji"
+                value={formData.jabatan}
+                onChange={(val) => setFormData({ ...formData, jabatan: val })}
+                placeholder="Pilih atau ketik jabatan (mis. GURU SEMENTARA)"
+                addNewLabel="Tambah Jabatan"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="sal-lesson">Jumlah Les</Label>

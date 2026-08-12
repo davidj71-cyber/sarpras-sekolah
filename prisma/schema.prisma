@@ -391,12 +391,19 @@ model MasterOption {
 }
 
 // ─── Gaji (Salary) — Data Guru / Honor Mengajar ───────────────────────────────
+// Catatan: kolom `status` & `jabatan` dipakai sebagai pembeda kategori pegawai
+// (mis. GTTS / PTTS) — TIDAK ditampilkan di format cetak gaji, hanya di tabel &
+// form. Format cetak gaji sudah final, jangan diubah.
 model SalaryEntry {
   id              String   @id @default(cuid())
   name            String   // Nama guru
   nip             String   @default("") // NIP
   bankAccount     String   @default("") // No. Rekening Tabungan (untuk kolom cetak gaji)
   gender          String   @default("L") // Jenis Kelamin: L / P
+  // ── Pembeda kategori pegawai (TIDAK masuk format cetak) ──
+  status          String   @default("") // STATUS pegawai: GTTS, PTTS, PNS, PPPK, Honorer, dll.
+  jabatan         String   @default("") // JABATAN: GURU SEMENTARA, HONORER SEKOLAH, PEGAWAI SEKOLAH, dll.
+  // ── Perhitungan honor ──
   lessonCount     Int      @default(0) // Jumlah Les (default per bulan)
   unit            String   @default("Jam") // Satuan (dropdown, bisa ditambah)
   pricePerLesson  Float    @default(0) // Harga Per Les

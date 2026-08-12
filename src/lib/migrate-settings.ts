@@ -207,6 +207,22 @@ export async function ensureSalaryMediaSchema(): Promise<string[]> {
     console.warn("[migrate] ADD COLUMN bankAccount skipped:", e);
   }
 
+  // ─── SalaryEntry: ADD COLUMN status & jabatan (pembeda kategori pegawai) ──
+  // Kolom `status` (mis. GTTS/PTTS/PNS/PPPK) & `jabatan` (mis. GURU SEMENTARA)
+  // dipakai sebagai pembeda data pegawai — TIDAK masuk format cetak gaji.
+  // DDL idempoten; aman dijalankan berulang. Nama kolom hardcoded (bukan input
+  // user), jadi $executeRawUnsafe aman dipakai di sini.
+  for (const col of ["status", "jabatan"] as const) {
+    try {
+      await db.$executeRawUnsafe(
+        `ALTER TABLE "SalaryEntry" ADD COLUMN IF NOT EXISTS "${col}" TEXT NOT NULL DEFAULT ''`
+      );
+      executed.push(`ADD COLUMN "SalaryEntry.${col}"`);
+    } catch (e) {
+      console.warn(`[migrate] ADD COLUMN ${col} skipped:`, e);
+    }
+  }
+
   // ─── MediaEntry ────────────────────────────────────────────────────────
   try {
     await db.$executeRaw`

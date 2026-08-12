@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
         nip: String(body.nip ?? "").trim(),
         bankAccount: String(body.bankAccount ?? "").trim(),
         gender: String(body.gender ?? "L").trim(),
+        status: String(body.status ?? "").trim(),
+        jabatan: String(body.jabatan ?? "").trim(),
         lessonCount,
         unit: String(body.unit ?? "Jam").trim(),
         pricePerLesson,
