@@ -68,7 +68,7 @@ import {
 } from '@/lib/print-utils'
 import { terbilangRupiah } from '@/lib/terbilang'
 import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
-import { MediaPrintDialog, type MediaPrintOptions } from '@/components/media-print-dialog'
+import { MediaPrintDialog, type MediaPrintPlan } from '@/components/media-print-dialog'
 import { PaymentDialog } from '@/components/payment-dialog'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -107,6 +107,26 @@ const emptyForm: FormData = {
   period: '',
 }
 
+const MONTH_NAMES_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+]
+
+// Helper: build "BULAN X SAMPAI Y" (contiguous) or "BULAN X, Y, Z" (non-contiguous)
+function buildMonthRangeLabel(months: number[]): string {
+  if (months.length === 0) return ''
+  if (months.length === 1) return `BULAN ${MONTH_NAMES_ID[months[0] - 1].toUpperCase()}`
+  const sorted = [...months].sort((a, b) => a - b)
+  let contiguous = true
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] !== sorted[i - 1] + 1) { contiguous = false; break }
+  }
+  if (contiguous) {
+    return `BULAN ${MONTH_NAMES_ID[sorted[0] - 1].toUpperCase()} SAMPAI ${MONTH_NAMES_ID[sorted[sorted.length - 1] - 1].toUpperCase()}`
+  }
+  return `BULAN ${sorted.map((m) => MONTH_NAMES_ID[m - 1].toUpperCase()).join(', ')}`
+}
+
 export function MediaPage() {
   const { toast } = useToast()
   const [entries, setEntries] = useState<MediaData[]>([])
@@ -126,6 +146,7 @@ export function MediaPage() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
   const [paymentEntry, setPaymentEntry] = useState<MediaData | null>(null)
   const [defaultPrintPlace, setDefaultPrintPlace] = useState('')
+  const [printing, setPrinting] = useState(false)
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
@@ -240,15 +261,53 @@ export function MediaPage() {
 
   // ─── Cetak — format DAFTAR PEMBAYARAN IURAN KORAN & MAJALAH ──────────────────
   // Format ini TIDAK memakai KOP sekolah (sesuai permintaan user).
-  // Struktur: watermark logo + metadata kanan-atas + judul 2 baris + tabel 7 kolom
-  // + baris total (terbilang) + 2 blok tanda tangan (Mengetahui & Bendahara).
-  async function handlePrint(options: MediaPrintOptions) {
-    if (filteredEntries.length === 0) {
-      toast({ title: 'Info', description: 'Tidak ada data untuk dicetak' })
+  //
+  // Flow baru (versi terhubung database):
+  // 1. Terima MediaPrintPlan dari dialog (daftar media + bulan belum-bayar)
+  // 2. Catat pembayaran ke /api/media/[id]/payments untuk setiap (media, bulan)
+  // 3. Cetak HTML laporan dengan tabel per-media
+  // 4. Refresh data media (supaya badge pembayaran & total terupdate)
+  async function handlePrint(plan: MediaPrintPlan) {
+    if (plan.items.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada media/bulan yang akan dicetak' })
       return
     }
 
-    // Ambil settings lengkap (termasuk kode anggaran & provinsi yang tidak ada di PrintSettings)
+    setPrinting(true)
+
+    // ── 1. Catat pembayaran untuk setiap (media, bulan) yang belum dibayar ──
+    // API melakukan upsert, jadi aman jika sudah ada (tidak akan duplikat).
+    let recordedCount = 0
+    let failedCount = 0
+    for (const item of plan.items) {
+      for (const month of item.months) {
+        try {
+          const res = await fetch(`/api/media/${item.mediaId}/payments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              year: Number(plan.year),
+              month,
+              amount: item.pricePerMonth,
+            }),
+          })
+          if (res.ok) recordedCount++
+          else failedCount++
+        } catch {
+          failedCount++
+        }
+      }
+    }
+
+    if (failedCount > 0) {
+      toast({
+        title: 'Peringatan',
+        description: `${recordedCount} pembayaran tercatat, ${failedCount} gagal. Laporan tetap dicetak.`,
+        variant: 'destructive',
+      })
+    }
+
+    // ── 2. Ambil settings lengkap ───────────────────────────────────────────
     let raw: Record<string, unknown> = {}
     try {
       const res = await fetch('/api/settings')
@@ -267,19 +326,16 @@ export function MediaPage() {
     const mediaKodeKegiatan = (raw.mediaKodeKegiatan as string) || '03.03.'
     const mediaKodeRekening = (raw.mediaKodeRekening as string) || '5.1.02.01.01.0055'
 
-    const { startMonth, endMonth, year, place, orientation } = options
+    const { year, place, orientation, allMonths, items } = plan
 
-    // ── 1. Watermark logo di tengah halaman (opacity rendah) ──────────────────
+    // ── 3. Watermark logo di tengah halaman (opacity rendah) ──────────────────
     const watermarkHtml = logo
       ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: 0; pointer-events: none;">
            <img src="${logo}" style="width: 380px; height: 380px; object-fit: contain;" alt="watermark" />
          </div>`
       : ''
 
-    // ── 2. Blok metadata (rata KANAN, di atas judul) ─────────────────────────
-    // Catatan: global CSS `table { width: 100% }` membuat table mengisi lebar
-    // halaman, sehingga label-label singkat tetap di kiri. Karena itu kita
-    // set `width: auto` agar flex-end benar-benar mendorong blok ke tepi kanan.
+    // ── 4. Blok metadata (rata KANAN, di atas judul) ─────────────────────────
     const metaBlock = `
       <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
         <table style="border: none; font-size: 10pt; line-height: 1.5; width: auto;">
@@ -294,45 +350,54 @@ export function MediaPage() {
       </div>
     `
 
-    // ── 3. Judul (center, bold, uppercase, 2 baris) ───────────────────────────
+    // ── 5. Judul (center, bold, uppercase, 2 baris) ───────────────────────────
     // Baris 1: "DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH BULAN X SAMPAI Y"
     // Baris 2: "DI LINGKUNGAN [SEKOLAH] PROVINSI [PROV] TAHUN [YEAR]"
+    const monthLabel = buildMonthRangeLabel(allMonths)
     const titleHtml = `
       <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: 12pt; line-height: 1.5; margin: 4px 0 12px; position: relative; z-index: 1;">
-        <div>DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH BULAN ${startMonth.toUpperCase()} SAMPAI ${endMonth.toUpperCase()}</div>
+        <div>DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH ${monthLabel}</div>
         <div>DI LINGKUNGAN ${schoolName.toUpperCase()} PROVINSI ${province.toUpperCase()} TAHUN ${year}</div>
       </div>
     `
 
-    // ── 4. Tabel 7 kolom ──────────────────────────────────────────────────────
+    // ── 6. Tabel 7 kolom ──────────────────────────────────────────────────────
     // Kolom: NO | PENERIMA | NAMA MEDIA | JUMLAH BULAN | URAIAN IURAN/BULAN | PENERIMAAN BERSIH | TANDA TANGAN
-    const rows = filteredEntries.map((e, idx) => `
-      <tr>
-        <td style="text-align: center; vertical-align: middle;">${idx + 1}</td>
-        <td style="vertical-align: middle;">${e.name || '-'}</td>
-        <td style="vertical-align: middle;">${e.mediaName || '-'}</td>
-        <td style="text-align: center; vertical-align: middle;">
-          <div>${formatNumberPrint(e.unitCount)}</div>
-          <div style="font-size: 9pt;">OB</div>
-        </td>
-        <td style="text-align: left; vertical-align: middle;">
-          <div>Rp</div>
-          <div>${formatNumberPrint(e.pricePerMonth)}</div>
-        </td>
-        <td style="text-align: left; vertical-align: middle;">
-          <div>Rp</div>
-          <div>${formatNumberPrint(e.totalReceived)}</div>
-        </td>
-        <td style="height: 48px; vertical-align: middle;"></td>
-      </tr>
-    `).join('')
+    // JUMLAH BULAN = jumlah bulan belum-bayar untuk media ini
+    // PENERIMAAN BERSIH = JUMLAH BULAN × pricePerMonth
+    const grandTotalPrint = items.reduce((s, it) => s + it.months.length * it.pricePerMonth, 0)
+
+    const rows = items.map((it, idx) => {
+      const jumlahBulan = it.months.length
+      const penerimaan = jumlahBulan * it.pricePerMonth
+      return `
+        <tr>
+          <td style="text-align: center; vertical-align: middle;">${idx + 1}</td>
+          <td style="vertical-align: middle;">${it.name || '-'}</td>
+          <td style="vertical-align: middle;">${it.mediaName || '-'}</td>
+          <td style="text-align: center; vertical-align: middle;">
+            <div>${formatNumberPrint(jumlahBulan)}</div>
+            <div style="font-size: 9pt;">OB</div>
+          </td>
+          <td style="text-align: left; vertical-align: middle;">
+            <div>Rp</div>
+            <div>${formatNumberPrint(it.pricePerMonth)}</div>
+          </td>
+          <td style="text-align: left; vertical-align: middle;">
+            <div>Rp</div>
+            <div>${formatNumberPrint(penerimaan)}</div>
+          </td>
+          <td style="height: 48px; vertical-align: middle;"></td>
+        </tr>
+      `
+    }).join('')
 
     // Baris total: kolom 1-5 merge "JUMLAH KESELURUHAN", kolom 6 = terbilang, kolom 7 = "Rp X,-"
     const totalRow = `
       <tr>
         <td colspan="5" style="text-align: center; font-weight: bold; vertical-align: middle;">JUMLAH KESELURUHAN</td>
-        <td style="text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotal)}</td>
-        <td style="text-align: center; font-weight: bold; vertical-align: middle;">Rp ${formatNumberPrint(grandTotal)},-</td>
+        <td style="text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
+        <td style="text-align: center; font-weight: bold; vertical-align: middle;">Rp ${formatNumberPrint(grandTotalPrint)},-</td>
       </tr>
     `
 
@@ -356,7 +421,7 @@ export function MediaPage() {
       </table>
     `
 
-    // ── 5. Blok tanda tangan (2 kolom paralel) ───────────────────────────────
+    // ── 7. Blok tanda tangan (2 kolom paralel) ───────────────────────────────
     const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
     const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
 
@@ -382,7 +447,7 @@ export function MediaPage() {
       </div>
     `
 
-    // ── 6. Gabungkan semua ────────────────────────────────────────────────────
+    // ── 8. Gabungkan semua + cetak ───────────────────────────────────────────
     const bodyHtml = `
       ${watermarkHtml}
       ${metaBlock}
@@ -392,10 +457,21 @@ export function MediaPage() {
     `
 
     openPrintWindow(
-      `Daftar Pembayaran Media - ${startMonth} sampai ${endMonth} ${year}`,
+      `Daftar Pembayaran Media - ${monthLabel} ${year}`,
       bodyHtml,
       orientation,
     )
+
+    // ── 9. Refresh data media (update badge & total) ─────────────────────────
+    await fetchEntries()
+    setPrinting(false)
+
+    if (recordedCount > 0 && failedCount === 0) {
+      toast({
+        title: 'Berhasil',
+        description: `${recordedCount} pembayaran tercatat. Laporan sedang dicetak.`,
+      })
+    }
   }
 
   async function handleExportExcel() {
@@ -646,8 +722,8 @@ export function MediaPage() {
         open={printDialogOpen}
         onOpenChange={setPrintDialogOpen}
         onPrint={handlePrint}
-        title="Cetak Daftar Pembayaran Media"
-        description="Atur periode bulan, tahun, dan tempat sebelum mencetak"
+        entries={entries}
+        loading={printing}
         defaultPlace={defaultPrintPlace}
       />
 
