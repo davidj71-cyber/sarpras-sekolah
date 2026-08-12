@@ -176,6 +176,7 @@ export async function ensureSalaryMediaSchema(): Promise<string[]> {
         "id" TEXT NOT NULL,
         "name" TEXT NOT NULL,
         "nip" TEXT NOT NULL DEFAULT '',
+        "bankAccount" TEXT NOT NULL DEFAULT '',
         "gender" TEXT NOT NULL DEFAULT 'L',
         "lessonCount" INTEGER NOT NULL DEFAULT 0,
         "unit" TEXT NOT NULL DEFAULT 'Jam',
@@ -191,6 +192,19 @@ export async function ensureSalaryMediaSchema(): Promise<string[]> {
   } catch (e) {
     console.error("[migrate] create SalaryEntry failed:", e);
     throw e;
+  }
+
+  // ─── SalaryEntry: ADD COLUMN bankAccount (idempotent untuk tabel yang sudah ada) ──
+  // Kolom `bankAccount` ditambahkan belakangan (sebelumnya tabel tidak punya).
+  // ALTER TABLE ADD COLUMN IF NOT EXISTS aman dijalankan berulang.
+  try {
+    await db.$executeRaw`
+      ALTER TABLE "SalaryEntry" ADD COLUMN IF NOT EXISTS "bankAccount" TEXT NOT NULL DEFAULT ''
+    `;
+    executed.push(`ADD COLUMN "SalaryEntry.bankAccount"`);
+  } catch (e) {
+    // Beberapa DB lama mungkin tidak support IF NOT EXISTS — ignore error.
+    console.warn("[migrate] ADD COLUMN bankAccount skipped:", e);
   }
 
   // ─── MediaEntry ────────────────────────────────────────────────────────

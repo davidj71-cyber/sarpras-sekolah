@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       data: {
         name: String(body.name ?? "").trim(),
         nip: String(body.nip ?? "").trim(),
+        bankAccount: String(body.bankAccount ?? "").trim(),
         gender: String(body.gender ?? "L").trim(),
         lessonCount,
         unit: String(body.unit ?? "Jam").trim(),

@@ -395,6 +395,7 @@ model SalaryEntry {
   id              String   @id @default(cuid())
   name            String   // Nama guru
   nip             String   @default("") // NIP
+  bankAccount     String   @default("") // No. Rekening Tabungan (untuk kolom cetak gaji)
   gender          String   @default("L") // Jenis Kelamin: L / P
   lessonCount     Int      @default(0) // Jumlah Les (default per bulan)
   unit            String   @default("Jam") // Satuan (dropdown, bisa ditambah)

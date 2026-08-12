@@ -57,32 +57,52 @@ import {
   Loader2,
   Wallet,
   Printer,
-  FileText,
   FileSpreadsheet,
-  Banknote,
   CalendarCheck,
   CheckCircle2,
 } from 'lucide-react'
 import {
-  fetchPrintSettings,
-  buildKopHtml,
   openPrintWindow,
   formatRupiahPrint,
   formatNumberPrint,
 } from '@/lib/print-utils'
-import type { PrintOrientation } from '@/lib/print-utils'
+import { terbilangRupiah } from '@/lib/terbilang'
 import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
-import { PrintDialog } from '@/components/print-dialog'
+import { SalaryPrintDialog, type SalaryPrintPlan } from '@/components/salary-print-dialog'
 import { PaymentDialog } from '@/components/payment-dialog'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageLoading } from '@/components/ui/loading-skeleton'
 import { Badge } from '@/components/ui/badge'
 
+// ─── Settings cache (module-level) ───────────────────────────────────────────
+// Settings sekolah hampir tidak berubah saat user aktif. Cache di level modul
+// supaya klik cetak ke-2+ → instant. Prefetch saat dialog cetak terbuka.
+let settingsCache: Record<string, unknown> | null = null
+let settingsPromise: Promise<Record<string, unknown>> | null = null
+
+function fetchSettingsCached(): Promise<Record<string, unknown>> {
+  if (settingsCache) return Promise.resolve(settingsCache)
+  if (settingsPromise) return settingsPromise
+  settingsPromise = fetch('/api/settings')
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((d) => {
+      settingsCache = d as Record<string, unknown>
+      settingsPromise = null
+      return d as Record<string, unknown>
+    })
+    .catch(() => {
+      settingsPromise = null
+      return {}
+    })
+  return settingsPromise
+}
+
 interface SalaryData {
   id: string
   name: string
   nip: string
+  bankAccount: string
   gender: string
   lessonCount: number
   unit: string
@@ -130,9 +150,9 @@ export function SalaryPage() {
   const [deleteName, setDeleteName] = useState('')
   const [deleting, setDeleting] = useState(false)
 
-  const [bankDialogOpen, setBankDialogOpen] = useState(false)
-  const [ttdDialogOpen, setTtdDialogOpen] = useState(false)
+  const [printDialogOpen, setPrintDialogOpen] = useState(false)
   const [paymentEntry, setPaymentEntry] = useState<SalaryData | null>(null)
+  const [printing, setPrinting] = useState(false)
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
@@ -227,147 +247,239 @@ export function SalaryPage() {
 
   const grandTotal = filteredEntries.reduce((s, e) => s + (e.totalReceived || 0), 0)
 
-  // ─── Cetak Bank — format untuk setoran bank (tanpa kolom tanda tangan) ──────
-  async function handlePrintBank(orientation: PrintOrientation) {
-    if (filteredEntries.length === 0) {
-      toast({ title: 'Info', description: 'Tidak ada data untuk dicetak' })
+  // ─── Cetak — format TANDA TERIMA PEMBAYARAN HONOR (struktur = Media) ────────
+  // Format ini TIDAK memakai KOP sekolah (sesuai permintaan user, sama seperti Media).
+  //
+  // Flow (sama dengan Media):
+  // 1. Terima SalaryPrintPlan dari dialog (daftar guru + bulan belum-bayar)
+  // 2. Catat pembayaran via batch endpoint di background (non-blocking)
+  // 3. Cetak HTML laporan dengan tabel per-guru
+  // 4. Refresh data guru (supaya badge pembayaran & total terupdate)
+  async function handlePrint(plan: SalaryPrintPlan) {
+    if (plan.items.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada guru/bulan yang akan dicetak' })
       return
     }
-    const settings = await fetchPrintSettings()
-    const kopHtml = buildKopHtml(settings)
 
-    const rows = filteredEntries.map((e, idx) => `
-      <tr>
-        <td class="text-center">${idx + 1}</td>
-        <td>${e.name || '-'}</td>
-        <td class="text-center">${e.nip || '-'}</td>
-        <td class="text-center">${e.gender === 'P' ? 'Perempuan' : 'Laki-laki'}</td>
-        <td class="text-center">${formatNumberPrint(e.lessonCount)}</td>
-        <td class="text-center">${e.unit || '-'}</td>
-        <td class="text-right">Rp ${formatNumberPrint(e.pricePerLesson)}</td>
-        <td class="text-right">Rp ${formatNumberPrint(e.totalReceived)}</td>
-      </tr>
-    `).join('')
+    setPrinting(true)
 
-    const periodLabel = periodFilter.trim() ? `Periode: ${periodFilter.trim()}` : ''
-    const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    // ── 1. Kumpulkan semua (salaryId, month) yang akan dicatat ────────────────
+    const batchItems: Array<{ salaryId: string; month: number; lessonCount: number; amount: number }> = []
+    for (const item of plan.items) {
+      for (const month of item.months) {
+        batchItems.push({
+          salaryId: item.salaryId,
+          month,
+          lessonCount: item.lessonCount,
+          amount: item.pricePerLesson,
+        })
+      }
+    }
 
-    const contentHtml = `
-      ${periodLabel ? `<div style="margin: 8px 0 12px; font-size: 11pt;"><strong>${periodLabel}</strong></div>` : ''}
-      <table>
-        <thead>
-          <tr>
-            <th style="width: 35px;">No</th>
-            <th>Nama</th>
-            <th style="width: 120px;">NIP</th>
-            <th style="width: 80px;">Jenis Kelamin</th>
-            <th style="width: 60px;">Jumlah Les</th>
-            <th style="width: 70px;">Satuan</th>
-            <th style="width: 110px;">Harga Per Les</th>
-            <th style="width: 120px;">Penerimaan</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-          <tr style="background-color: #e8e8e8;">
-            <td colspan="7" style="text-align: right; font-weight: bold;">Total</td>
-            <td style="text-align: right; font-weight: bold;">Rp ${formatNumberPrint(grandTotal)}</td>
-          </tr>
-        </tbody>
-      </table>
+    // ── 2. Background: catat SEMUA pembayaran dalam 1 request batch ──────────
+    // Tidak di-await! Jalan paralel dengan render print window.
+    const recordPromise = batchItems.length > 0
+      ? fetch('/api/salary/payments/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            year: Number(plan.year),
+            items: batchItems,
+          }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null)
+      : Promise.resolve({ recorded: 0, skipped: 0 })
 
-      <div style="margin-top: 32px; font-size: 12pt; text-align: left; display: inline-grid; grid-template-columns: auto auto;">
-        <div style="padding-right: 4px;">an.</div>
-        <div>Kepala ${settings.schoolName || 'Sekolah'}</div>
-        <div></div>
-        <div style="margin-top: 4px;">Bendahara Sekolah,</div>
-        <div></div>
-        <div style="height: 72px;"></div>
-        <div></div>
-        <div style="text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</div>
-        <div></div>
-        <div>${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</div>
+    // ── 3. Ambil settings (dari cache kalau ada — instant!) ─────────────────
+    const raw = await fetchSettingsCached()
+
+    const schoolName = (raw.schoolName as string) || ''
+    const appLogo = (raw.appLogo as string) || (raw.favicon as string) || null
+    const principalName = (raw.principalName as string) || ''
+    const principalNip = (raw.principalNip as string) || ''
+    const treasurerName = (raw.treasurerName as string) || ''
+    const treasurerNip = (raw.treasurerNip as string) || ''
+    // Kode anggaran gaji — hardcoded default dari contoh (bisa pindah ke settings nanti)
+    const salaryKode = (raw.salaryKode as string) || ''
+    const salaryKodeProgram = (raw.salaryKodeProgram as string) || '07.12'
+    const salaryKodeKegiatan = (raw.salaryKodeKegiatan as string) || '07.1201'
+    const salaryKodeRekening = (raw.salaryKodeRekening as string) || '5.1.02.02.01.0013'
+
+    const { year, place, orientation, honorType, printDate, allMonths, items } = plan
+
+    // ── 4. Watermark logo di tengah halaman (sebesar mungkin yang fit) ────────
+    // Pakai logo APLIKASI (bukan KOP). Ukuran mm-based orientation-aware
+    // supaya sebesar mungkin yang muat tanpa terpotong.
+    const watermarkW = orientation === 'portrait' ? '188mm' : '275mm'
+    const watermarkH = orientation === 'portrait' ? '277mm' : '190mm'
+    const watermarkHtml = appLogo
+      ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.15; z-index: 0; pointer-events: none;">
+           <img src="${appLogo}" style="width: ${watermarkW}; height: ${watermarkH}; object-fit: contain; display: block;" alt="watermark" />
+         </div>`
+      : ''
+
+    // ── 5. Blok metadata (rata KANAN, di atas judul) ─────────────────────────
+    const metaBlock = `
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+        <table style="border: none; font-size: 10pt; line-height: 1.5; width: auto;">
+          <tbody>
+            <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${salaryKode}</td></tr>
+            <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode Program</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${salaryKodeProgram}</td></tr>
+            <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode Kegiatan</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${salaryKodeKegiatan}</td></tr>
+            <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode Rekening</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${salaryKodeRekening}</td></tr>
+            <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Tahun Anggaran</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${year}</td></tr>
+          </tbody>
+        </table>
       </div>
-      <div class="footer-info">Dicetak pada: ${today}</div>
     `
 
-    openPrintWindow(`Daftar Gaji (Bank) - ${periodLabel || 'Semua Periode'}`, `${kopHtml}<div class="title">DAFTAR GAJI</div>${contentHtml}`, orientation)
-  }
+    // ── 6. Judul (center, bold, uppercase, 2 baris sama besar 20pt) ──────────
+    // Baris 1: TANDA TERIMA PEMBAYARAN [JENIS HONOR] BULAN [X SAMPAI Y]
+    // Baris 2: [SEKOLAH] TAHUN [YEAR]
+    const monthLabel = buildMonthRangeLabel(allMonths)
+    const honorLabel = (honorType || 'HONOR').trim().toUpperCase()
+    const titleHtml = `
+      <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: 20pt; line-height: 1.4; margin: 8px 0 18px; position: relative; z-index: 1;">
+        <div>TANDA TERIMA PEMBAYARAN ${honorLabel} ${monthLabel}</div>
+        <div>${schoolName.toUpperCase()} TAHUN ${year}</div>
+      </div>
+    `
 
-  // ─── Cetak TTD — format dengan kolom tanda tangan untuk setiap guru ─────────
-  async function handlePrintTtd(orientation: PrintOrientation) {
-    if (filteredEntries.length === 0) {
-      toast({ title: 'Info', description: 'Tidak ada data untuk dicetak' })
-      return
-    }
-    const settings = await fetchPrintSettings()
-    const kopHtml = buildKopHtml(settings)
+    // ── 7. Tabel 7 kolom (transparan supaya watermark tembus) ────────────────
+    // Kolom: NO | NAMA PENERIMA | NO. REKENING TABUNGAN | JUMLAH BULAN/LES | HONOR BULAN/LES | PENERIMAAN | TANDA TANGAN
+    const grandTotalPrint = items.reduce((s, it) => s + it.months.length * it.pricePerLesson, 0)
 
-    const rows = filteredEntries.map((e, idx) => `
+    const rows = items.map((it, idx) => {
+      const jumlahBulan = it.months.length
+      const penerimaan = jumlahBulan * it.pricePerLesson
+      return `
+        <tr>
+          <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${idx + 1}</td>
+          <td style="background: transparent; vertical-align: middle;">${it.name || '-'}</td>
+          <td style="background: transparent; vertical-align: middle;">${it.bankAccount || '-'}</td>
+          <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlahBulan)} OB</td>
+          <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(it.pricePerLesson)}</td>
+          <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(penerimaan)}</td>
+          <td style="background: transparent; height: 48px; vertical-align: middle;"></td>
+        </tr>
+      `
+    }).join('')
+
+    // Baris total: TERBILANG + Rp nominal
+    const totalRow = `
       <tr>
-        <td class="text-center">${idx + 1}</td>
-        <td>${e.name || '-'}</td>
-        <td class="text-center">${e.nip || '-'}</td>
-        <td class="text-center">${e.gender === 'P' ? 'P' : 'L'}</td>
-        <td class="text-center">${formatNumberPrint(e.lessonCount)}</td>
-        <td class="text-center">${e.unit || '-'}</td>
-        <td class="text-right">Rp ${formatNumberPrint(e.pricePerLesson)}</td>
-        <td class="text-right">Rp ${formatNumberPrint(e.totalReceived)}</td>
-        <td style="height: 50px;"></td>
+        <td colspan="5" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">TERBILANG</td>
+        <td style="background: transparent; text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
+        <td style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">Rp ${formatNumberPrint(grandTotalPrint)},-</td>
       </tr>
-    `).join('')
+    `
 
-    const periodLabel = periodFilter.trim() ? `Periode: ${periodFilter.trim()}` : ''
-    const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-
-    const contentHtml = `
-      ${periodLabel ? `<div style="margin: 8px 0 12px; font-size: 11pt;"><strong>${periodLabel}</strong></div>` : ''}
-      <table>
+    const tableHtml = `
+      <table style="width: 100%; border-collapse: collapse; position: relative; z-index: 1; background: transparent;">
         <thead>
           <tr>
-            <th style="width: 30px;">No</th>
-            <th>Nama</th>
-            <th style="width: 110px;">NIP</th>
-            <th style="width: 40px;">JK</th>
-            <th style="width: 50px;">Jml Les</th>
-            <th style="width: 60px;">Satuan</th>
-            <th style="width: 100px;">Harga/Les</th>
-            <th style="width: 110px;">Penerimaan</th>
-            <th style="width: 130px;">Tanda Tangan</th>
+            <th style="background: transparent; width: 5%; padding: 6px 4px;">NO.</th>
+            <th style="background: transparent; width: 25%; padding: 6px 4px;">NAMA PENERIMA</th>
+            <th style="background: transparent; width: 20%; padding: 6px 4px;">NO. REKENING TABUNGAN</th>
+            <th style="background: transparent; width: 10%; padding: 6px 4px;">JUMLAH BULAN/LES</th>
+            <th style="background: transparent; width: 13%; padding: 6px 4px;">HONOR BULAN/LES</th>
+            <th style="background: transparent; width: 13%; padding: 6px 4px;">PENERIMAAN</th>
+            <th style="background: transparent; width: 14%; padding: 6px 4px;">TANDA TANGAN</th>
           </tr>
         </thead>
         <tbody>
           ${rows}
-          <tr style="background-color: #e8e8e8;">
-            <td colspan="7" style="text-align: right; font-weight: bold;">Total</td>
-            <td style="text-align: right; font-weight: bold;">Rp ${formatNumberPrint(grandTotal)}</td>
-            <td></td>
-          </tr>
+          ${totalRow}
         </tbody>
       </table>
+    `
 
-      <div style="margin-top: 32px; font-size: 12pt;">
-        <div style="display:flex; justify-content:space-between;">
-          <div style="text-align:center; width: 45%;">
-            <div>Mengetahui,</div>
-            <div>Kepala ${settings.schoolName || 'Sekolah'}</div>
-            <div style="height: 60px;"></div>
-            <div style="text-decoration: underline; font-weight: bold;">${settings.principalName || '____________________'}</div>
-            <div>${settings.principalNip ? `NIP. ${settings.principalNip}` : '&nbsp;'}</div>
-          </div>
-          <div style="text-align:center; width: 45%;">
-            <div>${today}</div>
-            <div>Bendahara</div>
-            <div style="height: 60px;"></div>
-            <div style="text-decoration: underline; font-weight: bold;">${settings.treasurerName || '____________________'}</div>
-            <div>${settings.treasurerNip ? `NIP. ${settings.treasurerNip}` : '&nbsp;'}</div>
-          </div>
+    // ── 8. Blok tanda tangan (2 kolom: kiri & kanan menempel kanan) ──────────
+    const today = printDate
+      ? new Date(printDate + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
+
+    const signatureHtml = `
+      <div style="display: flex; justify-content: space-between; margin-top: 24px; font-size: 10pt; position: relative; z-index: 1;">
+        <div style="width: 40%; text-align: left;">
+          <div>Mengetahui/</div>
+          <div>Setuju Bayar:</div>
+          <div>Kepala ${schoolName || 'Sekolah'},</div>
+          <div style="height: 60px;"></div>
+          <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
+          <div>${principalNip ? `NIP. ${principalNip}` : '&nbsp;'}</div>
+        </div>
+        <div style="text-align: left; flex: 0 0 auto;">
+          <div>${placeDate}</div>
+          <div>&nbsp;</div>
+          <div>Bayar lunas :</div>
+          <div>Bendahara ${schoolName || 'Sekolah'}</div>
+          <div style="height: 60px;"></div>
+          <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
+          <div>${treasurerNip ? `NIP. ${treasurerNip}` : '&nbsp;'}</div>
         </div>
       </div>
-      <div class="footer-info">Dicetak pada: ${today}</div>
     `
 
-    openPrintWindow(`Daftar Gaji (Tanda Tangan) - ${periodLabel || 'Semua Periode'}`, `${kopHtml}<div class="title">DAFTAR GAJI</div>${contentHtml}`, orientation)
+    // ── 9. Gabungkan semua + BUKA print window segera ────────────────────────
+    const bodyHtml = `
+      ${watermarkHtml}
+      ${metaBlock}
+      ${titleHtml}
+      ${tableHtml}
+      ${signatureHtml}
+    `
+
+    openPrintWindow(
+      `Daftar Pembayaran Gaji - ${monthLabel} ${year}`,
+      bodyHtml,
+      orientation,
+    )
+
+    // ── 10. Lepaskan spinner tombol cetak SEGERA ─────────────────────────────
+    setPrinting(false)
+
+    // ── 11. Tunggu recording selesai di background → refresh + toast ────────
+    recordPromise
+      .then((result) => {
+        fetchEntries()
+        if (result && typeof result.recorded === 'number') {
+          if (result.recorded > 0) {
+            toast({
+              title: 'Berhasil',
+              description: `${result.recorded} pembayaran tercatat di database.`,
+            })
+          } else if (batchItems.length > 0) {
+            toast({
+              title: 'Info',
+              description: 'Semua pembayaran sudah tercatat sebelumnya.',
+            })
+          }
+        } else if (batchItems.length > 0) {
+          toast({
+            title: 'Peringatan',
+            description: 'Laporan dicetak, tapi sebagian pembayaran gagal tercatat.',
+            variant: 'destructive',
+          })
+        }
+      })
+      .catch(() => {
+        fetchEntries()
+      })
+  }
+
+  // Helper: build label rentang bulan, mis. "BULAN JULI SAMPAI SEPTEMBER"
+  function buildMonthRangeLabel(months: number[]): string {
+    if (months.length === 0) return ''
+    const MONTHS = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+    ]
+    const sorted = [...months].sort((a, b) => a - b)
+    if (sorted.length === 1) return `BULAN ${MONTHS[sorted[0] - 1].toUpperCase()}`
+    return `BULAN ${MONTHS[sorted[0] - 1].toUpperCase()} SAMPAI ${MONTHS[sorted[sorted.length - 1] - 1].toUpperCase()}`
   }
 
   async function handleExportExcel() {
@@ -412,13 +524,13 @@ export function SalaryPage() {
         icon={Wallet}
         actions={
           <>
-            <Button variant="outline" onClick={() => setBankDialogOpen(true)} disabled={loading || filteredEntries.length === 0}>
-              <Banknote className="size-4 mr-2" />
-              Cetak Bank
-            </Button>
-            <Button variant="outline" onClick={() => setTtdDialogOpen(true)} disabled={loading || filteredEntries.length === 0}>
-              <FileText className="size-4 mr-2" />
-              Cetak TTD
+            <Button variant="outline" onClick={() => {
+              // Prefetch settings saat dialog cetak dibuka
+              fetchSettingsCached()
+              setPrintDialogOpen(true)
+            }} disabled={loading || filteredEntries.length === 0 || printing}>
+              {printing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
+              Cetak
             </Button>
             <Button variant="outline" onClick={handleExportExcel} disabled={loading || filteredEntries.length === 0}>
               <FileSpreadsheet className="size-4 mr-2" />
@@ -623,19 +735,20 @@ export function SalaryPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <PrintDialog
-        open={bankDialogOpen}
-        onOpenChange={setBankDialogOpen}
-        onPrint={handlePrintBank}
-        title="Cetak Daftar Gaji (Bank)"
-        description="Format setoran bank — tanpa kolom tanda tangan"
-      />
-      <PrintDialog
-        open={ttdDialogOpen}
-        onOpenChange={setTtdDialogOpen}
-        onPrint={handlePrintTtd}
-        title="Cetak Daftar Gaji (Tanda Tangan)"
-        description="Format dengan kolom tanda tangan untuk setiap guru"
+      <SalaryPrintDialog
+        open={printDialogOpen}
+        onOpenChange={setPrintDialogOpen}
+        onPrint={handlePrint}
+        entries={entries.map((e) => ({
+          id: e.id,
+          name: e.name,
+          nip: e.nip,
+          bankAccount: e.bankAccount || '',
+          lessonCount: e.lessonCount,
+          unit: e.unit,
+          pricePerLesson: e.pricePerLesson,
+        }))}
+        loading={loading}
       />
 
       {paymentEntry && (
