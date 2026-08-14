@@ -420,7 +420,7 @@ export function SalaryPage() {
         <tr>
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${idx + 1}</td>
           <td style="background: transparent; vertical-align: middle; white-space: nowrap;">${it.name || '-'}</td>
-          <td style="background: transparent; vertical-align: middle; white-space: nowrap;">${it.bankAccount || '-'}</td>
+          <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${it.bankAccount || '-'}</td>
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlahBulan)}&nbsp;&nbsp;&nbsp;&nbsp;OB</td>
           <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(it.pricePerLesson)}</td>
           <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(penerimaan)}</td>
@@ -429,16 +429,16 @@ export function SalaryPage() {
       `
     }).join('')
 
-    // Baris total — layout baru sesuai permintaan user:
-    //   col 1-3 (colspan=3): label "TERBILANG" (sampai batas NO. REKENING TABUNGAN)
-    //   col 4-5 (colspan=2): teks terbilang rupiah (dari JUMLAH BULAN/LES s/d HONOR BULAN/LES)
+    // Baris total — layout revisi sesuai permintaan user:
+    //   col 1-2 (colspan=2): label "TERBILANG" (hanya sampai batas NO. dan NAMA PENERIMA)
+    //   col 3-5 (colspan=3): teks terbilang rupiah (dari NO. REKENING/TABUNGAN s/d HONOR BULAN/LES)
     //   col 6:              total "Rp 13.500.000,-" (di kolom PENERIMAAN)
     //   col 7:              kosong (TANDA TANGAN, hanya mode signature)
-    // Total kolom: 3 + 2 + 1 + (1 signature) = 7 (signature) atau 6 (bank) ✅
+    // Total kolom: 2 + 3 + 1 + (1 signature) = 7 (signature) atau 6 (bank) ✅
     const totalRow = `
       <tr>
-        <td colspan="3" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">TERBILANG</td>
-        <td colspan="2" style="background: transparent; text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
+        <td colspan="2" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">TERBILANG</td>
+        <td colspan="3" style="background: transparent; text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
         <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap; font-weight: bold;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(grandTotalPrint)},-</td>
         ${signatureCellHtml}
       </tr>
