@@ -343,7 +343,9 @@ export function SalaryPage() {
     const salaryKodeKegiatan = (raw.salaryKodeKegiatan as string) || '07.1201'
     const salaryKodeRekening = (raw.salaryKodeRekening as string) || '5.1.02.02.01.0013'
 
-    const { year, place, orientation, honorType, printDate, allMonths, items } = plan
+    const { year, place, orientation, honorType, printDate, allMonths, items, printMode } = plan
+    // printMode: 'signature' = dgn kolom tanda tangan (7 kolom), 'bank' = tanpa (6 kolom)
+    const isBankMode = printMode === 'bank'
 
     // ── 4. Watermark logo di tengah halaman (sebesar mungkin yang fit) ────────
     // Pakai logo APLIKASI (bukan KOP). Ukuran mm-based orientation-aware
@@ -384,9 +386,15 @@ export function SalaryPage() {
       </div>
     `
 
-    // ── 7. Tabel 7 kolom (transparan supaya watermark tembus) ────────────────
-    // Kolom: NO | NAMA PENERIMA | NO. REKENING TABUNGAN | JUMLAH BULAN/LES | HONOR BULAN/LES | PENERIMAAN | TANDA TANGAN
+    // ── 7. Tabel kolom (transparan supaya watermark tembus) ───────────────────
+    // Mode signature (7 kolom): NO | NAMA PENERIMA | NO. REKENING TABUNGAN | JUMLAH BULAN/LES | HONOR BULAN/LES | PENERIMAAN | TANDA TANGAN
+    // Mode bank (6 kolom):      NO | NAMA PENERIMA | NO. REKENING TABUNGAN | JUMLAH BULAN/LES | HONOR BULAN/LES | PENERIMAAN
     const grandTotalPrint = items.reduce((s, it) => s + it.months.length * it.pricePerLesson, 0)
+
+    // Kolom tanda tangan hanya ada di mode signature
+    const signatureCellHtml = isBankMode
+      ? ''
+      : '<td style="background: transparent; height: 48px; vertical-align: middle;"></td>'
 
     const rows = items.map((it, idx) => {
       const jumlahBulan = it.months.length
@@ -399,31 +407,43 @@ export function SalaryPage() {
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlahBulan)} OB</td>
           <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(it.pricePerLesson)}</td>
           <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(penerimaan)}</td>
-          <td style="background: transparent; height: 48px; vertical-align: middle;"></td>
+          ${signatureCellHtml}
         </tr>
       `
     }).join('')
 
     // Baris total: TERBILANG + Rp nominal
+    // colspan: mode signature = 5 (5+1+1=7), mode bank = 4 (4+1+1=6)
+    const totalColspan = isBankMode ? 4 : 5
     const totalRow = `
       <tr>
-        <td colspan="5" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">TERBILANG</td>
+        <td colspan="${totalColspan}" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">TERBILANG</td>
         <td style="background: transparent; text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
         <td style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">Rp ${formatNumberPrint(grandTotalPrint)},-</td>
       </tr>
     `
+
+    // Kolom header TANDA TANGAN hanya di mode signature
+    const signatureHeaderHtml = isBankMode
+      ? ''
+      : '<th style="background: transparent; width: 14%; padding: 6px 4px;">TANDA TANGAN</th>'
+
+    // Lebar kolom disesuaikan: mode bank melebarkan kolom PENERIMAAN karena tidak ada TANDA TANGAN
+    const namaWidth = isBankMode ? '28%' : '25%'
+    const rekeningWidth = isBankMode ? '22%' : '20%'
+    const penerimaanWidth = isBankMode ? '18%' : '13%'
 
     const tableHtml = `
       <table style="width: 100%; border-collapse: collapse; position: relative; z-index: 1; background: transparent;">
         <thead>
           <tr>
             <th style="background: transparent; width: 5%; padding: 6px 4px;">NO.</th>
-            <th style="background: transparent; width: 25%; padding: 6px 4px;">NAMA PENERIMA</th>
-            <th style="background: transparent; width: 20%; padding: 6px 4px;">NO. REKENING TABUNGAN</th>
+            <th style="background: transparent; width: ${namaWidth}; padding: 6px 4px;">NAMA PENERIMA</th>
+            <th style="background: transparent; width: ${rekeningWidth}; padding: 6px 4px;">NO. REKENING TABUNGAN</th>
             <th style="background: transparent; width: 10%; padding: 6px 4px;">JUMLAH BULAN/LES</th>
             <th style="background: transparent; width: 13%; padding: 6px 4px;">HONOR BULAN/LES</th>
-            <th style="background: transparent; width: 13%; padding: 6px 4px;">PENERIMAAN</th>
-            <th style="background: transparent; width: 14%; padding: 6px 4px;">TANDA TANGAN</th>
+            <th style="background: transparent; width: ${penerimaanWidth}; padding: 6px 4px;">PENERIMAAN</th>
+            ${signatureHeaderHtml}
           </tr>
         </thead>
         <tbody>

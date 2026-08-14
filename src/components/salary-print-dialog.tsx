@@ -54,6 +54,8 @@ export interface SalaryPrintPlan {
   printDate: string
   // Sorted unique list of all months covered by the plan (for the title)
   allMonths: number[]
+  // Mode cetak: 'signature' = tanda tangan (7 kolom), 'bank' = tanpa kolom tanda tangan (6 kolom)
+  printMode: 'signature' | 'bank'
   items: SalaryPrintPlanItem[]
 }
 
@@ -128,6 +130,7 @@ export function SalaryPrintDialog({
   const [orientation, setOrientation] = useState<Orientation>('portrait')
   const [honorType, setHonorType] = useState('HONOR')
   const [printDate, setPrintDate] = useState('')
+  const [printMode, setPrintMode] = useState<'signature' | 'bank'>('signature')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [selectedSalaryIds, setSelectedSalaryIds] = useState<Set<string>>(new Set())
@@ -145,6 +148,7 @@ export function SalaryPrintDialog({
       setSelectedMonths(new Set())
       setSearch('')
       setStatusFilter('')
+      setPrintMode('signature')
     }
   }, [open, defaultPlace])
 
@@ -292,6 +296,7 @@ export function SalaryPrintDialog({
       honorType,
       printDate,
       allMonths,
+      printMode,
       items,
     })
     onOpenChange(false)
@@ -327,8 +332,8 @@ export function SalaryPrintDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Year + Place + Print Date + Orientation */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Year + Place + Print Date + Orientation + Pilihan Cetak */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-2">
               <Label htmlFor="sal-year">Tahun Anggaran</Label>
               <Select
@@ -388,6 +393,26 @@ export function SalaryPrintDialog({
                   Landscape
                 </Button>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sal-print-mode">Pilihan Cetak</Label>
+              <Select
+                value={printMode}
+                onValueChange={(v) => setPrintMode(v as 'signature' | 'bank')}
+              >
+                <SelectTrigger id="sal-print-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="signature">Tanda Tangan Guru</SelectItem>
+                  <SelectItem value="bank">Cetak Bank</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {printMode === 'bank'
+                  ? 'Tanpa kolom tanda tangan (6 kolom)'
+                  : 'Dengan kolom tanda tangan (7 kolom)'}
+              </p>
             </div>
           </div>
 
