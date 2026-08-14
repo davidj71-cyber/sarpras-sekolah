@@ -371,14 +371,15 @@ export function SalaryPage() {
       </div>
     `
 
-    // ── 6. Judul (center, bold, uppercase, 2 baris sama besar 20pt) ──────────
-    // Baris 1: TANDA TERIMA PEMBAYARAN [JENIS HONOR] BULAN [X SAMPAI Y]
+    // ── 6. Judul (center, bold, uppercase) ────────────────────────────────────
+    // Baris 1: TANDA TERIMA PEMBAYARAN HONOR [JENIS HONOR] BULAN [X SAMPAI Y]
     // Baris 2: [SEKOLAH] TAHUN [YEAR]
+    // Baris 1 selalu 1 baris — auto-fit JS akan sesuaikan font-size kalau overflow.
     const monthLabel = buildMonthRangeLabel(allMonths)
     const honorLabel = (honorType || 'HONOR').trim().toUpperCase()
     const titleHtml = `
       <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: 20pt; line-height: 1.4; margin: 8px 0 18px; position: relative; z-index: 1;">
-        <div>TANDA TERIMA PEMBAYARAN ${honorLabel} ${monthLabel}</div>
+        <div id="print-title-line1" style="white-space: nowrap; overflow: hidden;">TANDA TERIMA PEMBAYARAN HONOR ${honorLabel} ${monthLabel}</div>
         <div>${schoolName.toUpperCase()} TAHUN ${year}</div>
       </div>
     `
@@ -461,12 +462,42 @@ export function SalaryPage() {
     `
 
     // ── 9. Gabungkan semua + BUKA print window segera ────────────────────────
+    // Auto-fit script: judul baris 1 (TANDA TERIMA PEMBAYARAN HONOR ... BULAN ...)
+    // selalu dijamin 1 baris — font-size dikurangi bertahap dari 20pt → 9pt sampai
+    // scrollWidth <= clientWidth. white-space:nowrap sudah set di titleHtml.
+    const autoFitScript = `
+      <script>
+        (function() {
+          function autoFitTitle() {
+            var el = document.getElementById('print-title-line1');
+            if (!el) return;
+            var maxSize = 20;
+            var minSize = 9;
+            var size = maxSize;
+            el.style.fontSize = size + 'pt';
+            while (size > minSize && el.scrollWidth > el.clientWidth) {
+              size -= 0.5;
+              el.style.fontSize = size + 'pt';
+            }
+          }
+          if (document.readyState === 'complete') {
+            autoFitTitle();
+          } else {
+            window.addEventListener('load', autoFitTitle);
+          }
+          setTimeout(autoFitTitle, 100);
+          setTimeout(autoFitTitle, 500);
+        })();
+      </script>
+    `
+
     const bodyHtml = `
       ${watermarkHtml}
       ${metaBlock}
       ${titleHtml}
       ${tableHtml}
       ${signatureHtml}
+      ${autoFitScript}
     `
 
     openPrintWindow(

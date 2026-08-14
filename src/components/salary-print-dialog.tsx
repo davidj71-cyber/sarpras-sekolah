@@ -87,6 +87,33 @@ interface PaymentRecord {
   paidAt?: string
 }
 
+// ── Mapping STATUS pegawai → LABEL JUDUL cetak ─────────────────────────────
+// Mapping ini yang menentukan judul "TANDA TERIMA PEMBAYARAN HONOR [LABEL] BULAN..."
+// sesuai permintaan user. Beberapa status berbeda bisa map ke label yang sama.
+// Status yang tidak ada di mapping → fallback pakai teks status apa adanya.
+const STATUS_TO_HONOR_LABEL: Record<string, string> = {
+  // GTTS, HONORER SEKOLAH, GURU SEMENTARA → sama, semua guru tidak tetap
+  GTTS: 'GURU TIDAK TETAP SEKOLAH (GTTS)',
+  'HONORER SEKOLAH': 'GURU TIDAK TETAP SEKOLAH (GTTS)',
+  'GURU SEMENTARA': 'GURU TIDAK TETAP SEKOLAH (GTTS)',
+  // PTTS → pegawai tidak tetap
+  PTTS: 'PEGAWAI TIDAK TETAP SEKOLAH (PTTS)',
+  // Petugas kebersihan & penjaga sekolah → masing-masing sendiri
+  'PETUGAS KEBERSIHAN': 'PETUGAS KEBERSIHAN SEKOLAH',
+  'PENJAGA SEKOLAH': 'PENJAGA SEKOLAH',
+}
+
+function statusToHonorLabel(status: string): string {
+  const key = (status || '').trim().toUpperCase()
+  if (!key) return 'HONOR'
+  // Cek exact match (case-insensitive)
+  for (const k of Object.keys(STATUS_TO_HONOR_LABEL)) {
+    if (k.toUpperCase() === key) return STATUS_TO_HONOR_LABEL[k]
+  }
+  // Fallback: pakai teks status apa adanya
+  return status.trim()
+}
+
 export function SalaryPrintDialog({
   open,
   onOpenChange,
@@ -148,14 +175,13 @@ export function SalaryPrintDialog({
     [entries]
   )
 
-  // ── AUTO-SYNC honorType dengan status ─────────────────────────────────────
-  // Ketika user pilih status di Filter Status, otomatis set honorType (jenis
-  // honor untuk judul cetak) ke status itu. Jadi kalau user ubah status di
-  // database guru, lalu pilih status tsb di filter, judul cetak langsung
-  // pakai status tersebut — sinkron penuh.
+  // ── AUTO-SYNC honorType dengan status (pakai mapping label) ───────────────
+  // Ketika user pilih status di Filter Status, otomatis set honorType ke LABEL
+  // JUDUL yang sesuai (mis. GTTS → "GURU TIDAK TETAP SEKOLAH (GTTS)").
+  // Input manual dihapus — honorType 100% mengikuti mapping dari status.
   useEffect(() => {
     if (statusFilter) {
-      setHonorType(statusFilter)
+      setHonorType(statusToHonorLabel(statusFilter))
     }
   }, [statusFilter])
 
@@ -365,49 +391,8 @@ export function SalaryPrintDialog({
             </div>
           </div>
 
-          {/* Honor Type + Jabatan Filter + Search */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="space-y-2 sm:col-span-1">
-              <Label htmlFor="sal-honor-type">Jenis Honor (untuk judul)</Label>
-              <Input
-                id="sal-honor-type"
-                placeholder="Mis. HONOR PENJAGA KEAMANAN SEKOLAH"
-                value={honorType}
-                onChange={(e) => setHonorType(e.target.value)}
-                list="sal-honor-type-options"
-              />
-              {/* Datalist: suggestion dari status DB guru — sync otomatis */}
-              <datalist id="sal-honor-type-options">
-                <option value="HONOR" />
-                {statusOptions.map((s) => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
-              <p className="text-xs text-muted-foreground">
-                Judul: &ldquo;TANDA TERIMA PEMBAYARAN {honorType || 'HONOR'} BULAN ...&rdquo;
-              </p>
-              {/* Quick-pick chips dari status DB — sinkron dgn database guru */}
-              {statusOptions.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  <span className="text-[10px] text-muted-foreground self-center mr-1">Pilih dari DB:</span>
-                  {statusOptions.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setHonorType(s)}
-                      title={`Set jenis honor = ${s}`}
-                      className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors max-w-[180px] truncate ${
-                        honorType === s
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-accent border-input'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* Filter Status + Search (2 kolom) */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-1">
               <Label htmlFor="sal-status-filter">Filter Status</Label>
               <Select
@@ -443,6 +428,26 @@ export function SalaryPrintDialog({
                 />
               </div>
             </div>
+          </div>
+
+          {/* Preview Judul Cetak (auto-update dari status, full-width) */}
+          <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                Preview Judul Cetak
+              </Label>
+              {statusFilter ? (
+                <Badge variant="secondary" className="text-[10px]">{statusFilter}</Badge>
+              ) : (
+                <span className="text-[10px] text-muted-foreground italic">pilih status dulu</span>
+              )}
+            </div>
+            <p className="text-sm font-semibold leading-snug">
+              TANDA TERIMA PEMBAYARAN HONOR {honorType || 'HONOR'} {buildMonthRangeLabel(Array.from(selectedMonths).sort((a, b) => a - b))}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Baris ke-2: <span className="font-medium">[NAMA SEKOLAH] TAHUN {year}</span> (otomatis)
+            </p>
           </div>
 
           {/* Month selector */}
