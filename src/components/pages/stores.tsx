@@ -318,6 +318,7 @@ export function StoresPage() {
               <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[100px] text-left">Aksi</TableHead>
                     <TableHead className="w-[50px] text-left">No</TableHead>
                     <TableHead>Nama Toko</TableHead>
                     <TableHead>Nama Pemilik</TableHead>
@@ -325,21 +326,13 @@ export function StoresPage() {
                     <TableHead>Jenis Barang</TableHead>
                     <TableHead>No HP</TableHead>
                     <TableHead>Alamat</TableHead>
-                    <TableHead className="w-[100px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredStores.map((store, idx) => (
                     <TableRow key={store.id}>
-                      <TableCell className="tabular-nums">{idx + 1}</TableCell>
-                      <TableCell className="font-medium">{store.name}</TableCell>
-                      <TableCell>{store.ownerName || '-'}</TableCell>
-                      <TableCell>{store.npwp || '-'}</TableCell>
-                      <TableCell>{store.goodsType || '-'}</TableCell>
-                      <TableCell>{store.phone || '-'}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{store.address || '-'}</TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-start gap-1">
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(store)}>
                             <Pencil className="size-4" />
                           </Button>
@@ -348,6 +341,13 @@ export function StoresPage() {
                           </Button>
                         </div>
                       </TableCell>
+                      <TableCell className="tabular-nums">{idx + 1}</TableCell>
+                      <TableCell className="font-medium">{store.name}</TableCell>
+                      <TableCell>{store.ownerName || '-'}</TableCell>
+                      <TableCell>{store.npwp || '-'}</TableCell>
+                      <TableCell>{store.goodsType || '-'}</TableCell>
+                      <TableCell>{store.phone || '-'}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{store.address || '-'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -601,6 +601,7 @@ export function BarangMasukPage() {
               <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[130px] text-left">Aksi</TableHead>
                     <TableHead className="w-[50px]">No</TableHead>
                     <TableHead>No. Dokumen</TableHead>
                     <TableHead>Tanggal</TableHead>
@@ -608,12 +609,27 @@ export function BarangMasukPage() {
                     <TableHead>Toko</TableHead>
                     <TableHead className="text-right">Jumlah Item</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-[130px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredData.map((record, idx) => (
                     <TableRow key={record.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => { setPrintDetailRecord(record); setPrintDetailDialogOpen(true) }} title="Cetak">
+                            <Printer className="size-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => handleExportExcelDetail(record)} title="Export Excel">
+                            <FileSpreadsheet className="size-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(record)} title="Edit">
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => { setDeleteId(record.id); setDeleteName(record.documentNumber) }} title="Hapus">
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell>{idx + 1}</TableCell>
                       <TableCell className="font-medium">{record.documentNumber}</TableCell>
                       <TableCell>{record.entryDate ? formatDate(record.entryDate) : '-'}</TableCell>
@@ -632,22 +648,6 @@ export function BarangMasukPage() {
                         >
                           {record.status}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => { setPrintDetailRecord(record); setPrintDetailDialogOpen(true) }} title="Cetak">
-                            <Printer className="size-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => handleExportExcelDetail(record)} title="Export Excel">
-                            <FileSpreadsheet className="size-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(record)} title="Edit">
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => { setDeleteId(record.id); setDeleteName(record.documentNumber) }} title="Hapus">
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

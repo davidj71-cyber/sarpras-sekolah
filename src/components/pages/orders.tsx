@@ -193,6 +193,33 @@ function OrderRowGroup({
     <>
       {/* Main Row */}
       <TableRow className={`cursor-pointer hover:bg-muted/50 ${isUnpaid ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}`} onClick={onToggle}>
+        <TableCell className="text-left">
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            {isUnpaid && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                onClick={() => onMarkAsPaid(order)}
+                title="Tandai Lunas"
+              >
+                <CheckCircle2 className="size-4" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => onEdit(order)} title="Edit">
+              <Pencil className="size-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => onPrint(order)} title="Cetak Surat Pesanan">
+              <Printer className="size-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => onExportExcel(order)} title="Export Excel">
+              <FileSpreadsheet className="size-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => onDelete(order.id, order.orderNumber)} title="Hapus">
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
+        </TableCell>
         <TableCell className="w-[40px]">
           <button className="flex items-center justify-center size-6 rounded hover:bg-muted">
             {isExpanded ? (
@@ -238,33 +265,6 @@ function OrderRowGroup({
           </div>
         </TableCell>
         <TableCell className="text-right tabular-nums whitespace-nowrap font-medium">{formatRupiahPrint(order.totalAmount)}</TableCell>
-        <TableCell>
-          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            {isUnpaid && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                onClick={() => onMarkAsPaid(order)}
-                title="Tandai Lunas"
-              >
-                <CheckCircle2 className="size-4" />
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" className="size-8" onClick={() => onEdit(order)} title="Edit">
-              <Pencil className="size-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="size-8" onClick={() => onPrint(order)} title="Cetak Surat Pesanan">
-              <Printer className="size-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="size-8" onClick={() => onExportExcel(order)} title="Export Excel">
-              <FileSpreadsheet className="size-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => onDelete(order.id, order.orderNumber)} title="Hapus">
-              <Trash2 className="size-4" />
-            </Button>
-          </div>
-        </TableCell>
       </TableRow>
 
       {/* Expanded Items Row */}
@@ -1136,6 +1136,7 @@ export function OrdersPage() {
               <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[160px] text-left">Aksi</TableHead>
                     <TableHead className="w-[40px]"></TableHead>
                     <TableHead className="w-[50px]">No</TableHead>
                     <TableHead>Nomor / Kode</TableHead>
@@ -1144,7 +1145,6 @@ export function OrdersPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Pembayaran</TableHead>
                     <TableHead className="text-right">Total</TableHead>
-                    <TableHead className="w-[160px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -367,18 +367,34 @@ export function AccountsPage() {
               <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[120px] text-left">Aksi</TableHead>
                     <TableHead className="w-[50px] text-left tabular-nums">No</TableHead>
                     <TableHead>Nama</TableHead>
                     <TableHead>Username</TableHead>
                     <TableHead>Password</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-[120px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user, idx) => (
                     <TableRow key={user.id} className="h-14">
+                      <TableCell className="text-left">
+                        <div className="flex items-center justify-start gap-1">
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(user)} title="Edit">
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-destructive hover:text-destructive"
+                            onClick={() => { setDeleteId(user.id); setDeleteName(user.name) }}
+                            title="Hapus"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>
@@ -413,22 +429,6 @@ export function AccountsPage() {
                         <Badge variant={user.active ? 'default' : 'destructive'}>
                           {user.active ? 'Aktif' : 'Nonaktif'}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(user)} title="Edit">
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 text-destructive hover:text-destructive"
-                            onClick={() => { setDeleteId(user.id); setDeleteName(user.name) }}
-                            title="Hapus"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -633,6 +633,7 @@ export function RoomItemsPage() {
               <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[130px] text-left">Aksi</TableHead>
                     <TableHead className="w-[50px] text-left tabular-nums">No</TableHead>
                     <TableHead className="w-[70px]">Foto</TableHead>
                     <TableHead>Nama Barang</TableHead>
@@ -645,28 +646,13 @@ export function RoomItemsPage() {
                     <TableHead className="text-center">Tahun Pengadaan</TableHead>
                     <TableHead>Lokasi</TableHead>
                     <TableHead>Keterangan</TableHead>
-                    <TableHead className="w-[130px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredItems.map((item, idx) => (
                     <TableRow key={item.id} className="h-14">
-                      <TableCell className="text-left tabular-nums">{idx + 1}</TableCell>
-                      <TableCell>
-                        <PhotoThumbnail photos={item.photos || []} />
-                      </TableCell>
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell>{item.registrationNumber || '-'}</TableCell>
-                      <TableCell>{item.brand || '-'}</TableCell>
-                      <TableCell>{conditionBadge(item.condition)}</TableCell>
-                      <TableCell className="text-right tabular-nums whitespace-nowrap">{item.quantity} {item.unit}</TableCell>
-                      <TableCell className="text-right tabular-nums whitespace-nowrap">{item.price > 0 ? formatRupiah(item.price) : '-'}</TableCell>
-                      <TableCell>{item.sumberDana || '-'}</TableCell>
-                      <TableCell className="text-center tabular-nums">{item.tahunPengadaan || '-'}</TableCell>
-                      <TableCell>{renderLocation(item)}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">{item.notes || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <TableCell className="text-left">
+                        <div className="flex items-center justify-start gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -699,6 +685,20 @@ export function RoomItemsPage() {
                           </Button>
                         </div>
                       </TableCell>
+                      <TableCell className="text-left tabular-nums">{idx + 1}</TableCell>
+                      <TableCell>
+                        <PhotoThumbnail photos={item.photos || []} />
+                      </TableCell>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>{item.registrationNumber || '-'}</TableCell>
+                      <TableCell>{item.brand || '-'}</TableCell>
+                      <TableCell>{conditionBadge(item.condition)}</TableCell>
+                      <TableCell className="text-right tabular-nums whitespace-nowrap">{item.quantity} {item.unit}</TableCell>
+                      <TableCell className="text-right tabular-nums whitespace-nowrap">{item.price > 0 ? formatRupiah(item.price) : '-'}</TableCell>
+                      <TableCell>{item.sumberDana || '-'}</TableCell>
+                      <TableCell className="text-center tabular-nums">{item.tahunPengadaan || '-'}</TableCell>
+                      <TableCell>{renderLocation(item)}</TableCell>
+                      <TableCell className="max-w-[150px] truncate">{item.notes || '-'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

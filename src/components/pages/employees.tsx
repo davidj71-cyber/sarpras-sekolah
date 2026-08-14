@@ -317,6 +317,7 @@ export function EmployeesPage() {
               <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[100px] text-left">Aksi</TableHead>
                     <TableHead className="w-[50px] text-left tabular-nums">No</TableHead>
                     <TableHead>Nama</TableHead>
                     <TableHead className="whitespace-nowrap tabular-nums">NIP</TableHead>
@@ -324,21 +325,13 @@ export function EmployeesPage() {
                     <TableHead>Unit Kerja</TableHead>
                     <TableHead className="whitespace-nowrap tabular-nums">No HP</TableHead>
                     <TableHead>Alamat</TableHead>
-                    <TableHead className="w-[100px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredEmployees.map((emp, idx) => (
                     <TableRow key={emp.id} className="h-14">
-                      <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
-                      <TableCell className="font-medium">{emp.name}</TableCell>
-                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{emp.nip || '-'}</TableCell>
-                      <TableCell>{emp.position || '-'}</TableCell>
-                      <TableCell>{emp.department || '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{emp.phone || '-'}</TableCell>
-                      <TableCell className="max-w-[200px] truncate text-muted-foreground">{emp.address || '-'}</TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-start gap-1">
                           <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(emp)}>
                             <Pencil className="size-4" />
                           </Button>
@@ -347,6 +340,13 @@ export function EmployeesPage() {
                           </Button>
                         </div>
                       </TableCell>
+                      <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
+                      <TableCell className="font-medium">{emp.name}</TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{emp.nip || '-'}</TableCell>
+                      <TableCell>{emp.position || '-'}</TableCell>
+                      <TableCell>{emp.department || '-'}</TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{emp.phone || '-'}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-muted-foreground">{emp.address || '-'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

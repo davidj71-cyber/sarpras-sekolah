@@ -282,7 +282,7 @@ function getColumns(kibType: string): ColumnDef[] {
     ],
   }
 
-  return [...base, ...(specific[kibType] || []), { key: 'photos', label: 'Foto', className: 'w-[70px] text-center' }, { key: 'actions', label: 'Aksi', className: 'w-[100px] text-right' }]
+  return [{ key: 'actions', label: 'Aksi', className: 'w-[100px] text-left' }, ...base, ...(specific[kibType] || []), { key: 'photos', label: 'Foto', className: 'w-[70px] text-center' }]
 }
 
 // Print columns (same as getColumns but without actions)

@@ -709,6 +709,7 @@ export function MediaPage() {
               <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[160px] text-left">Aksi</TableHead>
                     <TableHead className="w-[50px] text-left tabular-nums">No</TableHead>
                     <TableHead>Nama</TableHead>
                     <TableHead>Nama Media</TableHead>
@@ -716,12 +717,31 @@ export function MediaPage() {
                     <TableHead className="text-right">Harga/Bulan</TableHead>
                     <TableHead className="text-center">Satuan</TableHead>
                     <TableHead className="text-right">Penerimaan</TableHead>
-                    <TableHead className="w-[160px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredEntries.map((e, idx) => (
                     <TableRow key={e.id} className="h-14">
+                      <TableCell className="text-left">
+                        <div className="flex items-center justify-start gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            onClick={() => setPaymentEntry(e)}
+                            title="Catatan pembayaran per bulan"
+                          >
+                            <CalendarCheck className="size-4" />
+                            <span className="hidden sm:inline">Bayar</span>
+                          </Button>
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(e)}>
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => { setDeleteId(e.id); setDeleteName(`${e.name} - ${e.mediaName}`) }}>
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{e.name}</TableCell>
                       <TableCell>{e.mediaName}</TableCell>
@@ -740,26 +760,6 @@ export function MediaPage() {
                             </Badge>
                           </div>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1.5"
-                            onClick={() => setPaymentEntry(e)}
-                            title="Catatan pembayaran per bulan"
-                          >
-                            <CalendarCheck className="size-4" />
-                            <span className="hidden sm:inline">Bayar</span>
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(e)}>
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => { setDeleteId(e.id); setDeleteName(`${e.name} - ${e.mediaName}`) }}>
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

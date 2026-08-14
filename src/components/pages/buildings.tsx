@@ -447,6 +447,7 @@ export function BuildingsPage() {
               <Table className="table-pro">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[100px] text-left">Aksi</TableHead>
                     <TableHead className="w-[50px] text-left">No</TableHead>
                     <TableHead>Nama Gedung</TableHead>
                     <TableHead>Kode</TableHead>
@@ -457,12 +458,21 @@ export function BuildingsPage() {
                     <TableHead className="text-center">Luas Tanah</TableHead>
                     <TableHead className="text-right">Nilai Aset</TableHead>
                     <TableHead className="max-w-[200px]">Deskripsi</TableHead>
-                    <TableHead className="w-[100px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((b, idx) => (
                     <TableRow key={b.id} className="h-14">
+                      <TableCell>
+                        <div className="flex items-center justify-start gap-1">
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(b)}>
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => { setDeleteId(b.id); setDeleteName(b.name) }}>
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell className="tabular-nums">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{b.name}</TableCell>
                       <TableCell>{b.code || '-'}</TableCell>
@@ -483,16 +493,6 @@ export function BuildingsPage() {
                         {b.acquisitionYear && <div className="text-[10px] text-muted-foreground">Th. {b.acquisitionYear}</div>}
                       </TableCell>
                       <TableCell className="max-w-[220px] truncate">{b.description || '-'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(b)}>
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => { setDeleteId(b.id); setDeleteName(b.name) }}>
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
