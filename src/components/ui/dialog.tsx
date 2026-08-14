@@ -50,6 +50,8 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onInteractOutside,
+  onPointerDownOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -63,6 +65,40 @@ function DialogContent({
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-1rem)] translate-x-[-50%] translate-y-[-50%] flex-col gap-3 overflow-y-auto overscroll-contain rounded-lg border p-3 shadow-lg duration-200 sm:max-w-2xl sm:p-6 sm:gap-4 sm:max-w-[calc(100%-2rem)]",
           className
         )}
+        onInteractOutside={(e) => {
+          // ── Cegah Dialog tertutup saat user berinteraksi dengan Radix Select ──
+          // Root cause: SelectContent dirender via Portal di LUAR Dialog. Saat user
+          // klik SelectItem, pointer-down terdeteksi sebagai "outside interaction"
+          // oleh Dialog → Dialog tertutup. Fix ini cek apakah target ada di dalam
+          // portal Select/Combobox/Popover; jika ya, preventDefault().
+          const target = e.target as HTMLElement | null
+          if (target) {
+            const isSelectPortal = target.closest?.(
+              '[data-radix-popper-content-wrapper], [data-slot="select-content"], [role="listbox"], [data-radix-select-content], [data-radix-popper-content-wrapper]'
+            )
+            if (isSelectPortal) {
+              e.preventDefault()
+              return
+            }
+          }
+          onInteractOutside?.(e)
+        }}
+        onPointerDownOutside={(e) => {
+          // Sama seperti onInteractOutside — cegah pointer-down di Select portal
+          // dari menutup Dialog. onPointerDownOutside dipanggil LEBIH DINI dari
+          // onInteractOutside (saat pointer-down, bukan setelah pointer-up).
+          const target = e.target as HTMLElement | null
+          if (target) {
+            const isSelectPortal = target.closest?.(
+              '[data-radix-popper-content-wrapper], [data-slot="select-content"], [role="listbox"], [data-radix-select-content]'
+            )
+            if (isSelectPortal) {
+              e.preventDefault()
+              return
+            }
+          }
+          onPointerDownOutside?.(e)
+        }}
         {...props}
       >
         {showCloseButton && (

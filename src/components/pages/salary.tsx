@@ -535,8 +535,12 @@ export function SalaryPage() {
       orientation,
     )
 
-    // ── 10. Lepaskan spinner tombol cetak SEGERA ─────────────────────────────
+    // ── 10. Lepaskan spinner + guard SEGERA ──────────────────────────────────
+    // Print window sudah terbuka → guard double-fire tidak diperlukan lagi.
+    // Reset SEGERA (bukan di .finally recordPromise) supaya tombol cetak tidak
+    // macet kalau background recording lambat/gagal.
     setPrinting(false)
+    printingRef.current = false
 
     // ── 11. Tunggu recording selesai di background → refresh + toast ────────
     // Silent refresh: jangan flash full-page loading spinner untuk background update.
@@ -576,9 +580,6 @@ export function SalaryPage() {
       })
       .catch(() => {
         fetchEntries({ silent: true })
-      })
-      .finally(() => {
-        printingRef.current = false
       })
   }
 

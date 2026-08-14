@@ -568,10 +568,12 @@ export function MediaPage() {
       orientation,
     )
 
-    // ── 10. Lepaskan spinner tombol cetak SEGERA ─────────────────────────────
-    // Print window sudah terbuka, user bisa langsung lihat preview.
-    // Recording masih jalan di background, tidak menghalangi UI.
+    // ── 10. Lepaskan spinner + guard SEGERA ──────────────────────────────────
+    // Print window sudah terbuka → guard double-fire tidak diperlukan lagi.
+    // Reset SEGERA (bukan di .finally recordPromise) supaya tombol cetak tidak
+    // macet kalau background recording lambat/gagal.
     setPrinting(false)
+    printingRef.current = false
 
     // ── 11. Tunggu recording selesai di background → refresh + toast ────────
     // Pakai .then() bukan await supaya tidak block return fungsi ini.
@@ -604,9 +606,6 @@ export function MediaPage() {
       .catch(() => {
         // Fallback: tetap refresh agar badge sinkron dengan server
         fetchEntries({ silent: true })
-      })
-      .finally(() => {
-        printingRef.current = false
       })
   }
 

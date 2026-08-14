@@ -275,7 +275,9 @@ export function PaymentDialog({
             {ownerSubtitle ? <span className="ml-2 text-muted-foreground">— {ownerSubtitle}</span> : null}
             <br />
             <span className="text-xs">
-              Pilih bulan &amp; tahun, lalu klik &quot;Catat Pembayaran&quot;. Total penerimaan otomatis terupdate.
+              Pilih bulan &amp; tahun, lalu klik &quot;Catat Pembayaran&quot;. Setelah dibayar, klik tombol{' '}
+              <strong className="text-emerald-700">&quot;Upload Bukti&quot;</strong> di kartu bulan untuk
+              upload foto bukti penerimaan (kamera/galeri, maks 5 foto).
             </span>
           </DialogDescription>
         </DialogHeader>
@@ -423,32 +425,41 @@ export function PaymentDialog({
                           ? new Date(payment.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
                           : 'Lunas'}
                       </div>
-                      <div className="flex gap-1 mt-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 flex-1 gap-1 text-[10px]"
-                          onClick={() => openProofDialog(month, year)}
-                        >
-                          <ImageIcon className="size-3" />
-                          {payment?.proofPhotos && payment.proofPhotos.length > 0
-                            ? `${payment.proofPhotos.length} foto`
-                            : 'Bukti'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                          onClick={() => handleDeletePayment(month, year)}
-                          disabled={removing === `${year}-${month}`}
-                        >
-                          {removing === `${year}-${month}` ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : (
+                      {/* ── Foto Bukti Pembayaran ──
+                          Tombol ini dibuat besar & berwarna supaya jelas terlihat.
+                          Klik → buka dialog upload foto (kamera Android atau galeri).
+                          Maks 5 foto per bulan. Foto tersimpan di field proofPhotos. */}
+                      <Button
+                        size="sm"
+                        variant={payment?.proofPhotos && payment.proofPhotos.length > 0 ? 'default' : 'outline'}
+                        className={`h-7 w-full gap-1.5 text-[11px] font-medium ${
+                          payment?.proofPhotos && payment.proofPhotos.length > 0
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                            : 'border-emerald-400 text-emerald-700 hover:bg-emerald-50'
+                        }`}
+                        onClick={() => openProofDialog(month, year)}
+                      >
+                        <ImageIcon className="size-3.5" />
+                        {payment?.proofPhotos && payment.proofPhotos.length > 0
+                          ? `${payment.proofPhotos.length} Foto Bukti`
+                          : 'Upload Bukti'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-full text-[10px] text-destructive hover:text-destructive"
+                        onClick={() => handleDeletePayment(month, year)}
+                        disabled={removing === `${year}-${month}`}
+                      >
+                        {removing === `${year}-${month}` ? (
+                          <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                          <>
                             <X className="size-3" />
-                          )}
-                        </Button>
-                      </div>
+                            Hapus
+                          </>
+                        )}
+                      </Button>
                     </div>
                   ) : (
                     <div className="text-[11px] text-muted-foreground">
