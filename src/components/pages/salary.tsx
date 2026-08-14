@@ -672,7 +672,10 @@ export function SalaryPage() {
         actions={
           <>
             <Button variant="outline" onClick={() => {
-              // Prefetch settings saat dialog cetak dibuka
+              // Re-fetch entries supaya dialog cetak selalu pakai data DB
+              // terbaru (mis. kalau user baru saja ubah jabatan/status guru).
+              // Prefetch settings juga, supaya cetak instant begitu dialog buka.
+              fetchEntries()
               fetchSettingsCached()
               setPrintDialogOpen(true)
             }} disabled={loading || filteredEntries.length === 0 || printing}>

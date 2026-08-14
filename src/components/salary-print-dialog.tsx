@@ -140,11 +140,24 @@ export function SalaryPrintDialog({
     if (open) fetchPayments()
   }, [open, fetchPayments])
 
-  // Daftar Jabatan unik dari entries — untuk dropdown filter.
+  // Daftar Jabatan unik dari entries — untuk dropdown filter & quick-pick honorType.
+  // Selalu re-compute ketika entries berubah (mis. user ubah jabatan guru di DB),
+  // sehingga menu cetak selalu sinkron dengan database guru terbaru.
   const jabatanOptions = useMemo(
     () => Array.from(new Set(entries.map((e) => e.jabatan).filter(Boolean))).sort(),
     [entries]
   )
+
+  // ── AUTO-SYNC honorType dengan jabatan ────────────────────────────────────
+  // Ketika user pilih jabatan di Filter Jabatan, otomatis set honorType (jenis
+  // honor untuk judul cetak) ke jabatan itu. Jadi kalau user ubah jabatan di
+  // database guru, lalu pilih jabatan tsb di filter, judul cetak langsung
+  // pakai jabatan baru tersebut — sinkron penuh.
+  useEffect(() => {
+    if (jabatanFilter) {
+      setHonorType(jabatanFilter)
+    }
+  }, [jabatanFilter])
 
   // Filtered entries based on search (by name OR NIP) AND jabatan filter
   const filteredEntries = useMemo(() => {
@@ -361,10 +374,39 @@ export function SalaryPrintDialog({
                 placeholder="Mis. HONOR PENJAGA KEAMANAN SEKOLAH"
                 value={honorType}
                 onChange={(e) => setHonorType(e.target.value)}
+                list="sal-honor-type-options"
               />
+              {/* Datalist: suggestion dari jabatan DB guru — sync otomatis */}
+              <datalist id="sal-honor-type-options">
+                <option value="HONOR" />
+                {jabatanOptions.map((j) => (
+                  <option key={j} value={j} />
+                ))}
+              </datalist>
               <p className="text-xs text-muted-foreground">
                 Judul: &ldquo;TANDA TERIMA PEMBAYARAN {honorType || 'HONOR'} BULAN ...&rdquo;
               </p>
+              {/* Quick-pick chips dari jabatan DB — sinkron dgn database guru */}
+              {jabatanOptions.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  <span className="text-[10px] text-muted-foreground self-center mr-1">Pilih dari DB:</span>
+                  {jabatanOptions.map((j) => (
+                    <button
+                      key={j}
+                      type="button"
+                      onClick={() => setHonorType(j)}
+                      title={`Set jenis honor = ${j}`}
+                      className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors max-w-[180px] truncate ${
+                        honorType === j
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-accent border-input'
+                      }`}
+                    >
+                      {j}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="space-y-2 sm:col-span-1">
               <Label htmlFor="sal-jabatan-filter">Filter Jabatan</Label>
