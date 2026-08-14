@@ -58,8 +58,11 @@ import {
   Wallet,
   Printer,
   FileSpreadsheet,
+  Upload,
   CalendarCheck,
   CheckCircle2,
+  FileUp,
+  X,
 } from 'lucide-react'
 import {
   openPrintWindow,
@@ -160,6 +163,14 @@ export function SalaryPage() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
   const [paymentEntry, setPaymentEntry] = useState<SalaryData | null>(null)
   const [printing, setPrinting] = useState(false)
+
+  // ─── Import Excel state ──────────────────────────────────────────────────
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importPeriod, setImportPeriod] = useState('')
+  const [importMode, setImportMode] = useState<'skip' | 'overwrite' | 'append'>('skip')
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<any>(null)
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
@@ -538,6 +549,101 @@ export function SalaryPage() {
     }
   }
 
+  // ─── Import Excel dari file .xlsx/.xls ──────────────────────────────────
+  function openImportDialog() {
+    setImportFile(null)
+    setImportPeriod(periodFilter || '')
+    setImportMode('skip')
+    setImportResult(null)
+    setImportDialogOpen(true)
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    // Validasi ekstensi
+    const name = f.name.toLowerCase()
+    if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+      toast({ title: 'Format tidak didukung', description: 'Pilih file .xlsx atau .xls', variant: 'destructive' })
+      return
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      toast({ title: 'File terlalu besar', description: 'Maksimal 5 MB', variant: 'destructive' })
+      return
+    }
+    setImportFile(f)
+    setImportResult(null)
+  }
+
+  async function handleImportExcel() {
+    if (!importFile) {
+      toast({ title: 'Validasi', description: 'Pilih file Excel dulu', variant: 'destructive' })
+      return
+    }
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', importFile)
+      fd.append('period', importPeriod.trim())
+      fd.append('mode', importMode)
+
+      const res = await fetch('/api/salary/import', {
+        method: 'POST',
+        body: fd,
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast({
+          title: 'Import gagal',
+          description: data.error || 'Gagal import Excel',
+          variant: 'destructive',
+        })
+        setImporting(false)
+        return
+      }
+
+      setImportResult(data)
+
+      // Jika ada data berhasil diimport, refresh list
+      if (data.imported > 0) {
+        await fetchEntries()
+      }
+
+      toast({
+        title: 'Import selesai',
+        description: `${data.imported} dari ${data.total} baris berhasil diimport${
+          data.skippedDuplicates ? `, ${data.skippedDuplicates} duplikat dilewati` : ''
+        }${data.deletedFromOverwrite ? `, ${data.deletedFromOverwrite} data lama ditimpa` : ''}`,
+      })
+    } catch (err) {
+      console.error('Import error:', err)
+      toast({
+        title: 'Error',
+        description: 'Terjadi kesalahan saat import. Coba lagi.',
+        variant: 'destructive',
+      })
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  function downloadTemplate() {
+    // Buat Excel template kosong sesuai format import
+    const template = [
+      ['NO', 'NAMA', 'NO. REKENING TABUNGAN', 'JUMLAH BULAN/JAM PELAJARAN', 'SATUAN', 'HARGA SATUAN/BULAN/JAM PELAJARAN', 'PENERIMAAN BERSIH', 'STATUS', 'JABATAN'],
+      ['1', 'CONTOH NAMA, S.PD', '271.02.04.019425-0', '39', 'JPL', '60000', '2340000', 'GTTS', 'GURU TIDAK TETAP SEKOLAH (GTTS)'],
+      ['2', 'CONTOH NAMA 2, S.PD', '271.02.04.022119-0', '34', 'JPL', '60000', '2040000', 'GTTS', 'GURU TIDAK TETAP SEKOLAH (GTTS)'],
+    ]
+    import('xlsx').then((XLSX) => {
+      const ws = XLSX.utils.aoa_to_sheet(template)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Database')
+      XLSX.writeFile(wb, 'Template_Import_Gaji.xlsx')
+    })
+  }
+
   return (
     <PageContainer>
       <PageHeader
@@ -557,6 +663,10 @@ export function SalaryPage() {
             <Button variant="outline" onClick={handleExportExcel} disabled={loading || filteredEntries.length === 0}>
               <FileSpreadsheet className="size-4 mr-2" />
               Export Excel
+            </Button>
+            <Button variant="outline" onClick={openImportDialog}>
+              <FileUp className="size-4 mr-2" />
+              Import Excel
             </Button>
             <Button onClick={openAddDialog}>
               <Plus className="size-4 mr-2" />
@@ -836,6 +946,188 @@ export function SalaryPage() {
           onPaymentChange={fetchEntries}
         />
       )}
+
+      {/* ─── Dialog Import Excel ─────────────────────────────────────────── */}
+      <Dialog open={importDialogOpen} onOpenChange={(open) => { if (!importing) setImportDialogOpen(open) }}>
+        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="size-5" />
+              Import Excel Gaji
+            </DialogTitle>
+            <DialogDescription>
+              Import data guru dari file Excel (.xlsx, .xls). Format kolom: NO, NAMA, NO. REKENING TABUNGAN, JUMLAH BULAN/JAM PELAJARAN, SATUAN, HARGA SATUAN, PENERIMAAN BERSIH, STATUS, JABATAN.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Pilih file */}
+            <div className="space-y-2">
+              <Label>File Excel</Label>
+              {!importFile ? (
+                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg py-8 cursor-pointer hover:bg-muted/40 transition-colors">
+                  <Upload className="size-8 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Klik untuk pilih file .xlsx / .xls</span>
+                  <span className="text-xs text-muted-foreground/70">Maksimal 5 MB</span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              ) : (
+                <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
+                  <div className="flex size-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <FileSpreadsheet className="size-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{importFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(importFile.size / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
+                  {!importing && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      onClick={() => setImportFile(null)}
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Periode */}
+            <div className="space-y-2">
+              <Label>Periode (opsional)</Label>
+              <Input
+                placeholder="Mis. Januari 2026"
+                value={importPeriod}
+                onChange={(e) => setImportPeriod(e.target.value)}
+                disabled={importing}
+              />
+              <p className="text-xs text-muted-foreground">
+                Data yg diimport akan diberi label periode ini. Dipakai juga untuk cek duplikat.
+              </p>
+            </div>
+
+            {/* Mode import */}
+            <div className="space-y-2">
+              <Label>Mode Import</Label>
+              <Select
+                value={importMode}
+                onValueChange={(v) => setImportMode(v as 'skip' | 'overwrite' | 'append')}
+                disabled={importing}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="skip">Lewati duplikat (default)</SelectItem>
+                  <SelectItem value="overwrite">Timpa data periode sama</SelectItem>
+                  <SelectItem value="append">Tambah semua (tanpa cek)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                <strong>Lewati duplikat:</strong> skip baris dgn NAMA + No.Rekening yg sudah ada di periode sama.<br />
+                <strong>Timpa:</strong> hapus semua data di periode sama, lalu import ulang.<br />
+                <strong>Tambah semua:</strong> import semua baris tanpa cek duplikat.
+              </p>
+            </div>
+
+            {/* Tombol download template */}
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={downloadTemplate} disabled={importing}>
+                <FileSpreadsheet className="size-4 mr-2" />
+                Download Template
+              </Button>
+            </div>
+
+            {/* Hasil import */}
+            {importResult && (
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <CheckCircle2 className="size-4 text-primary" />
+                  Hasil Import
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>Total baris diproses:</div>
+                  <div className="text-right font-medium">{importResult.total}</div>
+                  <div className="text-primary">Berhasil diimport:</div>
+                  <div className="text-right font-medium text-primary">{importResult.imported}</div>
+                  {importResult.skippedDuplicates > 0 && (
+                    <>
+                      <div>Duplikat dilewati:</div>
+                      <div className="text-right font-medium">{importResult.skippedDuplicates}</div>
+                    </>
+                  )}
+                  {importResult.skippedFooter > 0 && (
+                    <>
+                      <div>Baris kategori/footer:</div>
+                      <div className="text-right font-medium">{importResult.skippedFooter}</div>
+                    </>
+                  )}
+                  {importResult.deletedFromOverwrite > 0 && (
+                    <>
+                      <div>Data lama ditimpa:</div>
+                      <div className="text-right font-medium">{importResult.deletedFromOverwrite}</div>
+                    </>
+                  )}
+                  {importResult.errors?.length > 0 && (
+                    <>
+                      <div className="text-destructive">Gagal:</div>
+                      <div className="text-right font-medium text-destructive">{importResult.errors.length}</div>
+                    </>
+                  )}
+                </div>
+                {importResult.errors?.length > 0 && (
+                  <div className="mt-2 max-h-32 overflow-y-auto rounded border bg-background p-2 text-xs space-y-1">
+                    {importResult.errors.slice(0, 10).map((e: any, i: number) => (
+                      <div key={i} className="text-destructive">
+                        Baris {e.row} ({e.name}): {e.error}
+                      </div>
+                    ))}
+                    {importResult.errors.length > 10 && (
+                      <div className="text-muted-foreground">
+                        ...dan {importResult.errors.length - 10} error lainnya
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setImportDialogOpen(false)}
+              disabled={importing}
+            >
+              {importResult ? 'Tutup' : 'Batal'}
+            </Button>
+            {!importResult && (
+              <Button onClick={handleImportExcel} disabled={!importFile || importing}>
+                {importing ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Mengimport...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="size-4 mr-2" />
+                    Import Sekarang
+                  </>
+                )}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   )
 }
