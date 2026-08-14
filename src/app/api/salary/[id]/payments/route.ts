@@ -25,7 +25,13 @@ export async function GET(
       orderBy: [{ year: "asc" }, { month: "asc" }],
     });
 
-    return NextResponse.json(payments);
+    // Parse proofPhotos JSON string → array
+    const paymentsWithPhotos = payments.map((p) => ({
+      ...p,
+      proofPhotos: JSON.parse(p.proofPhotos || "[]") as string[],
+    }));
+
+    return NextResponse.json(paymentsWithPhotos);
   } catch (error) {
     console.error("Error fetching salary payments:", error);
     return NextResponse.json(
@@ -99,6 +105,52 @@ export async function POST(
     console.error("Error upserting salary payment:", error);
     return NextResponse.json(
       { error: "Gagal menyimpan catatan pembayaran gaji" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/salary/[id]/payments
+// Body: { year, month, proofPhotos: string[] }
+// → Update proof photos for a payment record.
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await ensureSalaryMediaSchema();
+    const { id } = await params;
+    const body = await request.json();
+
+    const year = Number(body.year);
+    const month = Number(body.month);
+
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+      return NextResponse.json(
+        { error: "Tahun/bulan tidak valid" },
+        { status: 400 }
+      );
+    }
+
+    const proofPhotos = JSON.stringify(
+      Array.isArray(body.proofPhotos) ? body.proofPhotos : []
+    );
+
+    const payment = await db.salaryPayment.update({
+      where: {
+        salaryId_year_month: { salaryId: id, year, month },
+      },
+      data: { proofPhotos },
+    });
+
+    return NextResponse.json({
+      ...payment,
+      proofPhotos: JSON.parse(payment.proofPhotos || "[]") as string[],
+    });
+  } catch (error) {
+    console.error("Error updating proof photos:", error);
+    return NextResponse.json(
+      { error: "Gagal menyimpan foto bukti pembayaran" },
       { status: 500 }
     );
   }

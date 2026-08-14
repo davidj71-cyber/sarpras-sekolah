@@ -447,6 +447,8 @@ model MediaPayment {
   amount      Float     @default(0) // Jumlah dibayar untuk bulan ini
   notes       String    @default("") // Catatan tambahan
   paidAt      DateTime  @default(now()) // Tanggal pembayaran
+  // ── Foto bukti pembayaran (base64 data URLs, JSON array) ──
+  proofPhotos String    @default("[]") // Foto bukti setelah TTD penerima
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -470,6 +472,8 @@ model SalaryPayment {
   signaturePrinted  Boolean   @default(false) // true = sudah cetak mode Tanda Tangan Guru
   bankPrinted       Boolean   @default(false) // true = sudah cetak mode Bank
   fullyPaidAt       DateTime? // null = belum lengkap; ter-set saat kedua mode tercetak
+  // ── Foto bukti pembayaran (base64 data URLs, JSON array) ──
+  proofPhotos       String    @default("[]") // Foto bukti setelah TTD penerima
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

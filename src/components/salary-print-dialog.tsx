@@ -333,8 +333,8 @@ export function SalaryPrintDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-4xl overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)]">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Printer className="size-5" />
             Cetak Daftar Pembayaran Gaji/Honor
@@ -345,6 +345,7 @@ export function SalaryPrintDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex-1 overflow-y-auto pr-2 -mr-2 min-h-0">
         <div className="space-y-4 py-2">
           {/* Year + Place + Print Date + Orientation + Pilihan Cetak */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -645,8 +646,9 @@ export function SalaryPrintDialog({
             </div>
           )}
         </div>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0 border-t pt-3 mt-2 gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Batal
           </Button>

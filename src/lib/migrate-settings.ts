@@ -429,5 +429,47 @@ async function doEnsureSalaryMediaSchema(): Promise<string[]> {
     console.warn("[migrate] ADD COLUMN OrderItem.photos skipped:", e);
   }
 
+  // ─── SalaryPayment: ADD COLUMN proofPhotos (bukti pembayaran setelah TTD) ──
+  // Foto bukti pembayaran gaji. JSON string '[]' default. Idempoten.
+  try {
+    if (isSqlite()) {
+      const exists = await columnExistsSqlite("SalaryPayment", "proofPhotos");
+      if (!exists) {
+        await db.$executeRawUnsafe(
+          `ALTER TABLE "SalaryPayment" ADD COLUMN "proofPhotos" TEXT NOT NULL DEFAULT '[]'`
+        );
+        executed.push(`ADD COLUMN "SalaryPayment.proofPhotos" (sqlite)`);
+      }
+    } else {
+      await db.$executeRawUnsafe(
+        `ALTER TABLE "SalaryPayment" ADD COLUMN IF NOT EXISTS "proofPhotos" TEXT NOT NULL DEFAULT '[]'`
+      );
+      executed.push(`ADD COLUMN IF NOT EXISTS "SalaryPayment.proofPhotos"`);
+    }
+  } catch (e) {
+    console.warn("[migrate] ADD COLUMN SalaryPayment.proofPhotos skipped:", e);
+  }
+
+  // ─── MediaPayment: ADD COLUMN proofPhotos (bukti pembayaran setelah TTD) ──
+  // Foto bukti pembayaran media. JSON string '[]' default. Idempoten.
+  try {
+    if (isSqlite()) {
+      const exists = await columnExistsSqlite("MediaPayment", "proofPhotos");
+      if (!exists) {
+        await db.$executeRawUnsafe(
+          `ALTER TABLE "MediaPayment" ADD COLUMN "proofPhotos" TEXT NOT NULL DEFAULT '[]'`
+        );
+        executed.push(`ADD COLUMN "MediaPayment.proofPhotos" (sqlite)`);
+      }
+    } else {
+      await db.$executeRawUnsafe(
+        `ALTER TABLE "MediaPayment" ADD COLUMN IF NOT EXISTS "proofPhotos" TEXT NOT NULL DEFAULT '[]'`
+      );
+      executed.push(`ADD COLUMN IF NOT EXISTS "MediaPayment.proofPhotos"`);
+    }
+  } catch (e) {
+    console.warn("[migrate] ADD COLUMN MediaPayment.proofPhotos skipped:", e);
+  }
+
   return executed;
 }

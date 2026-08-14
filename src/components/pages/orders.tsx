@@ -1325,16 +1325,16 @@ export function OrdersPage() {
 
                 {orderItems.map((item, idx) => (
                   <div key={idx} className="border rounded-md p-3 space-y-2">
-                    <div className="grid grid-cols-12 gap-3 items-end">
+                    <div className="grid grid-cols-12 gap-2 sm:gap-3 items-end">
                       <div className="col-span-12 sm:col-span-5 space-y-1">
                         <Label className="text-xs">Nama Barang</Label>
                         <Input value={item.itemName} onChange={(e) => updateItem(idx, 'itemName', e.target.value)} placeholder="Nama barang" className="h-9" />
                       </div>
-                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                      <div className="col-span-3 sm:col-span-2 space-y-1">
                         <Label className="text-xs">Jumlah</Label>
                         <Input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))} className="h-9" />
                       </div>
-                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                      <div className="col-span-3 sm:col-span-2 space-y-1">
                         <Label className="text-xs">Satuan</Label>
                         <MasterCombobox
                           category="satuan"
@@ -1344,11 +1344,11 @@ export function OrdersPage() {
                           className="h-9"
                         />
                       </div>
-                      <div className="col-span-3 sm:col-span-2 space-y-1">
+                      <div className="col-span-4 sm:col-span-2 space-y-1">
                         <Label className="text-xs">Harga Satuan</Label>
                         <CurrencyInput value={item.unitPrice} onChange={(val) => updateItem(idx, 'unitPrice', val)} className="h-9" />
                       </div>
-                      <div className="col-span-1 flex justify-end">
+                      <div className="col-span-2 flex justify-end sm:col-span-1">
                         <Button
                           variant="ghost"
                           size="icon"

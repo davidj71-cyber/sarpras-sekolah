@@ -1360,7 +1360,7 @@ export function RoomsPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditRoom(room)}>
                           <Pencil className="size-3.5" />
                         </Button>

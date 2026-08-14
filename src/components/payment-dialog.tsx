@@ -32,8 +32,10 @@ import {
   Plus,
   Trash2,
   X,
+  ImageIcon,
 } from 'lucide-react'
 import { formatNumberPrint } from '@/lib/print-utils'
+import { OrderPhotoUpload } from '@/components/order-photo-upload'
 
 export interface PaymentRecord {
   id: string
@@ -43,6 +45,7 @@ export interface PaymentRecord {
   lessonCount?: number
   notes?: string
   paidAt?: string
+  proofPhotos?: string[]
 }
 
 interface PaymentDialogProps {
@@ -104,6 +107,10 @@ export function PaymentDialog({
   const [formLessonCount, setFormLessonCount] = useState<number>(0)
   const [saving, setSaving] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
+  // Proof photo dialog state
+  const [proofDialogMonth, setProofDialogMonth] = useState<{ month: number; year: number } | null>(null)
+  const [proofPhotos, setProofPhotos] = useState<string[]>([])
+  const [savingProof, setSavingProof] = useState(false)
 
   const fetchPayments = useCallback(async () => {
     setLoading(true)
@@ -204,6 +211,39 @@ export function PaymentDialog({
       toast({ title: 'Error', description: 'Gagal menghapus pembayaran', variant: 'destructive' })
     } finally {
       setRemoving(null)
+    }
+  }
+
+  // ── Buka dialog foto bukti pembayaran ──
+  function openProofDialog(month: number, paymentYear: number) {
+    const payment = payments.find((p) => p.month === month && p.year === paymentYear)
+    setProofPhotos(payment?.proofPhotos ?? [])
+    setProofDialogMonth({ month, year: paymentYear })
+  }
+
+  // ── Simpan foto bukti pembayaran ──
+  async function handleSaveProof() {
+    if (!proofDialogMonth) return
+    const { month, year: paymentYear } = proofDialogMonth
+    setSavingProof(true)
+    try {
+      const res = await fetch(apiBase, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year: paymentYear, month, proofPhotos }),
+      })
+      if (!res.ok) throw new Error('Gagal')
+      toast({
+        title: 'Foto Bukti Tersimpan',
+        description: `${MONTH_NAMES[month - 1]} ${paymentYear}: ${proofPhotos.length} foto`,
+      })
+      setProofDialogMonth(null)
+      await fetchPayments()
+      onPaymentChange?.()
+    } catch {
+      toast({ title: 'Error', description: 'Gagal menyimpan foto bukti', variant: 'destructive' })
+    } finally {
+      setSavingProof(false)
     }
   }
 
@@ -383,20 +423,32 @@ export function PaymentDialog({
                           ? new Date(payment.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
                           : 'Lunas'}
                       </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="mt-1 h-6 w-full gap-1 text-[10px] text-destructive hover:text-destructive"
-                        onClick={() => handleDeletePayment(month, year)}
-                        disabled={removing === `${year}-${month}`}
-                      >
-                        {removing === `${year}-${month}` ? (
-                          <Loader2 className="size-3 animate-spin" />
-                        ) : (
-                          <X className="size-3" />
-                        )}
-                        Hapus
-                      </Button>
+                      <div className="flex gap-1 mt-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 flex-1 gap-1 text-[10px]"
+                          onClick={() => openProofDialog(month, year)}
+                        >
+                          <ImageIcon className="size-3" />
+                          {payment?.proofPhotos && payment.proofPhotos.length > 0
+                            ? `${payment.proofPhotos.length} foto`
+                            : 'Bukti'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                          onClick={() => handleDeletePayment(month, year)}
+                          disabled={removing === `${year}-${month}`}
+                        >
+                          {removing === `${year}-${month}` ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <X className="size-3" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-[11px] text-muted-foreground">
@@ -465,6 +517,43 @@ export function PaymentDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>Tutup</Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* ── Dialog Upload Foto Bukti Pembayaran ── */}
+      <Dialog open={!!proofDialogMonth} onOpenChange={(open) => { if (!open && !savingProof) setProofDialogMonth(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ImageIcon className="size-5" />
+              Foto Bukti Pembayaran
+            </DialogTitle>
+            <DialogDescription>
+              {proofDialogMonth && `${MONTH_NAMES[proofDialogMonth.month - 1]} ${proofDialogMonth.year}`}
+              <br />
+              <span className="text-xs">
+                Upload foto bukti pembayaran (kamera atau galeri). Maks 5 foto.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2">
+            <OrderPhotoUpload
+              photos={proofPhotos}
+              onChange={setProofPhotos}
+              maxPhotos={5}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProofDialogMonth(null)} disabled={savingProof}>
+              Batal
+            </Button>
+            <Button onClick={handleSaveProof} disabled={savingProof}>
+              {savingProof && <Loader2 className="size-4 mr-2 animate-spin" />}
+              Simpan Bukti
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }

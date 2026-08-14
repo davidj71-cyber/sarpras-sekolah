@@ -349,7 +349,7 @@ export function PhotoGallery({
             {!readonly && (
               <button
                 onClick={(e) => handleDelete(photo, e)}
-                className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600 touch-manipulation"
                 title="Hapus foto"
               >
                 {deletingPhoto === photo ? (
@@ -359,7 +359,7 @@ export function PhotoGallery({
                 )}
               </button>
             )}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
               <p className="text-white text-[10px] text-center pb-0.5">{idx + 1}</p>
             </div>
           </div>

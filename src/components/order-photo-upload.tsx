@@ -170,10 +170,11 @@ export function OrderPhotoUpload({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); handleDelete(idx) }}
-              className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+              className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600 touch-manipulation"
               title="Hapus foto"
+              aria-label={`Hapus foto ${idx + 1}`}
             >
-              <X className="size-2.5" />
+              <X className="size-3" />
             </button>
           </div>
         ))}
