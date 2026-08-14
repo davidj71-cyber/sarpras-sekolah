@@ -358,6 +358,22 @@ export function SalaryPage() {
     // printMode: 'signature' = dgn kolom tanda tangan (7 kolom), 'bank' = tanpa (6 kolom)
     const isBankMode = printMode === 'bank'
 
+    // ── Mapping STATUS pegawai → SATUAN di kolom JUMLAH ──────────────────────
+    // GTTS (Guru Tidak Tetap Sekolah) dan sinonim (HONORER SEKOLAH, GURU SEMENTARA)
+    // → satuan JPL (Jam Pelajaran) — jumlah yang dihitung = jumlah les.
+    // PTTS (Pegawai Tidak Tetap Sekolah), PETUGAS KEBERSIHAN, PENJAGA SEKOLAH
+    // → satuan OB.
+    // Status lain → fallback OB.
+    function statusToUnit(status: string): string {
+      const key = (status || '').trim().toUpperCase()
+      if (!key) return 'OB'
+      const JPL_STATUSES = ['GTTS', 'HONORER SEKOLAH', 'GURU SEMENTARA']
+      const OB_STATUSES = ['PTTS', 'PETUGAS KEBERSIHAN', 'PENJAGA SEKOLAH']
+      if (JPL_STATUSES.includes(key)) return 'JPL'
+      if (OB_STATUSES.includes(key)) return 'OB'
+      return 'OB'
+    }
+
     // ── 4. Watermark logo di tengah halaman (sebesar mungkin yang fit) ────────
     // Pakai logo APLIKASI (bukan KOP). Ukuran mm-based orientation-aware
     // supaya sebesar mungkin yang muat tanpa terpotong.
@@ -415,9 +431,14 @@ export function SalaryPage() {
     `
 
     // ── 7. Tabel kolom (transparan supaya watermark tembus) ───────────────────
-    // Mode signature (7 kolom): NO | NAMA PENERIMA | NO. REKENING TABUNGAN | JUMLAH BULAN/LES | HONOR BULAN/LES | PENERIMAAN | TANDA TANGAN
-    // Mode bank (6 kolom):      NO | NAMA PENERIMA | NO. REKENING TABUNGAN | JUMLAH BULAN/LES | HONOR BULAN/LES | PENERIMAAN
-    const grandTotalPrint = items.reduce((s, it) => s + it.months.length * it.pricePerLesson, 0)
+    // Mode signature (7 kolom): NO | NAMA PENERIMA | NO. REKENING TABUNGAN | JUMLAH | HARGA SATUAN | PENERIMAAN | TANDA TANGAN
+    // Mode bank (6 kolom):      NO | NAMA PENERIMA | NO. REKENING TABUNGAN | JUMLAH | HARGA SATUAN | PENERIMAAN
+    //
+    // JUMLAH  = it.lessonCount (jumlah les dari data guru)
+    // SATUAN  = ditentukan oleh status: GTTS→JPL, PTTS/Petugas/Penjaga→OB
+    //           (satuan ditampilkan di cell JUMLAH, bukan di header)
+    // PENERIMAAN = it.lessonCount × it.pricePerLesson (= totalReceived guru)
+    const grandTotalPrint = items.reduce((s, it) => s + it.lessonCount * it.pricePerLesson, 0)
 
     // Kolom tanda tangan hanya ada di mode signature
     const signatureCellHtml = isBankMode
@@ -425,14 +446,15 @@ export function SalaryPage() {
       : '<td style="background: transparent; height: 48px; vertical-align: middle;"></td>'
 
     const rows = items.map((it, idx) => {
-      const jumlahBulan = it.months.length
-      const penerimaan = jumlahBulan * it.pricePerLesson
+      const jumlah = it.lessonCount
+      const satuan = statusToUnit(it.status)
+      const penerimaan = jumlah * it.pricePerLesson
       return `
         <tr>
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${idx + 1}</td>
           <td style="background: transparent; vertical-align: middle; white-space: nowrap; text-transform: uppercase;">${it.name || '-'}</td>
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${it.bankAccount || '-'}</td>
-          <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlahBulan)}&nbsp;&nbsp;&nbsp;&nbsp;OB</td>
+          <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlah)}&nbsp;&nbsp;&nbsp;&nbsp;${satuan}</td>
           <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(it.pricePerLesson)}</td>
           <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(penerimaan)}</td>
           ${signatureCellHtml}
@@ -442,7 +464,7 @@ export function SalaryPage() {
 
     // Baris total — layout revisi sesuai permintaan user:
     //   col 1-2 (colspan=2): label "TERBILANG" (hanya sampai batas NO. dan NAMA PENERIMA)
-    //   col 3-5 (colspan=3): teks terbilang rupiah (dari NO. REKENING/TABUNGAN s/d HONOR BULAN/LES)
+    //   col 3-5 (colspan=3): teks terbilang rupiah (dari NO. REKENING/TABUNGAN s/d HARGA SATUAN)
     //   col 6:              total "Rp 13.500.000,-" (di kolom PENERIMAAN)
     //   col 7:              kosong (TANDA TANGAN, hanya mode signature)
     // Total kolom: 2 + 3 + 1 + (1 signature) = 7 (signature) atau 6 (bank) ✅
@@ -477,8 +499,8 @@ export function SalaryPage() {
             <th style="background: transparent; width: 5%; padding: 6px 4px;">NO.</th>
             <th style="background: transparent; width: ${namaWidth}; padding: 6px 4px;">NAMA PENERIMA</th>
             <th style="background: transparent; width: ${rekeningWidth}; padding: 6px 4px;">NO. REKENING/<br>TABUNGAN</th>
-            <th style="background: transparent; width: 9%; padding: 6px 4px;">JUMLAH<br>BULAN/LES</th>
-            <th style="background: transparent; width: 12%; padding: 6px 4px;">HONOR<br>BULAN/LES</th>
+            <th style="background: transparent; width: 9%; padding: 6px 4px;">JUMLAH</th>
+            <th style="background: transparent; width: 12%; padding: 6px 4px;">HARGA<br>SATUAN</th>
             <th style="background: transparent; width: ${penerimaanWidth}; padding: 6px 4px;">PENERIMAAN</th>
             ${signatureHeaderHtml}
           </tr>

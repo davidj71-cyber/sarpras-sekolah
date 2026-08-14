@@ -37,6 +37,7 @@ export interface SalaryPrintPlanItem {
   name: string
   nip: string
   bankAccount: string
+  status: string
   lessonCount: number
   unit: string
   pricePerLesson: number
@@ -302,6 +303,7 @@ export function SalaryPrintDialog({
         name: entry.name,
         nip: entry.nip,
         bankAccount: entry.bankAccount,
+        status: entry.status,
         lessonCount: entry.lessonCount,
         unit: entry.unit,
         pricePerLesson: entry.pricePerLesson,
