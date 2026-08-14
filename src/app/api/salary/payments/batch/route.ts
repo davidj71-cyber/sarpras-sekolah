@@ -3,24 +3,25 @@ import { db } from "@/lib/db";
 import { ensureSalaryMediaSchema } from "@/lib/migrate-settings";
 
 // POST /api/salary/payments/batch
-// Body: { year: number, items: Array<{ salaryId, month, lessonCount, amount }> }
-// → Insert banyak catatan pembayaran gaji sekaligus (1 query INSERT),
-//   lalu recompute totalReceived untuk tiap salary yang terdampak
-//   (1 query aggregate + N query update paralel).
-//
-// Menggantikan loop POST /api/salary/[id]/payments di client yang
-// lambat karena N sequential request (bisa 30+ detik untuk 60 baris).
+// Body: { year: number, printMode: 'signature' | 'bank', items: Array<{ salaryId, month, lessonCount, amount }> }
+// → Tracking cetak per mode:
+//   - Saat cetak mode 'signature': set signaturePrinted=true
+//   - Saat cetak mode 'bank': set bankPrinted=true
+//   - Jika kedua flag true → set fullyPaidAt=now() (transaksi selesai)
+//   - Record baru dibuat jika belum ada (dengan amount/lessonCount),
+//     tapi fullyPaidAt hanya ter-set saat kedua mode tercetak.
 export async function POST(request: NextRequest) {
   try {
     await ensureSalaryMediaSchema();
 
     const body = await request.json();
     const year = Number(body.year);
+    const printMode: string = body.printMode === "bank" ? "bank" : "signature";
     const itemsRaw: unknown = body.items;
 
     if (!Number.isFinite(year) || !Array.isArray(itemsRaw) || itemsRaw.length === 0) {
       return NextResponse.json(
-        { error: "Body tidak valid. Butuh { year, items: [{ salaryId, month, lessonCount, amount }] }" },
+        { error: "Body tidak valid. Butuh { year, printMode, items: [{ salaryId, month, lessonCount, amount }] }" },
         { status: 400 }
       );
     }
@@ -54,52 +55,85 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── 1. Filter kombinasi (salaryId, month) yang SUDAH dibayar ──
-    // Catatan: argumen `skipDuplicates` pada Prisma createMany TIDAK didukung
-    // oleh SQLite (database dev). Schema memiliki @@unique([salaryId, year, month]),
-    // jadi duplikat akan throw unique-constraint error bila tidak difilter dulu.
-    // Solusi: query pembayaran yang sudah ada untuk tahun ini, lalu filter di
-    // aplikasi. Kompatibel dengan SQLite (dev) maupun PostgreSQL (prod).
     const affectedSalaryIds = Array.from(new Set(items.map((it) => it.salaryId)));
     const affectedMonths = Array.from(new Set(items.map((it) => it.month)));
 
+    // ── Query record yang sudah ada untuk (salaryId, month) kombinasi ──
     const existing = await db.salaryPayment.findMany({
       where: {
         year,
         salaryId: { in: affectedSalaryIds },
         month: { in: affectedMonths },
       },
-      select: { salaryId: true, month: true },
     });
-    const existingKeys = new Set(existing.map((e) => `${e.salaryId}|${e.month}`));
+    const existingMap = new Map(existing.map((e) => [`${e.salaryId}|${e.month}`, e]));
 
-    const newItems = items.filter(
-      (it) => !existingKeys.has(`${it.salaryId}|${it.month}`)
-    );
-    const skippedCount = items.length - newItems.length;
-
-    // ── 2. INSERT hanya item baru (tanpa skipDuplicates) ──
+    const now = new Date();
     let insertedCount = 0;
-    if (newItems.length > 0) {
-      const now = new Date();
-      const result = await db.salaryPayment.createMany({
-        data: newItems.map((it) => ({
-          salaryId: it.salaryId,
-          year,
-          month: it.month,
-          lessonCount: it.lessonCount,
-          amount: it.amount,
-          paidAt: now,
-        })),
-      });
-      insertedCount = result.count;
+    let updatedCount = 0;
+    let fullyPaidCount = 0;
+
+    // ── Proses tiap item: insert baru atau update flag ──
+    for (const it of items) {
+      const key = `${it.salaryId}|${it.month}`;
+      const ex = existingMap.get(key);
+
+      if (!ex) {
+        // Record belum ada → INSERT baru dengan flag sesuai printMode
+        // fullyPaidAt hanya ter-set jika kedua mode sudah tercetak.
+        // Karena ini record baru, mode pertama saja → fullyPaidAt = null.
+        await db.salaryPayment.create({
+          data: {
+            salaryId: it.salaryId,
+            year,
+            month: it.month,
+            lessonCount: it.lessonCount,
+            amount: it.amount,
+            paidAt: now,
+            signaturePrinted: printMode === "signature",
+            bankPrinted: printMode === "bank",
+            fullyPaidAt: null, // baru 1 mode tercetak, belum lengkap
+          },
+        });
+        insertedCount++;
+      } else {
+        // Record sudah ada → UPDATE flag sesuai printMode
+        const newSignaturePrinted = printMode === "signature" ? true : ex.signaturePrinted;
+        const newBankPrinted = printMode === "bank" ? true : ex.bankPrinted;
+        const bothPrinted = newSignaturePrinted && newBankPrinted;
+
+        // Set fullyPaidAt hanya jika kedua mode sudah tercetak DAN belum pernah di-set
+        const newFullyPaidAt = bothPrinted ? (ex.fullyPaidAt ?? now) : ex.fullyPaidAt;
+
+        const wasFullyPaid = ex.fullyPaidAt !== null;
+        await db.salaryPayment.update({
+          where: { id: ex.id },
+          data: {
+            signaturePrinted: newSignaturePrinted,
+            bankPrinted: newBankPrinted,
+            fullyPaidAt: newFullyPaidAt,
+            // Update amount/lessonCount jika berubah (mis. harga honor diubah)
+            lessonCount: it.lessonCount,
+            amount: it.amount,
+          },
+        });
+        updatedCount++;
+        if (!wasFullyPaid && bothPrinted) {
+          fullyPaidCount++; // baru saja lengkap
+        }
+      }
     }
 
-    // ── 3. Recompute totalReceived untuk tiap salary yang terdampak ──
-
+    // ── Recompute totalReceived untuk tiap salary yang terdampak ──
+    // Hanya hitung record yang sudah fullyPaid (transaksi selesai) sebagai penerimaan.
+    // Record yang baru 1 mode tercetak belum dihitung sebagai penerimaan final,
+    // tapi amount tetap tersimpan untuk tracking.
     const sums = await db.salaryPayment.groupBy({
       by: ["salaryId"],
-      where: { salaryId: { in: affectedSalaryIds } },
+      where: {
+        salaryId: { in: affectedSalaryIds },
+        fullyPaidAt: { not: null },
+      },
       _sum: { amount: true },
     });
 
@@ -114,9 +148,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       recorded: insertedCount,
+      updated: updatedCount,
+      fullyPaid: fullyPaidCount,
       requested: items.length,
       affectedSalary: affectedSalaryIds.length,
-      skipped: skippedCount,
+      printMode,
     });
   } catch (error) {
     console.error("Error batch recording salary payments:", error);

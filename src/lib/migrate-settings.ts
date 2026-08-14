@@ -291,6 +291,9 @@ export async function ensureSalaryMediaSchema(): Promise<string[]> {
         "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
         "notes" TEXT NOT NULL DEFAULT '',
         "paidAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "signaturePrinted" BOOLEAN NOT NULL DEFAULT false,
+        "bankPrinted" BOOLEAN NOT NULL DEFAULT false,
+        "fullyPaidAt" TIMESTAMP(3),
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "SalaryPayment_pkey" PRIMARY KEY ("id")
@@ -311,6 +314,57 @@ export async function ensureSalaryMediaSchema(): Promise<string[]> {
   } catch (e) {
     console.error("[migrate] create SalaryPayment failed:", e);
     throw e;
+  }
+
+  // ─── SalaryPayment: ADD COLUMN signaturePrinted, bankPrinted, fullyPaidAt ──
+  // Tracking cetak per mode: auto-record (fullyPaidAt) ter-set saat kedua
+  // laporan (Tanda Tangan Guru + Bank) sudah tercetak untuk bulan tersebut.
+  const salaryPaymentNewCols: Array<{ name: string; ddl: string }> = [
+    { name: "signaturePrinted", ddl: `BOOLEAN NOT NULL DEFAULT false` },
+    { name: "bankPrinted", ddl: `BOOLEAN NOT NULL DEFAULT false` },
+    { name: "fullyPaidAt", ddl: `TIMESTAMP(3)` },
+  ];
+  for (const col of salaryPaymentNewCols) {
+    if (isSqlite()) {
+      const exists = await columnExistsSqlite("SalaryPayment", col.name);
+      if (exists) continue;
+      try {
+        await db.$executeRawUnsafe(
+          `ALTER TABLE "SalaryPayment" ADD COLUMN "${col.name}" ${col.ddl}`
+        );
+        executed.push(`ADD COLUMN "SalaryPayment.${col.name}"`);
+      } catch (e) {
+        console.warn(`[migrate] sqlite add SalaryPayment.${col.name} skipped:`, e);
+      }
+    } else {
+      try {
+        await db.$executeRawUnsafe(
+          `ALTER TABLE "SalaryPayment" ADD COLUMN IF NOT EXISTS "${col.name}" ${col.ddl}`
+        );
+        executed.push(`ADD COLUMN IF NOT EXISTS "SalaryPayment.${col.name}"`);
+      } catch (e) {
+        console.error(`[migrate] add SalaryPayment.${col.name} failed:`, e);
+      }
+    }
+  }
+
+  // ─── Migrate data lama: anggap record existing sudah lengkap ──
+  // Record lama (sebelum fitur tracking) memiliki signaturePrinted=false &
+  // bankPrinted=false (default). Agar tidak mengunci data yang sudah berjalan,
+  // set kedua flag=true dan fullyPaidAt=paidAt untuk record yang belum di-migrate.
+  try {
+    if (isSqlite()) {
+      await db.$executeRawUnsafe(
+        `UPDATE "SalaryPayment" SET "signaturePrinted" = 1, "bankPrinted" = 1, "fullyPaidAt" = "paidAt" WHERE "fullyPaidAt" IS NULL AND "paidAt" IS NOT NULL`
+      );
+    } else {
+      await db.$executeRawUnsafe(
+        `UPDATE "SalaryPayment" SET "signaturePrinted" = true, "bankPrinted" = true, "fullyPaidAt" = "paidAt" WHERE "fullyPaidAt" IS NULL AND "paidAt" IS NOT NULL`
+      );
+    }
+    executed.push(`MIGRATE legacy SalaryPayment → fullyPaidAt=paidAt`);
+  } catch (e) {
+    console.warn("[migrate] legacy SalaryPayment migration skipped:", e);
   }
 
   return executed;

@@ -7,7 +7,10 @@ import { ensureSalaryMediaSchema } from "@/lib/migrate-settings";
 //   Used by the print dialog to compute which months are already paid per salary,
 //   so it can disable already-paid months from being selected again.
 //
-// Response shape: Array<{ id, salaryId, year, month, lessonCount, amount, notes, paidAt }>
+// Response shape: Array<{ id, salaryId, year, month, lessonCount, amount, notes, paidAt, signaturePrinted, bankPrinted, fullyPaidAt }>
+//   - signaturePrinted: true = sudah cetak mode Tanda Tangan Guru
+//   - bankPrinted: true = sudah cetak mode Bank
+//   - fullyPaidAt: non-null = kedua mode sudah tercetak (transaksi selesai, bulan terkunci)
 export async function GET(request: NextRequest) {
   try {
     await ensureSalaryMediaSchema();
@@ -32,6 +35,9 @@ export async function GET(request: NextRequest) {
         amount: true,
         notes: true,
         paidAt: true,
+        signaturePrinted: true,
+        bankPrinted: true,
+        fullyPaidAt: true,
       },
       orderBy: [{ year: "asc" }, { month: "asc" }],
     });

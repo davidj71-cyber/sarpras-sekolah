@@ -315,18 +315,21 @@ export function SalaryPage() {
 
     // ── 2. Background: catat SEMUA pembayaran dalam 1 request batch ──────────
     // Tidak di-await! Jalan paralel dengan render print window.
+    // Kirim printMode supaya backend bisa track mode cetak mana yang sudah tercetak.
+    // fullyPaidAt hanya ter-set saat kedua mode (signature + bank) sudah tercetak.
     const recordPromise = batchItems.length > 0
       ? fetch('/api/salary/payments/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             year: Number(plan.year),
+            printMode: plan.printMode,
             items: batchItems,
           }),
         })
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null)
-      : Promise.resolve({ recorded: 0, skipped: 0 })
+      : Promise.resolve({ recorded: 0, updated: 0, fullyPaid: 0 })
 
     // ── 3. Ambil settings (dari cache kalau ada — instant!) ─────────────────
     const raw = await fetchSettingsCached()
@@ -532,10 +535,21 @@ export function SalaryPage() {
       .then((result) => {
         fetchEntries()
         if (result && typeof result.recorded === 'number') {
-          if (result.recorded > 0) {
+          const recorded = result.recorded ?? 0
+          const updated = result.updated ?? 0
+          const fullyPaid = result.fullyPaid ?? 0
+          if (recorded > 0 || updated > 0) {
+            // Buat pesan yang akurat tentang status cetak
+            const modeLabel = plan.printMode === 'signature' ? 'Tanda Tangan Guru' : 'Bank'
+            let desc = `${modeLabel}: ${recorded + updated} entri terproses.`
+            if (fullyPaid > 0) {
+              desc += ` ${fullyPaid} bulan lengkap (terkunci).`
+            } else {
+              desc += ` Cetak mode lain untuk melengkapi.`
+            }
             toast({
               title: 'Berhasil',
-              description: `${result.recorded} pembayaran tercatat di database.`,
+              description: desc,
             })
           } else if (batchItems.length > 0) {
             toast({

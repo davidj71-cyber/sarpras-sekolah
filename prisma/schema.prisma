@@ -451,17 +451,21 @@ model MediaPayment {
 // ─── Catatan Pembayaran per Bulan (Gaji) ──────────────────────────────────────
 // Melacak bulan mana saja yang sudah dibayar / belum dibayar untuk tiap guru.
 model SalaryPayment {
-  id          String    @id @default(cuid())
-  salaryId    String
-  salary      SalaryEntry @relation(fields: [salaryId], references: [id], onDelete: Cascade)
-  year        Int       // Tahun
-  month       Int       // 1-12
-  lessonCount Int       @default(0) // Jumlah les di bulan ini (override default)
-  amount      Float     @default(0) // Jumlah dibayar untuk bulan ini
-  notes       String    @default("") // Catatan tambahan
-  paidAt      DateTime  @default(now()) // Tanggal pembayaran
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  salaryId          String
+  salary            SalaryEntry @relation(fields: [salaryId], references: [id], onDelete: Cascade)
+  year              Int       // Tahun
+  month             Int       // 1-12
+  lessonCount       Int       @default(0) // Jumlah les di bulan ini (override default)
+  amount            Float     @default(0) // Jumlah dibayar untuk bulan ini
+  notes             String    @default("") // Catatan tambahan
+  paidAt            DateTime  @default(now()) // Tanggal pembayaran (legacy, saat record dibuat)
+  // ── Tracking cetak per mode (auto-record setelah kedua laporan terbit) ──
+  signaturePrinted  Boolean   @default(false) // true = sudah cetak mode Tanda Tangan Guru
+  bankPrinted       Boolean   @default(false) // true = sudah cetak mode Bank
+  fullyPaidAt       DateTime? // null = belum lengkap; ter-set saat kedua mode tercetak
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@unique([salaryId, year, month])
   @@index([salaryId])

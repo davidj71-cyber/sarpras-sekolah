@@ -87,6 +87,9 @@ interface PaymentRecord {
   lessonCount: number
   amount: number
   paidAt?: string
+  signaturePrinted?: boolean
+  bankPrinted?: boolean
+  fullyPaidAt?: string | null
 }
 
 // ── Mapping STATUS pegawai → LABEL JUDUL cetak ─────────────────────────────
@@ -202,18 +205,41 @@ export function SalaryPrintDialog({
     })
   }, [entries, search, statusFilter])
 
-  // Map: salaryId → Set of paid months for the selected year
+  // Map: salaryId → Set of FULLY-PAID months (kedua mode tercetak) for the selected year
+  // Bulan dianggap "sudah dibayar" (terkunci) HANYA jika fullyPaidAt ter-set,
+  // yaitu kedua laporan (Tanda Tangan + Bank) sudah tercetak.
   const paidMonthsBySalary = useMemo(() => {
     const map = new Map<string, Set<number>>()
     const y = Number(year)
     for (const p of payments) {
       if (p.year !== y) continue
+      if (!p.fullyPaidAt) continue // belum lengkap → tidak terkunci
       let set = map.get(p.salaryId)
       if (!set) {
         set = new Set()
         map.set(p.salaryId, set)
       }
       set.add(p.month)
+    }
+    return map
+  }, [payments, year])
+
+  // Map: salaryId → Map<month, { signaturePrinted, bankPrinted }> untuk tracking per mode
+  // Dipakai untuk menampilkan badge "✓ TTD" / "✓ Bank" di tabel guru.
+  const printStatusBySalary = useMemo(() => {
+    const map = new Map<string, Map<number, { signature: boolean; bank: boolean }>>()
+    const y = Number(year)
+    for (const p of payments) {
+      if (p.year !== y) continue
+      let inner = map.get(p.salaryId)
+      if (!inner) {
+        inner = new Map()
+        map.set(p.salaryId, inner)
+      }
+      inner.set(p.month, {
+        signature: !!p.signaturePrinted,
+        bank: !!p.bankPrinted,
+      })
     }
     return map
   }, [payments, year])
@@ -305,18 +331,6 @@ export function SalaryPrintDialog({
   const canPrint = selectedSalaryIds.size > 0 && selectedMonths.size > 0
   const yearOptions = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2]
 
-  // Count how many (salary × month) payments will be recorded
-  const estimatedPayments = useMemo(() => {
-    let count = 0
-    for (const salaryId of selectedSalaryIds) {
-      const paidSet = paidMonthsBySalary.get(salaryId) ?? new Set<number>()
-      for (const m of selectedMonths) {
-        if (!paidSet.has(m)) count++
-      }
-    }
-    return count
-  }, [selectedSalaryIds, selectedMonths, paidMonthsBySalary])
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -326,8 +340,8 @@ export function SalaryPrintDialog({
             Cetak Daftar Pembayaran Gaji/Honor
           </DialogTitle>
           <DialogDescription>
-            Pilih guru dan bulan yang akan dibayar. Bulan yang sudah dibayar otomatis nonaktif.
-            Mencetak akan mencatat pembayaran secara otomatis.
+            Pilih guru dan bulan yang akan dicetak. Pembayaran tercatat otomatis setelah kedua laporan
+            (Tanda Tangan Guru + Bank) tercetak untuk bulan tersebut.
           </DialogDescription>
         </DialogHeader>
 
@@ -550,6 +564,9 @@ export function SalaryPrintDialog({
                       const isSelected = selectedSalaryIds.has(e.id)
                       const paidSet = paidMonthsBySalary.get(e.id) ?? new Set<number>()
                       const paidCount = paidSet.size
+                      // Tracking cetak per mode untuk bulan-bulan yang dipilih
+                      const statusMap = printStatusBySalary.get(e.id) ?? new Map()
+                      const selectedMonthsArr = Array.from(selectedMonths).sort((a, b) => a - b)
                       return (
                         <tr
                           key={e.id}
@@ -559,7 +576,41 @@ export function SalaryPrintDialog({
                           <td className="p-2 text-center">
                             <Checkbox checked={isSelected} />
                           </td>
-                          <td className="p-2 font-medium">{e.name || '-'}</td>
+                          <td className="p-2 font-medium">
+                            {e.name || '-'}
+                            {/* Badge status cetak per mode untuk bulan yang dipilih */}
+                            {isSelected && selectedMonthsArr.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {selectedMonthsArr.map((m) => {
+                                  const st = statusMap.get(m)
+                                  const sig = st?.signature ?? false
+                                  const bnk = st?.bank ?? false
+                                  if (sig && bnk) {
+                                    return (
+                                      <Badge key={m} variant="default" className="text-[10px] py-0 px-1.5 h-4 bg-green-600 hover:bg-green-600">
+                                        {MONTHS[m - 1].slice(0, 3)} ✓lengkap
+                                      </Badge>
+                                    )
+                                  }
+                                  if (sig) {
+                                    return (
+                                      <Badge key={m} variant="outline" className="text-[10px] py-0 px-1.5 h-4 border-amber-500 text-amber-700 bg-amber-50">
+                                        {MONTHS[m - 1].slice(0, 3)} ✓TTD
+                                      </Badge>
+                                    )
+                                  }
+                                  if (bnk) {
+                                    return (
+                                      <Badge key={m} variant="outline" className="text-[10px] py-0 px-1.5 h-4 border-amber-500 text-amber-700 bg-amber-50">
+                                        {MONTHS[m - 1].slice(0, 3)} ✓Bank
+                                      </Badge>
+                                    )
+                                  }
+                                  return null
+                                })}
+                              </div>
+                            )}
+                          </td>
                           <td className="p-2 hidden sm:table-cell text-muted-foreground">{e.nip || '-'}</td>
                           <td className="p-2 hidden md:table-cell text-muted-foreground">{e.status || '-'}</td>
                           <td className="p-2 hidden md:table-cell text-muted-foreground">{e.bankAccount || '-'}</td>
@@ -586,8 +637,9 @@ export function SalaryPrintDialog({
               <div className="flex items-center gap-2 text-muted-foreground">
                 <CheckCircle2 className="size-4" />
                 <span>
-                  Akan mencetak <strong>{selectedSalaryIds.size} guru</strong> × <strong>{selectedMonths.size} bulan</strong>.
-                  {' '}Total <strong>{estimatedPayments} pembayaran</strong> akan dicatat ke database.
+                  Akan mencetak <strong>{selectedSalaryIds.size} guru</strong> × <strong>{selectedMonths.size} bulan</strong> mode{' '}
+                  <strong>{printMode === 'signature' ? 'Tanda Tangan Guru' : 'Bank'}</strong>.
+                  {' '}Bulan terkunci hanya setelah kedua mode tercetak.
                 </span>
               </div>
             </div>
