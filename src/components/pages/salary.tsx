@@ -68,6 +68,7 @@ import {
   openPrintWindow,
   formatRupiahPrint,
   formatNumberPrint,
+  sanitizeFilename,
 } from '@/lib/print-utils'
 import { terbilangRupiah } from '@/lib/terbilang'
 import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
@@ -551,8 +552,11 @@ export function SalaryPage() {
       ${signatureHtml}
     `
 
+    // Nama file PDF saat user "Save as PDF": Gaji_[Nama Status]_[Bulan] [Tahun]
+    // honorType = label status (mis. "GURU TIDAK TETAP SEKOLAH (GTTS)") — "Nama Status"
+    // monthLabel = "BULAN AGUSTUS" / "BULAN JULI SAMPAI SEPTEMBER" — periode bulan
     openPrintWindow(
-      `Daftar Pembayaran Gaji - ${monthLabel} ${year}`,
+      sanitizeFilename(`Gaji_${honorType}_${monthLabel} ${year}`),
       bodyHtml,
       orientation,
     )

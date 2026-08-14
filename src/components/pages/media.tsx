@@ -65,6 +65,7 @@ import {
   openPrintWindow,
   formatRupiahPrint,
   formatNumberPrint,
+  sanitizeFilename,
 } from '@/lib/print-utils'
 import { terbilangRupiah } from '@/lib/terbilang'
 import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
@@ -562,8 +563,16 @@ export function MediaPage() {
       ${signatureHtml}
     `
 
+    // Nama file PDF saat user "Save as PDF": [Nama Pemilik Media]_[Bulan] [Tahun]
+    // "Nama Pemilik Media" = nama penerima/pemilik media (item.name).
+    // Jika semua item punya pemilik sama → pakai nama tsb.
+    // Jika beberapa pemilik berbeda → "PemilikPertama dkk" (ringkas, tidak terlalu panjang).
+    const ownerNames = Array.from(new Set(items.map((it) => it.name).filter(Boolean)))
+    const ownerLabel = ownerNames.length <= 1
+      ? (ownerNames[0] || 'Media')
+      : `${ownerNames[0]} dkk`
     openPrintWindow(
-      `Daftar Pembayaran Media - ${monthLabel} ${year}`,
+      sanitizeFilename(`${ownerLabel}_${monthLabel} ${year}`),
       bodyHtml,
       orientation,
     )

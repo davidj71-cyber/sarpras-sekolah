@@ -402,6 +402,14 @@ export function formatDatePrint(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+// ─── Sanitize filename ────────────────────────────────────────────────────────
+// Buat string aman dipakai sebagai nama file (PDF/Excel) di Windows/macOS/Linux.
+// Karakter invalid \ / : * ? " < > | diganti dengan '-'.
+// Spasi, kurung (), koma, & tetap dipertahankan (valid di semua OS).
+export function sanitizeFilename(name: string): string {
+  return (name || '').replace(/[\\/:*?"<>|]/g, '-').trim()
+}
+
 // ─── Open print window ────────────────────────────────────────────────────────
 
 export function openPrintWindow(title: string, bodyHtml: string, orientation: PrintOrientation = 'portrait'): void {
