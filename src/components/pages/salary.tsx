@@ -419,36 +419,43 @@ export function SalaryPage() {
       return `
         <tr>
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${idx + 1}</td>
-          <td style="background: transparent; vertical-align: middle;">${it.name || '-'}</td>
-          <td style="background: transparent; vertical-align: middle;">${it.bankAccount || '-'}</td>
-          <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlahBulan)} OB</td>
-          <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(it.pricePerLesson)}</td>
-          <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp ${formatNumberPrint(penerimaan)}</td>
+          <td style="background: transparent; vertical-align: middle; white-space: nowrap;">${it.name || '-'}</td>
+          <td style="background: transparent; vertical-align: middle; white-space: nowrap;">${it.bankAccount || '-'}</td>
+          <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlahBulan)}&nbsp;&nbsp;&nbsp;&nbsp;OB</td>
+          <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(it.pricePerLesson)}</td>
+          <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(penerimaan)}</td>
           ${signatureCellHtml}
         </tr>
       `
     }).join('')
 
-    // Baris total: TERBILANG + Rp nominal
-    // colspan: mode signature = 5 (5+1+1=7), mode bank = 4 (4+1+1=6)
-    const totalColspan = isBankMode ? 4 : 5
+    // Baris total — layout baru sesuai permintaan user:
+    //   col 1-3 (colspan=3): label "TERBILANG" (sampai batas NO. REKENING TABUNGAN)
+    //   col 4-5 (colspan=2): teks terbilang rupiah (dari JUMLAH BULAN/LES s/d HONOR BULAN/LES)
+    //   col 6:              total "Rp 13.500.000,-" (di kolom PENERIMAAN)
+    //   col 7:              kosong (TANDA TANGAN, hanya mode signature)
+    // Total kolom: 3 + 2 + 1 + (1 signature) = 7 (signature) atau 6 (bank) ✅
     const totalRow = `
       <tr>
-        <td colspan="${totalColspan}" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">TERBILANG</td>
-        <td style="background: transparent; text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
-        <td style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">Rp ${formatNumberPrint(grandTotalPrint)},-</td>
+        <td colspan="3" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">TERBILANG</td>
+        <td colspan="2" style="background: transparent; text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
+        <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap; font-weight: bold;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(grandTotalPrint)},-</td>
+        ${signatureCellHtml}
       </tr>
     `
 
     // Kolom header TANDA TANGAN hanya di mode signature
     const signatureHeaderHtml = isBankMode
       ? ''
-      : '<th style="background: transparent; width: 14%; padding: 6px 4px;">TANDA TANGAN</th>'
+      : '<th style="background: transparent; width: 12%; padding: 6px 4px;">TANDA TANGAN</th>'
 
-    // Lebar kolom disesuaikan: mode bank melebarkan kolom PENERIMAAN karena tidak ada TANDA TANGAN
-    const namaWidth = isBankMode ? '28%' : '25%'
-    const rekeningWidth = isBankMode ? '22%' : '20%'
-    const penerimaanWidth = isBankMode ? '18%' : '13%'
+    // Lebar kolom dioptimasi:
+    //   - NAMA lebih lebar (32%) supaya nama pegawai 1 baris (white-space:nowrap)
+    //   - REKENING lebih sempit (16%) karena header sekarang 2 baris "NO. REKENING/ TABUNGAN"
+    //   - PENERIMAAN agak lebih lebar (15%) untuk akomodasi "Rp    nominal" dengan spasi
+    const namaWidth = isBankMode ? '35%' : '32%'
+    const rekeningWidth = isBankMode ? '18%' : '16%'
+    const penerimaanWidth = isBankMode ? '20%' : '15%'
 
     const tableHtml = `
       <table style="width: 100%; border-collapse: collapse; position: relative; z-index: 1; background: transparent;">
@@ -456,9 +463,9 @@ export function SalaryPage() {
           <tr>
             <th style="background: transparent; width: 5%; padding: 6px 4px;">NO.</th>
             <th style="background: transparent; width: ${namaWidth}; padding: 6px 4px;">NAMA PENERIMA</th>
-            <th style="background: transparent; width: ${rekeningWidth}; padding: 6px 4px;">NO. REKENING TABUNGAN</th>
-            <th style="background: transparent; width: 10%; padding: 6px 4px;">JUMLAH BULAN/LES</th>
-            <th style="background: transparent; width: 13%; padding: 6px 4px;">HONOR BULAN/LES</th>
+            <th style="background: transparent; width: ${rekeningWidth}; padding: 6px 4px;">NO. REKENING/<br>TABUNGAN</th>
+            <th style="background: transparent; width: 9%; padding: 6px 4px;">JUMLAH<br>BULAN/LES</th>
+            <th style="background: transparent; width: 12%; padding: 6px 4px;">HONOR<br>BULAN/LES</th>
             <th style="background: transparent; width: ${penerimaanWidth}; padding: 6px 4px;">PENERIMAAN</th>
             ${signatureHeaderHtml}
           </tr>
