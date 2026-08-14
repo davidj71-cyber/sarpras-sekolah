@@ -153,6 +153,54 @@ function buildMonthRangeLabel(months: number[]): string {
   return `BULAN ${sorted.map((m) => MONTH_NAMES_ID[m - 1].toUpperCase()).join(', ')}`
 }
 
+/**
+ * Pre-compute font-size (pt) supaya judul baris 1 SELALU muat 1 baris di
+ * halaman cetak. Mengukur lebar teks pakai hidden probe div yang lebarnya =
+ * printable area (mm) sesuai orientasi — BUKAN lebar window browser.
+ *
+ * Fix bug lama: auto-fit JS di print window ukur el.clientWidth = lebar
+ * window browser (~1240px) yang lebih lebar dari halaman cetak A4
+ * (~1039px landscape / ~710px portrait setelah @page margin). Akibatnya
+ * judul "fit" di preview tapi terpotong saat dicetak.
+ *
+ * Dengan pre-compute di parent window, font-size sudah benar SEBELUM print
+ * window dibuka — tidak ada race condition, tidak ada clipping.
+ */
+function computeTitleFontSize(
+  text: string,
+  maxWidthMm: number,
+  maxPt = 20,
+  minPt = 8,
+): number {
+  if (typeof window === 'undefined' || !text) return maxPt
+  try {
+    const probe = document.createElement('div')
+    probe.style.position = 'absolute'
+    probe.style.left = '-99999px'
+    probe.style.top = '0'
+    probe.style.visibility = 'hidden'
+    probe.style.width = `${maxWidthMm}mm`
+    probe.style.whiteSpace = 'nowrap'
+    probe.style.fontFamily = "'Times New Roman', serif"
+    probe.style.fontWeight = 'bold'
+    probe.style.textTransform = 'uppercase'
+    probe.style.lineHeight = '1.4'
+    probe.style.fontSize = `${maxPt}pt`
+    probe.textContent = text
+    document.body.appendChild(probe)
+    const targetWidth = probe.clientWidth // = maxWidthMm dalam px
+    const textWidth = probe.scrollWidth    // lebar teks actual pada maxPt
+    document.body.removeChild(probe)
+    if (textWidth <= targetWidth) return maxPt
+    // Skala proporsional + 3% safety margin supaya pasti muat
+    const scale = (targetWidth / textWidth) * 0.97
+    const fitted = maxPt * scale
+    return Math.max(minPt, Math.min(maxPt, Math.round(fitted * 10) / 10))
+  } catch {
+    return maxPt
+  }
+}
+
 export function MediaPage() {
   const { toast } = useToast()
   const [entries, setEntries] = useState<MediaData[]>([])
@@ -386,14 +434,24 @@ export function MediaPage() {
     `
 
     // ── 6. Judul (center, bold, uppercase, 2 baris) ───────────────────────────
-    // Kedua baris ukuran SAMA (20pt bold) sesuai permintaan user.
-    // line-height 1.4 — rapat tapi lega
-    // margin atas 8px / bawah 18px — jarak seimbang dengan tabel di bawah
+    // Baris 1: DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH [BULAN X SAMPAI Y]
+    // Baris 2: DI LINGKUNGAN [SEKOLAH] TAHUN [YEAR]
+    // Baris 1 SELALU 1 baris — font-size di-pre-compute di parent window pakai
+    // hidden probe div yang lebarnya = printable area (mm) sesuai orientasi,
+    // BUKAN lebar window browser. Ini fix bug judul terpotong saat dicetak.
+    // Font Times New Roman (serif) supaya konsisten dengan gaji & dokumen formal.
     const monthLabel = buildMonthRangeLabel(allMonths)
+    const titleLine1 = `DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH ${monthLabel}`.replace(/\s+/g, ' ').trim()
+    const titleLine2 = `DI LINGKUNGAN ${schoolName.toUpperCase()} TAHUN ${year}`
+    // Lebar printable A4 (@page margin 12mm kiri + 10mm kanan):
+    //   portrait  = 210 - 12 - 10 = 188mm
+    //   landscape = 297 - 12 - 10 = 275mm
+    const maxWidthMm = orientation === 'landscape' ? 275 : 188
+    const titleFontSize = computeTitleFontSize(titleLine1, maxWidthMm, 20, 8)
     const titleHtml = `
-      <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: 20pt; line-height: 1.4; margin: 8px 0 18px; position: relative; z-index: 1;">
-        <div>DAFTAR PEMBAYARAN IURAN KORAN DAN MAJALAH ${monthLabel}</div>
-        <div>DI LINGKUNGAN ${schoolName.toUpperCase()} TAHUN ${year}</div>
+      <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: ${titleFontSize}pt; line-height: 1.4; margin: 8px 0 18px; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
+        <div id="print-title-line1" style="white-space: nowrap;">${titleLine1}</div>
+        <div>${titleLine2}</div>
       </div>
     `
 
@@ -416,12 +474,18 @@ export function MediaPage() {
       `
     }).join('')
 
-    // Baris total: kolom 1-5 merge "JUMLAH KESELURUHAN", kolom 6 = terbilang, kolom 7 = "Rp X,-"
+    // Baris total — layout revisi sesuai permintaan user (mirror gaji):
+    //   col 1-2 (colspan=2): label "JUMLAH KESELURUHAN" (hanya sampai batas NO + PENERIMA)
+    //   col 3-5 (colspan=3): teks terbilang rupiah (dari NAMA MEDIA s/d URAIAN IURAN/BULAN)
+    //   col 6:              total "Rp 150.000,-" (di kolom PENERIMAAN BERSIH)
+    //   col 7:              kosong (TANDA TANGAN)
+    // Total kolom: 2 + 3 + 1 + 1 = 7 ✅
     const totalRow = `
       <tr>
-        <td colspan="5" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">JUMLAH KESELURUHAN</td>
-        <td style="background: transparent; text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
-        <td style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">Rp ${formatNumberPrint(grandTotalPrint)},-</td>
+        <td colspan="2" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">JUMLAH KESELURUHAN</td>
+        <td colspan="3" style="background: transparent; text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
+        <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap; font-weight: bold;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(grandTotalPrint)},-</td>
+        <td style="background: transparent; vertical-align: middle;"></td>
       </tr>
     `
 
