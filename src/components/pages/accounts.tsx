@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigationStore } from '@/lib/navigation-store'
+import { useNavigationStore, roleLabels } from '@/lib/navigation-store'
 import { useToast } from '@/hooks/use-toast'
 import { toast } from '@/hooks/use-toast'
 
@@ -61,6 +61,9 @@ import {
   Shield,
   User,
   LogOut,
+  Wallet,
+  Newspaper,
+  Info,
 } from 'lucide-react'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -91,13 +94,29 @@ const emptyForm: FormData = {
   name: '',
   username: '',
   password: '',
-  role: 'staff',
+  role: 'bendahara',
   active: true,
 }
 
-const roleLabels: Record<string, string> = {
-  admin: 'Administrator',
-  staff: 'Staff',
+// Ambil label role dari navigation-store supaya konsisten di seluruh app.
+// Fallback untuk role lama (mis. 'staff') yang tidak ada di roleLabels.
+function getRoleLabel(role: string): string {
+  return roleLabels[role] || role
+}
+
+// Ikon untuk badge role di tabel.
+function getRoleIcon(role: string) {
+  if (role === 'admin' || role === 'bendahara') return Shield
+  if (role === 'sarpras') return User
+  return User
+}
+
+// Variant badge berdasarkan role.
+function getRoleBadgeVariant(role: string): 'default' | 'secondary' | 'destructive' {
+  if (role === 'admin') return 'default'
+  if (role === 'bendahara') return 'default'
+  if (role === 'sarpras') return 'secondary'
+  return 'secondary'
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -272,11 +291,11 @@ export function AccountsPage() {
               <div className="flex items-center gap-2 mr-2">
                 <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
                   <div className="flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    {authUser.role === 'admin' ? <Shield className="size-3.5" /> : <User className="size-3.5" />}
+                    {authUser.role === 'admin' || authUser.role === 'bendahara' ? <Shield className="size-3.5" /> : <User className="size-3.5" />}
                   </div>
                   <div className="text-sm">
                     <span className="font-medium">{authUser.name}</span>
-                    <span className="text-muted-foreground ml-1">({roleLabels[authUser.role] || authUser.role})</span>
+                    <span className="text-muted-foreground ml-1">({getRoleLabel(authUser.role)})</span>
                   </div>
                 </div>
                 <Button variant="outline" size="sm" onClick={logout} className="gap-1.5">
@@ -311,6 +330,25 @@ export function AccountsPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Info Pembatasan Akses */}
+          <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+            <div className="flex items-start gap-3">
+              <Info className="size-5 text-primary shrink-0 mt-0.5" />
+              <div className="text-sm space-y-1.5">
+                <p className="font-semibold text-foreground">Pembatasan Akses Berdasarkan Role</p>
+                <ul className="space-y-1 text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <Shield className="size-3.5 text-primary shrink-0" />
+                    <span><strong>Operator (admin)</strong> &amp; <strong>Bendahara</strong> — dapat mengakses semua fitur aplikasi</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <User className="size-3.5 text-muted-foreground shrink-0" />
+                    <span><strong>Sarpras</strong> — <span className="text-destructive font-medium">tidak dapat mengakses fitur Gaji &amp; Media</span> (menu disembunyikan dari sidebar)</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
           {loading ? (
             <PageLoading label="Memuat data pengguna..." />
           ) : filteredUsers.length === 0 ? (
@@ -358,9 +396,12 @@ export function AccountsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="gap-1">
-                          {user.role === 'admin' ? <Shield className="size-3" /> : <User className="size-3" />}
-                          {roleLabels[user.role] || user.role}
+                        <Badge variant={getRoleBadgeVariant(user.role)} className="gap-1">
+                          {(() => {
+                            const Icon = getRoleIcon(user.role)
+                            return <Icon className="size-3" />
+                          })()}
+                          {getRoleLabel(user.role)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -457,17 +498,30 @@ export function AccountsPage() {
                   <SelectItem value="admin">
                     <div className="flex items-center gap-2">
                       <Shield className="size-3.5" />
-                      Administrator
+                      <span>Operator (admin)</span>
                     </div>
                   </SelectItem>
-                  <SelectItem value="staff">
+                  <SelectItem value="bendahara">
+                    <div className="flex items-center gap-2">
+                      <Shield className="size-3.5" />
+                      <span>Bendahara</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="sarpras">
                     <div className="flex items-center gap-2">
                       <User className="size-3.5" />
-                      Staff
+                      <span>Sarpras</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
               </Select>
+              {formData.role === 'sarpras' && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                  <Wallet className="size-3" />
+                  <Newspaper className="size-3" />
+                  Menu <strong>Gaji</strong> &amp; <strong>Media</strong> akan disembunyikan dari sidebar pengguna ini.
+                </p>
+              )}
             </div>
 
             {editingUser && (

@@ -27,7 +27,7 @@ import {
   SidebarRail,
   SidebarFooter,
 } from '@/components/ui/sidebar'
-import { useNavigationStore, type Page } from '@/lib/navigation-store'
+import { useNavigationStore, type Page, canAccessPage, roleLabels } from '@/lib/navigation-store'
 import { useSchoolBranding } from '@/lib/use-school-branding'
 
 const navItems: {
@@ -51,6 +51,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { appLogoUrl, schoolName } = useSchoolBranding()
   const brandName = 'SIMAPRAS'
   const brandSubtitle = schoolName?.trim() ? schoolName.trim() : 'Manajemen Sarpras'
+
+  // Filter menu berdasarkan role — Sarpras tidak bisa lihat Gaji & Media.
+  const visibleNavItems = authUser
+    ? navItems.filter((item) => canAccessPage(authUser.role, item.page))
+    : navItems
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -76,7 +81,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">Menu Utama</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.page}>
                   <SidebarMenuButton
                     isActive={currentPage === item.page}
@@ -99,11 +104,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" className="group/footer">
                 <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  {authUser.role === 'admin' ? <UserCog className="size-4" /> : <Users className="size-4" />}
+                  {authUser.role === 'admin' || authUser.role === 'bendahara'
+                    ? <UserCog className="size-4" />
+                    : <Users className="size-4" />}
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">{authUser.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">{authUser.role === 'admin' ? 'Administrator' : 'Staff'}</span>
+                  <span className="truncate text-xs text-muted-foreground">{roleLabels[authUser.role] || authUser.role}</span>
                 </div>
               </SidebarMenuButton>
             </SidebarMenuItem>

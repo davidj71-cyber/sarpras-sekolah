@@ -1,15 +1,17 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { useEffect, useRef } from 'react'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
-import { useNavigationStore } from '@/lib/navigation-store'
+import { useNavigationStore, canAccessPage } from '@/lib/navigation-store'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2, Wallet, Newspaper } from 'lucide-react'
 import type { StoreSubPage, RoomSubPage } from '@/lib/navigation-store'
 import { LoginPage } from '@/components/login-page'
 import { PageLoading } from '@/components/ui/loading-skeleton'
+import { useToast } from '@/hooks/use-toast'
 
 // Reusable loading skeleton passed to every dynamic import so the user
 // sees a structured placeholder while the page chunk downloads instead
@@ -146,19 +148,50 @@ const pageTitles: Record<string, string> = {
 }
 
 export default function Home() {
-  const { currentPage, storeSubPage, roomSubPage, isAuthenticated } = useNavigationStore()
+  const { currentPage, storeSubPage, roomSubPage, isAuthenticated, authUser, setPage } = useNavigationStore()
+  const { toast } = useToast()
+  // Track apakah toast sudah pernah dimunculkan untuk blok ini — hindari
+  // spam toast saat React re-render.
+  const warnedRef = useRef<string | null>(null)
+
+  // Defense-in-depth: jika user tidak punya akses ke halaman saat ini
+  // (mis. Sarpras mencoba buka Gaji/Media), paksa redirect ke dashboard.
+  useEffect(() => {
+    if (!isAuthenticated || !authUser) return
+    if (!canAccessPage(authUser.role, currentPage)) {
+      // Hindari toast duplikat untuk kombinasi role+page yang sama.
+      const key = `${authUser.role}:${currentPage}`
+      if (warnedRef.current !== key) {
+        warnedRef.current = key
+        toast({
+          title: 'Akses Dibatasi',
+          description: `Role "${authUser.role}" tidak dapat mengakses fitur ${currentPage}. Anda dialihkan ke Dashboard.`,
+          variant: 'destructive',
+        })
+      }
+      setPage('dashboard')
+    } else {
+      // Reset warning key saat user pindah ke halaman yang valid.
+      warnedRef.current = null
+    }
+  }, [isAuthenticated, authUser, currentPage, setPage, toast])
 
   // Show login page if not authenticated
   if (!isAuthenticated) {
     return <LoginPage />
   }
 
-  const showKibNavbar = currentPage === 'kib'
-  const showStoreNavbar = currentPage === 'stores'
-  const showRoomNavbar = currentPage === 'rooms'
+  // Block render untuk halaman terlarang (defense-in-depth, sebelum
+  // redirect effect di atas selesai).
+  const hasAccess = !authUser || canAccessPage(authUser.role, currentPage)
+  const effectivePage = hasAccess ? currentPage : 'dashboard'
+
+  const showKibNavbar = effectivePage === 'kib'
+  const showStoreNavbar = effectivePage === 'stores'
+  const showRoomNavbar = effectivePage === 'rooms'
 
   function renderPage() {
-    switch (currentPage) {
+    switch (effectivePage) {
       case 'dashboard':
         return <DashboardPage />
       case 'settings':
@@ -205,11 +238,11 @@ export default function Home() {
             <SidebarTrigger className="-ml-1 transition-colors" />
             <Separator orientation="vertical" className="mr-2 h-4" />
             <div className="flex items-center gap-2 min-w-0">
-              {currentPage === 'accounts' && <UserCog className="size-4.5 text-primary shrink-0" />}
-              {currentPage === 'salary' && <Wallet className="size-4.5 text-primary shrink-0" />}
-              {currentPage === 'media' && <Newspaper className="size-4.5 text-primary shrink-0" />}
+              {effectivePage === 'accounts' && <UserCog className="size-4.5 text-primary shrink-0" />}
+              {effectivePage === 'salary' && <Wallet className="size-4.5 text-primary shrink-0" />}
+              {effectivePage === 'media' && <Newspaper className="size-4.5 text-primary shrink-0" />}
               <h1 className="text-base font-semibold tracking-tight truncate">
-                {pageTitles[currentPage] || 'SIMAPRAS'}
+                {pageTitles[effectivePage] || 'SIMAPRAS'}
               </h1>
             </div>
           </div>

@@ -22,6 +22,54 @@ interface AuthUser {
   role: string
 }
 
+// ─── Role-based access control ────────────────────────────────────────────────
+// Roles:
+//   - 'admin'     → Operator (admin) — akses semua fitur
+//   - 'bendahara' → Bendahara       — akses semua fitur
+//   - 'sarpras'   → Sarpras         — TIDAK bisa akses Gaji & Media
+//   - 'staff'     → (legacy)        — akses semua fitur (backward compat)
+export const roleLabels: Record<string, string> = {
+  admin: 'Operator (admin)',
+  bendahara: 'Bendahara',
+  sarpras: 'Sarpras',
+  staff: 'Staff',
+}
+
+// Halaman yang DILARANG untuk role tertentu.
+const RESTRICTED_PAGES: Record<Page, string[]> = {
+  salary: ['sarpras'],
+  media: ['sarpras'],
+  dashboard: [],
+  settings: [],
+  accounts: [],
+  stores: [],
+  employees: [],
+  kib: [],
+  rooms: [],
+}
+
+/**
+ * Cek apakah role tertentu boleh mengakses halaman tertentu.
+ * Returns true jika boleh, false jika diblokir.
+ */
+export function canAccessPage(role: string | undefined | null, page: Page): boolean {
+  if (!role) return true // belum login — biarkan auth flow yang menangani
+  const blocked = RESTRICTED_PAGES[page]
+  if (!blocked || blocked.length === 0) return true
+  return !blocked.includes(role)
+}
+
+/**
+ * Daftar halaman yang diblokir untuk role tertentu — dipakai sidebar
+ * untuk menyembunyikan menu.
+ */
+export function getBlockedPages(role: string | undefined | null): Page[] {
+  if (!role) return []
+  return (Object.keys(RESTRICTED_PAGES) as Page[]).filter((p) =>
+    RESTRICTED_PAGES[p].includes(role)
+  )
+}
+
 interface NavigationState {
   currentPage: Page
   kibType: string
