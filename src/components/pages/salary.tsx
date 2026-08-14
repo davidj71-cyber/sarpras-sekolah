@@ -122,6 +122,7 @@ interface SalaryData {
 interface FormData {
   name: string
   nip: string
+  bankAccount: string
   gender: string
   status: string
   jabatan: string
@@ -134,6 +135,7 @@ interface FormData {
 const emptyForm: FormData = {
   name: '',
   nip: '',
+  bankAccount: '',
   gender: 'L',
   status: '',
   jabatan: '',
@@ -199,6 +201,7 @@ export function SalaryPage() {
     setFormData({
       name: entry.name,
       nip: entry.nip,
+      bankAccount: entry.bankAccount || '',
       gender: entry.gender || 'L',
       status: entry.status || '',
       jabatan: entry.jabatan || '',
@@ -264,6 +267,7 @@ export function SalaryPage() {
     const matchSearch = !search.trim() ||
       e.name.toLowerCase().includes(search.toLowerCase()) ||
       e.nip.toLowerCase().includes(search.toLowerCase()) ||
+      (e.bankAccount || '').toLowerCase().includes(search.toLowerCase()) ||
       (e.jabatan || '').toLowerCase().includes(search.toLowerCase())
     const matchPeriod = !periodFilter.trim() ||
       (e.period || '').toLowerCase().includes(periodFilter.toLowerCase())
@@ -525,21 +529,26 @@ export function SalaryPage() {
       if (periodFilter.trim()) meta.push({ label: 'Periode', value: periodFilter.trim() })
       meta.push({ label: 'Total Data', value: `${filteredEntries.length} guru` })
       meta.push({ label: 'Total Penerimaan', value: formatRupiahPrint(grandTotal) })
+      // Ambil nama sekolah untuk judul (sesuai format Excel user)
+      const schoolNameMeta = meta.find((m) => m.label === 'Sekolah')
+      const title = schoolNameMeta?.value
+        ? `DAFTAR GTTS DAN PTTS ${schoolNameMeta.value}`
+        : 'DAFTAR GTTS DAN PTTS'
       await exportToExcel({
-        filename: 'Daftar_Gaji.xlsx',
-        sheetName: 'Daftar Gaji',
-        title: 'DAFTAR GAJI',
+        filename: 'Database_Gaji.xlsx',
+        sheetName: 'Database',
+        title,
         meta,
         columns: [
-          { header: 'No', key: (e) => String(filteredEntries.indexOf(e) + 1), width: 6 },
-          { header: 'Nama', key: 'name', width: 28 },
-          { header: 'NIP', key: (e) => e.nip || '-', width: 22 },
-          { header: 'Jenis Kelamin', key: (e) => (e.gender === 'P' ? 'Perempuan' : 'Laki-laki'), width: 14 },
-          { header: 'Jumlah Les', key: 'lessonCount', width: 12 },
-          { header: 'Satuan', key: (e) => e.unit || '-', width: 12 },
-          { header: 'Harga Per Les', key: 'pricePerLesson', width: 16 },
-          { header: 'Penerimaan', key: 'totalReceived', width: 18 },
-          { header: 'Periode', key: (e) => e.period || '-', width: 18 },
+          { header: 'NO', key: (e) => String(filteredEntries.indexOf(e) + 1), width: 6 },
+          { header: 'NAMA', key: 'name', width: 32 },
+          { header: 'NO. REKENING TABUNGAN', key: (e) => e.bankAccount || '-', width: 24 },
+          { header: 'JUMLAH BULAN/JAM PELAJARAN', key: 'lessonCount', width: 16 },
+          { header: 'SATUAN', key: (e) => e.unit || '-', width: 10 },
+          { header: 'HARGA SATUAN/BULAN/JAM PELAJARAN', key: 'pricePerLesson', width: 18 },
+          { header: 'PENERIMAAN BERSIH', key: 'totalReceived', width: 18 },
+          { header: 'STATUS', key: (e) => e.status || '-', width: 16 },
+          { header: 'JABATAN', key: (e) => e.jabatan || '-', width: 38 },
         ],
         data: filteredEntries,
       })
@@ -630,14 +639,24 @@ export function SalaryPage() {
   }
 
   function downloadTemplate() {
-    // Buat Excel template kosong sesuai format import
-    const template = [
-      ['NO', 'NAMA', 'NO. REKENING TABUNGAN', 'JUMLAH BULAN/JAM PELAJARAN', 'SATUAN', 'HARGA SATUAN/BULAN/JAM PELAJARAN', 'PENERIMAAN BERSIH', 'STATUS', 'JABATAN'],
-      ['1', 'CONTOH NAMA, S.PD', '271.02.04.019425-0', '39', 'JPL', '60000', '2340000', 'GTTS', 'GURU TIDAK TETAP SEKOLAH (GTTS)'],
-      ['2', 'CONTOH NAMA 2, S.PD', '271.02.04.022119-0', '34', 'JPL', '60000', '2040000', 'GTTS', 'GURU TIDAK TETAP SEKOLAH (GTTS)'],
+    // Template Excel — sama persis dgn format "gaji database.xlsx" user:
+    // Row 1: judul (merge A1:I1), Row 2: header, Row 3+: contoh data
+    const title = 'DAFTAR GTTS DAN PTTS SMAN 1 TELUKDALAM'
+    const headers = ['NO', 'NAMA', 'NO. REKENING TABUNGAN', 'JUMLAH BULAN/JAM PELAJARAN', 'SATUAN', 'HARGA SATUAN/BULAN/JAM PELAJARAN', 'PENERIMAAN BERSIH', 'STATUS', 'JABATAN']
+    const template: (string | number)[][] = [
+      [title, '', '', '', '', '', '', '', ''],
+      headers,
+      [1, 'CONTOH NAMA, S.PD', '271.02.04.019425-0', 39, 'JPL', 60000, 2340000, 'GTTS', 'GURU TIDAK TETAP SEKOLAH (GTTS)'],
+      [2, 'CONTOH NAMA 2, S.PD', '271.02.04.022119-0', 34, 'JPL', 60000, 2040000, 'PTTS', 'PEGAWAI TIDAK TETAP SEKOLAH (PTTS)'],
     ]
     import('xlsx').then((XLSX) => {
       const ws = XLSX.utils.aoa_to_sheet(template)
+      // Merge judul di row 1 (A1:I1)
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }]
+      // Lebar kolom sesuai format asli
+      ws['!cols'] = [
+        { wch: 5 }, { wch: 32 }, { wch: 24 }, { wch: 16 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 38 },
+      ]
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, 'Database')
       XLSX.writeFile(wb, 'Template_Import_Gaji.xlsx')
@@ -709,7 +728,7 @@ export function SalaryPage() {
               </Select>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input placeholder="Cari nama / NIP / jabatan..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+                <Input placeholder="Cari nama / NIP / no. rekening / jabatan..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
               </div>
             </div>
           </div>
@@ -730,14 +749,13 @@ export function SalaryPage() {
                   <TableRow>
                     <TableHead className="w-[50px] text-left tabular-nums">No</TableHead>
                     <TableHead>Nama</TableHead>
-                    <TableHead className="whitespace-nowrap tabular-nums">NIP</TableHead>
-                    <TableHead className="w-[60px] text-center">JK</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Jabatan</TableHead>
+                    <TableHead className="whitespace-nowrap tabular-nums">No. Rekening</TableHead>
                     <TableHead className="text-right tabular-nums">Jml Les</TableHead>
                     <TableHead>Satuan</TableHead>
                     <TableHead className="text-right">Harga/Les</TableHead>
                     <TableHead className="text-right">Penerimaan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Jabatan</TableHead>
                     <TableHead className="w-[160px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -746,18 +764,7 @@ export function SalaryPage() {
                     <TableRow key={e.id} className="h-14">
                       <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{e.name}</TableCell>
-                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{e.nip || '-'}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline">{e.gender === 'P' ? 'P' : 'L'}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {e.status ? (
-                          <Badge variant="outline" className="whitespace-nowrap">{e.status}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{e.jabatan || '-'}</TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{e.bankAccount || '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">{e.lessonCount}</TableCell>
                       <TableCell>{e.unit || '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">Rp {formatNumberPrint(e.pricePerLesson)}</TableCell>
@@ -772,6 +779,14 @@ export function SalaryPage() {
                           </div>
                         )}
                       </TableCell>
+                      <TableCell>
+                        {e.status ? (
+                          <Badge variant="outline" className="whitespace-nowrap">{e.status}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{e.jabatan || '-'}</TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
                           <Button
@@ -824,6 +839,10 @@ export function SalaryPage() {
               <Input id="sal-nip" value={formData.nip} onChange={(e) => setFormData({ ...formData, nip: e.target.value })} placeholder="Nomor Induk Pegawai" />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="sal-rek">No. Rekening Tabungan</Label>
+              <Input id="sal-rek" value={formData.bankAccount} onChange={(e) => setFormData({ ...formData, bankAccount: e.target.value })} placeholder="mis. 271.02.04.019425-0" />
+            </div>
+            <div className="space-y-2">
               <Label>Jenis Kelamin</Label>
               <Select value={formData.gender} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
                 <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
@@ -872,7 +891,7 @@ export function SalaryPage() {
               <Label htmlFor="sal-price">Harga Per Les (Rp)</Label>
               <CurrencyInput id="sal-price" value={formData.pricePerLesson} onChange={(v) => setFormData({ ...formData, pricePerLesson: v })} placeholder="0" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="sal-period">Periode</Label>
               <Input id="sal-period" value={formData.period} onChange={(e) => setFormData({ ...formData, period: e.target.value })} placeholder="mis. Januari 2026" />
             </div>
@@ -956,7 +975,7 @@ export function SalaryPage() {
               Import Excel Gaji
             </DialogTitle>
             <DialogDescription>
-              Import data guru dari file Excel (.xlsx, .xls). Format kolom: NO, NAMA, NO. REKENING TABUNGAN, JUMLAH BULAN/JAM PELAJARAN, SATUAN, HARGA SATUAN, PENERIMAAN BERSIH, STATUS, JABATAN.
+              Import data guru dari file Excel (.xlsx, .xls). Format sama persis dengan database gaji: NO, NAMA, NO. REKENING TABUNGAN, JUMLAH BULAN/JAM PELAJARAN, SATUAN, HARGA SATUAN/BULAN/JAM PELAJARAN, PENERIMAAN BERSIH, STATUS, JABATAN. Baris judul & footer (GTTS/PTTS/HONORER) otomatis dilewati.
             </DialogDescription>
           </DialogHeader>
 
