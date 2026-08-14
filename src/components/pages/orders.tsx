@@ -68,6 +68,7 @@ import {
   CreditCard,
   Wallet,
   FileSpreadsheet,
+  ImageIcon,
 } from 'lucide-react'
 import {
   fetchPrintSettings,
@@ -81,6 +82,7 @@ import type { PrintOrientation } from '@/lib/print-utils'
 import { exportToExcel, getSchoolMeta, type ExcelColumn } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
+import { OrderPhotoUpload } from '@/components/order-photo-upload'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -112,6 +114,7 @@ interface OrderItemData {
   unitPrice: number
   totalPrice: number
   notes: string
+  photos?: string[]
 }
 
 interface OrderData {
@@ -137,6 +140,7 @@ interface OrderItemForm {
   quantity: number
   unit: string
   unitPrice: number
+  photos: string[]
 }
 
 interface SettingsData {
@@ -300,23 +304,49 @@ function OrderRowGroup({
                       <TableHead className="h-8 text-xs w-[70px]">Satuan</TableHead>
                       <TableHead className="h-8 text-xs w-[110px]">Harga Satuan</TableHead>
                       <TableHead className="h-8 text-xs w-[110px]">Total Harga</TableHead>
+                      <TableHead className="h-8 text-xs w-[90px] text-center">Foto</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.map((item, itemIdx) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="text-xs py-1.5">{itemIdx + 1}</TableCell>
-                        <TableCell className="text-xs py-1.5">{item.itemName}</TableCell>
-                        <TableCell className="text-xs py-1.5 text-center">{item.quantity}</TableCell>
-                        <TableCell className="text-xs py-1.5 text-center">{item.unit}</TableCell>
-                        <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap">{formatRupiahPrint(item.unitPrice)}</TableCell>
-                        <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap font-semibold">{formatRupiahPrint(item.totalPrice)}</TableCell>
-                      </TableRow>
-                    ))}
+                    {items.map((item, itemIdx) => {
+                      const itemPhotos = Array.isArray(item.photos) ? item.photos : []
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="text-xs py-1.5 align-top">{itemIdx + 1}</TableCell>
+                          <TableCell className="text-xs py-1.5 align-top">{item.itemName}</TableCell>
+                          <TableCell className="text-xs py-1.5 text-center align-top">{item.quantity}</TableCell>
+                          <TableCell className="text-xs py-1.5 text-center align-top">{item.unit}</TableCell>
+                          <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap align-top">{formatRupiahPrint(item.unitPrice)}</TableCell>
+                          <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap font-semibold align-top">{formatRupiahPrint(item.totalPrice)}</TableCell>
+                          <TableCell className="text-xs py-1.5 align-top">
+                            {itemPhotos.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {itemPhotos.slice(0, 3).map((photo, pIdx) => (
+                                  <img
+                                    key={pIdx}
+                                    src={photo}
+                                    alt={`Foto ${pIdx + 1}`}
+                                    className="size-10 rounded border border-border object-cover"
+                                    loading="lazy"
+                                  />
+                                ))}
+                                {itemPhotos.length > 3 && (
+                                  <span className="text-[10px] text-muted-foreground self-center">
+                                    +{itemPhotos.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-[10px]">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                     <TableRow>
-                      <TableCell colSpan={4} className="text-xs py-1.5 text-right font-semibold border-t">Total</TableCell>
-                      <TableCell className="text-xs py-1.5 border-t"></TableCell>
+                      <TableCell colSpan={5} className="text-xs py-1.5 text-right font-semibold border-t">Total</TableCell>
                       <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap font-semibold border-t">{formatRupiahPrint(order.totalAmount)}</TableCell>
+                      <TableCell className="text-xs py-1.5 border-t"></TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -398,7 +428,7 @@ export function OrdersPage() {
   const [paidAt, setPaidAt] = useState('')
   const [orderNotes, setOrderNotes] = useState('')
   const [orderItems, setOrderItems] = useState<OrderItemForm[]>([
-    { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0 },
+    { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, photos: [] },
   ])
 
   // Delete
@@ -507,7 +537,7 @@ export function OrdersPage() {
     setPaymentStatus('LUNAS')
     setPaidAt('')
     setOrderNotes('')
-    setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0 }])
+    setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, photos: [] }])
     setDialogOpen(true)
   }
 
@@ -522,7 +552,7 @@ export function OrdersPage() {
     setPaymentStatus('BELUM_BAYAR')
     setPaidAt('')
     setOrderNotes('')
-    setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0 }])
+    setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, photos: [] }])
     setDialogOpen(true)
   }
 
@@ -546,13 +576,14 @@ export function OrdersPage() {
         quantity: i.quantity,
         unit: i.unit,
         unitPrice: i.unitPrice,
-      })) || [{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0 }]
+        photos: Array.isArray(i.photos) ? i.photos : [],
+      })) || [{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, photos: [] }]
     )
     setDialogOpen(true)
   }
 
   function addItemRow() {
-    setOrderItems([...orderItems, { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0 }])
+    setOrderItems([...orderItems, { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, photos: [] }])
   }
 
   function removeItemRow(index: number) {
@@ -560,7 +591,7 @@ export function OrdersPage() {
     setOrderItems(orderItems.filter((_, i) => i !== index))
   }
 
-  function updateItem(index: number, field: keyof OrderItemForm, value: string | number) {
+  function updateItem(index: number, field: keyof OrderItemForm, value: string | number | string[]) {
     const updated = [...orderItems]
     updated[index] = { ...updated[index], [field]: value }
     if (field === 'quantity' || field === 'unitPrice') {
@@ -649,6 +680,7 @@ export function OrdersPage() {
           unitPrice: i.unitPrice,
           totalPrice: i.quantity * i.unitPrice,
           notes: '',
+          photos: i.photos,
         })),
       }
 
@@ -1273,39 +1305,53 @@ export function OrdersPage() {
                 </div>
 
                 {orderItems.map((item, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2 items-end border rounded-md p-3">
-                    <div className="col-span-12 sm:col-span-4 space-y-1">
-                      <Label className="text-xs">Nama Barang</Label>
-                      <Input value={item.itemName} onChange={(e) => updateItem(idx, 'itemName', e.target.value)} placeholder="Nama barang" className="h-9" />
+                  <div key={idx} className="border rounded-md p-3 space-y-2">
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                        <Label className="text-xs">Nama Barang</Label>
+                        <Input value={item.itemName} onChange={(e) => updateItem(idx, 'itemName', e.target.value)} placeholder="Nama barang" className="h-9" />
+                      </div>
+                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                        <Label className="text-xs">Jumlah</Label>
+                        <Input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))} className="h-9" />
+                      </div>
+                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                        <Label className="text-xs">Satuan</Label>
+                        <MasterCombobox
+                          category="satuan"
+                          value={item.unit}
+                          onChange={(val) => updateItem(idx, 'unit', val)}
+                          placeholder="Satuan"
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="col-span-3 sm:col-span-3 space-y-1">
+                        <Label className="text-xs">Harga Satuan</Label>
+                        <CurrencyInput value={item.unitPrice} onChange={(val) => updateItem(idx, 'unitPrice', val)} className="h-9" />
+                      </div>
+                      <div className="col-span-1 flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-9 text-destructive hover:text-destructive"
+                          onClick={() => removeItemRow(idx)}
+                          disabled={orderItems.length <= 1}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="col-span-4 sm:col-span-2 space-y-1">
-                      <Label className="text-xs">Jumlah</Label>
-                      <Input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))} className="h-9" />
-                    </div>
-                    <div className="col-span-4 sm:col-span-2 space-y-1">
-                      <Label className="text-xs">Satuan</Label>
-                      <MasterCombobox
-                        category="satuan"
-                        value={item.unit}
-                        onChange={(val) => updateItem(idx, 'unit', val)}
-                        placeholder="Satuan"
-                        className="h-9"
+                    {/* Foto barang pesanan — mendukung kamera Android */}
+                    <div className="pt-1 border-t bg-muted/20 -mx-3 -mb-3 px-3 pb-3 rounded-b-md">
+                      <Label className="text-xs flex items-center gap-1.5 mb-1">
+                        <ImageIcon className="size-3" />
+                        Foto Barang (opsional)
+                      </Label>
+                      <OrderPhotoUpload
+                        photos={item.photos}
+                        onChange={(newPhotos) => updateItem(idx, 'photos', newPhotos)}
+                        maxPhotos={5}
                       />
-                    </div>
-                    <div className="col-span-3 sm:col-span-3 space-y-1">
-                      <Label className="text-xs">Harga Satuan</Label>
-                      <CurrencyInput value={item.unitPrice} onChange={(val) => updateItem(idx, 'unitPrice', val)} className="h-9" />
-                    </div>
-                    <div className="col-span-1 flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-9 text-destructive hover:text-destructive"
-                        onClick={() => removeItemRow(idx)}
-                        disabled={orderItems.length <= 1}
-                      >
-                        <X className="size-4" />
-                      </Button>
                     </div>
                   </div>
                 ))}

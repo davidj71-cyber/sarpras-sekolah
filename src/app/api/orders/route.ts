@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureSalaryMediaSchema } from "@/lib/migrate-settings";
 
 export async function GET() {
   try {
+    // Self-heal: pastikan kolom photos ada di OrderItem (idempotent).
+    await ensureSalaryMediaSchema();
+
     const orders = await db.order.findMany({
       orderBy: { createdAt: "desc" },
       include: {
@@ -12,7 +16,16 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(orders);
+    // Parse photos JSON string → array untuk setiap item
+    const ordersWithPhotos = orders.map((o) => ({
+      ...o,
+      items: o.items.map((it) => ({
+        ...it,
+        photos: JSON.parse(it.photos || "[]") as string[],
+      })),
+    }));
+
+    return NextResponse.json(ordersWithPhotos);
   } catch (error) {
     console.error("Error fetching orders:", error);
     return NextResponse.json(
@@ -24,6 +37,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Self-heal before write as well.
+    await ensureSalaryMediaSchema();
+
     const body = await request.json();
 
     // Auto-set paymentStatus based on paymentMethod
@@ -31,6 +47,27 @@ export async function POST(request: NextRequest) {
     const paymentStatus =
       body.paymentStatus ??
       (paymentMethod === "BON" ? "BELUM_BAYAR" : "LUNAS");
+
+    // Normalize item photos: pastikan selalu array → JSON string
+    const normalizeItem = (item: {
+      itemName: string;
+      quantity?: number;
+      unit?: string;
+      unitPrice?: number;
+      totalPrice?: number;
+      notes?: string;
+      photos?: unknown;
+    }) => ({
+      itemName: item.itemName,
+      quantity: item.quantity ?? 1,
+      unit: item.unit ?? "Unit",
+      unitPrice: item.unitPrice ?? 0,
+      totalPrice: item.totalPrice ?? 0,
+      notes: item.notes ?? "",
+      photos: JSON.stringify(
+        Array.isArray(item.photos) ? item.photos : []
+      ),
+    });
 
     // Check if an order with the same orderNumber already exists
     const existingOrder = await db.order.findFirst({
@@ -40,25 +77,7 @@ export async function POST(request: NextRequest) {
 
     if (existingOrder) {
       // Add items to the existing order instead of creating a new one
-      const newItems = body.items
-        ? body.items.map(
-            (item: {
-              itemName: string;
-              quantity?: number;
-              unit?: string;
-              unitPrice?: number;
-              totalPrice?: number;
-              notes?: string;
-            }) => ({
-              itemName: item.itemName,
-              quantity: item.quantity ?? 1,
-              unit: item.unit ?? "Unit",
-              unitPrice: item.unitPrice ?? 0,
-              totalPrice: item.totalPrice ?? 0,
-              notes: item.notes ?? "",
-            })
-          )
-        : [];
+      const newItems = body.items ? body.items.map(normalizeItem) : [];
 
       // Calculate new total
       const existingTotal = existingOrder.items.reduce((sum, i) => sum + i.totalPrice, 0);
@@ -85,7 +104,15 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return NextResponse.json({ ...updatedOrder, merged: true }, { status: 200 });
+      const updatedWithPhotos = {
+        ...updatedOrder,
+        items: updatedOrder.items.map((it) => ({
+          ...it,
+          photos: JSON.parse(it.photos || "[]") as string[],
+        })),
+      };
+
+      return NextResponse.json({ ...updatedWithPhotos, merged: true }, { status: 200 });
     }
 
     // Create new order
@@ -103,23 +130,7 @@ export async function POST(request: NextRequest) {
         totalAmount: body.totalAmount ?? 0,
         items: body.items
           ? {
-              create: body.items.map(
-                (item: {
-                  itemName: string;
-                  quantity?: number;
-                  unit?: string;
-                  unitPrice?: number;
-                  totalPrice?: number;
-                  notes?: string;
-                }) => ({
-                  itemName: item.itemName,
-                  quantity: item.quantity ?? 1,
-                  unit: item.unit ?? "Unit",
-                  unitPrice: item.unitPrice ?? 0,
-                  totalPrice: item.totalPrice ?? 0,
-                  notes: item.notes ?? "",
-                })
-              ),
+              create: body.items.map(normalizeItem),
             }
           : undefined,
       },
@@ -130,7 +141,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(order, { status: 201 });
+    const orderWithPhotos = {
+      ...order,
+      items: order.items.map((it) => ({
+        ...it,
+        photos: JSON.parse(it.photos || "[]") as string[],
+      })),
+    };
+
+    return NextResponse.json(orderWithPhotos, { status: 201 });
   } catch (error) {
     console.error("Error creating order:", error);
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureSalaryMediaSchema } from "@/lib/migrate-settings";
 
 export async function GET(
   _request: NextRequest,
@@ -7,6 +8,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    await ensureSalaryMediaSchema();
     const order = await db.order.findUnique({
       where: { id },
       include: {
@@ -23,7 +25,16 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(order);
+    // Parse photos JSON string → array
+    const orderWithPhotos = {
+      ...order,
+      items: order.items.map((it) => ({
+        ...it,
+        photos: JSON.parse(it.photos || "[]") as string[],
+      })),
+    };
+
+    return NextResponse.json(orderWithPhotos);
   } catch (error) {
     console.error("Error fetching order:", error);
     return NextResponse.json(
@@ -55,7 +66,14 @@ export async function PUT(
           items: true,
         },
       });
-      return NextResponse.json(order);
+      const orderWithPhotos = {
+        ...order,
+        items: order.items.map((it) => ({
+          ...it,
+          photos: JSON.parse(it.photos || "[]") as string[],
+        })),
+      };
+      return NextResponse.json(orderWithPhotos);
     }
 
     // Auto-set paymentStatus based on paymentMethod if not explicitly provided
@@ -72,6 +90,27 @@ export async function PUT(
       await db.orderItem.deleteMany({ where: { orderId: id } });
     }
 
+    // Normalize item photos: pastikan selalu array → JSON string
+    const normalizeItem = (item: {
+      itemName: string;
+      quantity?: number;
+      unit?: string;
+      unitPrice?: number;
+      totalPrice?: number;
+      notes?: string;
+      photos?: unknown;
+    }) => ({
+      itemName: item.itemName,
+      quantity: item.quantity ?? 1,
+      unit: item.unit ?? "Unit",
+      unitPrice: item.unitPrice ?? 0,
+      totalPrice: item.totalPrice ?? 0,
+      notes: item.notes ?? "",
+      photos: JSON.stringify(
+        Array.isArray(item.photos) ? item.photos : []
+      ),
+    });
+
     const order = await db.order.update({
       where: { id },
       data: {
@@ -87,23 +126,7 @@ export async function PUT(
         totalAmount: body.totalAmount,
         items: body.items
           ? {
-              create: body.items.map(
-                (item: {
-                  itemName: string;
-                  quantity?: number;
-                  unit?: string;
-                  unitPrice?: number;
-                  totalPrice?: number;
-                  notes?: string;
-                }) => ({
-                  itemName: item.itemName,
-                  quantity: item.quantity ?? 1,
-                  unit: item.unit ?? "Unit",
-                  unitPrice: item.unitPrice ?? 0,
-                  totalPrice: item.totalPrice ?? 0,
-                  notes: item.notes ?? "",
-                })
-              ),
+              create: body.items.map(normalizeItem),
             }
           : undefined,
       },
@@ -114,7 +137,15 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json(order);
+    const orderWithPhotos = {
+      ...order,
+      items: order.items.map((it) => ({
+        ...it,
+        photos: JSON.parse(it.photos || "[]") as string[],
+      })),
+    };
+
+    return NextResponse.json(orderWithPhotos);
   } catch (error) {
     console.error("Error updating order:", error);
     return NextResponse.json(

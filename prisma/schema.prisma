@@ -330,6 +330,12 @@ model OrderItem {
   unitPrice   Float    @default(0)
   totalPrice  Float    @default(0)
   notes       String   @default("")
+  // ── Foto barang (bukti/foto pesanan) ──
+  // Disimpan sebagai JSON array berisi base64 data URL.
+  // Base64 dipakai supaya tidak perlu endpoint upload terpisah dan tetap
+  // bekerja di Vercel (filesystem read-only). Ukuran dikompres client-side
+  // (max ~1024px, JPEG 0.85) sehingga setiap foto ~100-300KB.
+  photos      String   @default("[]")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

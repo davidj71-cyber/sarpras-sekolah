@@ -407,5 +407,27 @@ async function doEnsureSalaryMediaSchema(): Promise<string[]> {
     console.warn("[migrate] legacy SalaryPayment migration skipped:", e);
   }
 
+  // ─── OrderItem: ADD COLUMN photos (JSON array of base64 data URLs) ──
+  // Foto bukti pesanan per item. Disimpan sebagai JSON string '[]' default.
+  // Idempoten — aman dijalankan berulang.
+  try {
+    if (isSqlite()) {
+      const exists = await columnExistsSqlite("OrderItem", "photos");
+      if (!exists) {
+        await db.$executeRawUnsafe(
+          `ALTER TABLE "OrderItem" ADD COLUMN "photos" TEXT NOT NULL DEFAULT '[]'`
+        );
+        executed.push(`ADD COLUMN "OrderItem.photos" (sqlite)`);
+      }
+    } else {
+      await db.$executeRawUnsafe(
+        `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "photos" TEXT NOT NULL DEFAULT '[]'`
+      );
+      executed.push(`ADD COLUMN IF NOT EXISTS "OrderItem.photos"`);
+    }
+  } catch (e) {
+    console.warn("[migrate] ADD COLUMN OrderItem.photos skipped:", e);
+  }
+
   return executed;
 }
