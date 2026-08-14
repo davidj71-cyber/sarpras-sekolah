@@ -102,7 +102,7 @@ export function SalaryPrintDialog({
   const [honorType, setHonorType] = useState('HONOR')
   const [printDate, setPrintDate] = useState('')
   const [search, setSearch] = useState('')
-  const [jabatanFilter, setJabatanFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [selectedSalaryIds, setSelectedSalaryIds] = useState<Set<string>>(new Set())
   const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set())
   const [payments, setPayments] = useState<PaymentRecord[]>([])
@@ -117,7 +117,7 @@ export function SalaryPrintDialog({
       setSelectedSalaryIds(new Set())
       setSelectedMonths(new Set())
       setSearch('')
-      setJabatanFilter('')
+      setStatusFilter('')
     }
   }, [open, defaultPlace])
 
@@ -140,37 +140,37 @@ export function SalaryPrintDialog({
     if (open) fetchPayments()
   }, [open, fetchPayments])
 
-  // Daftar Jabatan unik dari entries — untuk dropdown filter & quick-pick honorType.
-  // Selalu re-compute ketika entries berubah (mis. user ubah jabatan guru di DB),
+  // Daftar Status unik dari entries — untuk dropdown filter & quick-pick honorType.
+  // Selalu re-compute ketika entries berubah (mis. user ubah status guru di DB),
   // sehingga menu cetak selalu sinkron dengan database guru terbaru.
-  const jabatanOptions = useMemo(
-    () => Array.from(new Set(entries.map((e) => e.jabatan).filter(Boolean))).sort(),
+  const statusOptions = useMemo(
+    () => Array.from(new Set(entries.map((e) => e.status).filter(Boolean))).sort(),
     [entries]
   )
 
-  // ── AUTO-SYNC honorType dengan jabatan ────────────────────────────────────
-  // Ketika user pilih jabatan di Filter Jabatan, otomatis set honorType (jenis
-  // honor untuk judul cetak) ke jabatan itu. Jadi kalau user ubah jabatan di
-  // database guru, lalu pilih jabatan tsb di filter, judul cetak langsung
-  // pakai jabatan baru tersebut — sinkron penuh.
+  // ── AUTO-SYNC honorType dengan status ─────────────────────────────────────
+  // Ketika user pilih status di Filter Status, otomatis set honorType (jenis
+  // honor untuk judul cetak) ke status itu. Jadi kalau user ubah status di
+  // database guru, lalu pilih status tsb di filter, judul cetak langsung
+  // pakai status tersebut — sinkron penuh.
   useEffect(() => {
-    if (jabatanFilter) {
-      setHonorType(jabatanFilter)
+    if (statusFilter) {
+      setHonorType(statusFilter)
     }
-  }, [jabatanFilter])
+  }, [statusFilter])
 
-  // Filtered entries based on search (by name OR NIP) AND jabatan filter
+  // Filtered entries based on search (by name OR NIP) AND status filter
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const j = jabatanFilter.trim()
+    const s = statusFilter.trim()
     return entries.filter((e) => {
       const matchSearch = !q ||
         e.name.toLowerCase().includes(q) ||
         e.nip.toLowerCase().includes(q)
-      const matchJabatan = !j || (e.jabatan || '') === j
-      return matchSearch && matchJabatan
+      const matchStatus = !s || (e.status || '') === s
+      return matchSearch && matchStatus
     })
-  }, [entries, search, jabatanFilter])
+  }, [entries, search, statusFilter])
 
   // Map: salaryId → Set of paid months for the selected year
   const paidMonthsBySalary = useMemo(() => {
@@ -376,58 +376,58 @@ export function SalaryPrintDialog({
                 onChange={(e) => setHonorType(e.target.value)}
                 list="sal-honor-type-options"
               />
-              {/* Datalist: suggestion dari jabatan DB guru — sync otomatis */}
+              {/* Datalist: suggestion dari status DB guru — sync otomatis */}
               <datalist id="sal-honor-type-options">
                 <option value="HONOR" />
-                {jabatanOptions.map((j) => (
-                  <option key={j} value={j} />
+                {statusOptions.map((s) => (
+                  <option key={s} value={s} />
                 ))}
               </datalist>
               <p className="text-xs text-muted-foreground">
                 Judul: &ldquo;TANDA TERIMA PEMBAYARAN {honorType || 'HONOR'} BULAN ...&rdquo;
               </p>
-              {/* Quick-pick chips dari jabatan DB — sinkron dgn database guru */}
-              {jabatanOptions.length > 0 && (
+              {/* Quick-pick chips dari status DB — sinkron dgn database guru */}
+              {statusOptions.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   <span className="text-[10px] text-muted-foreground self-center mr-1">Pilih dari DB:</span>
-                  {jabatanOptions.map((j) => (
+                  {statusOptions.map((s) => (
                     <button
-                      key={j}
+                      key={s}
                       type="button"
-                      onClick={() => setHonorType(j)}
-                      title={`Set jenis honor = ${j}`}
+                      onClick={() => setHonorType(s)}
+                      title={`Set jenis honor = ${s}`}
                       className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors max-w-[180px] truncate ${
-                        honorType === j
+                        honorType === s
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'bg-background hover:bg-accent border-input'
                       }`}
                     >
-                      {j}
+                      {s}
                     </button>
                   ))}
                 </div>
               )}
             </div>
             <div className="space-y-2 sm:col-span-1">
-              <Label htmlFor="sal-jabatan-filter">Filter Jabatan</Label>
+              <Label htmlFor="sal-status-filter">Filter Status</Label>
               <Select
-                value={jabatanFilter || '__all__'}
-                onValueChange={(v) => setJabatanFilter(v === '__all__' ? '' : v)}
+                value={statusFilter || '__all__'}
+                onValueChange={(v) => setStatusFilter(v === '__all__' ? '' : v)}
               >
-                <SelectTrigger id="sal-jabatan-filter">
-                  <SelectValue placeholder="Semua Jabatan" />
+                <SelectTrigger id="sal-status-filter">
+                  <SelectValue placeholder="Semua Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">Semua Jabatan</SelectItem>
-                  {jabatanOptions.map((j) => (
-                    <SelectItem key={j} value={j}>{j}</SelectItem>
+                  <SelectItem value="__all__">Semua Status</SelectItem>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                {jabatanFilter
-                  ? `Menampilkan hanya: ${jabatanFilter}`
-                  : 'Tampilkan semua jabatan'}
+                {statusFilter
+                  ? `Menampilkan hanya: ${statusFilter}`
+                  : 'Tampilkan semua status'}
               </p>
             </div>
             <div className="space-y-2 sm:col-span-1">
@@ -503,7 +503,7 @@ export function SalaryPrintDialog({
                     <th className="w-10 p-2"></th>
                     <th className="text-left p-2">Nama</th>
                     <th className="text-left p-2 hidden sm:table-cell">NIP</th>
-                    <th className="text-left p-2 hidden md:table-cell">Jabatan</th>
+                    <th className="text-left p-2 hidden md:table-cell">Status</th>
                     <th className="text-left p-2 hidden md:table-cell">No. Rekening</th>
                     <th className="text-right p-2 hidden sm:table-cell">Honor/Les</th>
                   </tr>
@@ -531,7 +531,7 @@ export function SalaryPrintDialog({
                           </td>
                           <td className="p-2 font-medium">{e.name || '-'}</td>
                           <td className="p-2 hidden sm:table-cell text-muted-foreground">{e.nip || '-'}</td>
-                          <td className="p-2 hidden md:table-cell text-muted-foreground">{e.jabatan || '-'}</td>
+                          <td className="p-2 hidden md:table-cell text-muted-foreground">{e.status || '-'}</td>
                           <td className="p-2 hidden md:table-cell text-muted-foreground">{e.bankAccount || '-'}</td>
                           <td className="p-2 hidden sm:table-cell text-right">
                             Rp {new Intl.NumberFormat('id-ID').format(e.pricePerLesson)}
