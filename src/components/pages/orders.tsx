@@ -50,7 +50,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Plus,
   Pencil,
@@ -450,6 +449,7 @@ export function OrdersPage() {
   // Print dialog
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
   const [printOrderId, setPrintOrderId] = useState<string | null>(null)
+  const [printing, setPrinting] = useState(false)
 
   // ─── Computed order number ─────────────────────────────────────────────
 
@@ -774,15 +774,25 @@ export function OrdersPage() {
   // ─── Print Surat Pesanan ────────────────────────────────────────────────
 
   async function handlePrint(order: OrderData, orientation: PrintOrientation = 'portrait') {
-    const orderRes = await fetch(`/api/orders/${order.id}`)
-    if (!orderRes.ok) {
-      toast({ title: 'Error', description: 'Gagal mengambil data pesanan', variant: 'destructive' })
-      return
-    }
-    const fullOrder: OrderData = await orderRes.json()
+    setPrinting(true)
+    toast({ title: 'Menyiapkan dokumen…', description: 'Mengambil data pesanan & pengaturan cetak' })
+    try {
+      // ─── Parallel fetch (sebelumnya sequential → 2x lebih cepat) ───
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout
+      const [orderRes, settings] = await Promise.all([
+        fetch(`/api/orders/${order.id}`, { signal: controller.signal }),
+        fetchPrintSettings(),
+      ])
+      clearTimeout(timeoutId)
 
-    const settings = await fetchPrintSettings()
-    const kopHtml = buildKopHtml(settings)
+      if (!orderRes.ok) {
+        toast({ title: 'Error', description: 'Gagal mengambil data pesanan', variant: 'destructive' })
+        return
+      }
+      const fullOrder: OrderData = await orderRes.json()
+
+      const kopHtml = buildKopHtml(settings)
 
     const store = fullOrder.store || stores.find((s) => s.id === fullOrder.storeId)
     const employee = fullOrder.employee || employees.find((e) => e.id === fullOrder.employeeId)
@@ -901,6 +911,15 @@ export function OrdersPage() {
     `
 
     openPrintWindow(`Surat Pesanan - ${fullOrder.orderNumber}`, bodyHtml, orientation)
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        toast({ title: 'Timeout', description: 'Server tidak merespons (20 detik). Silakan coba lagi.', variant: 'destructive' })
+      } else {
+        toast({ title: 'Error', description: 'Gagal mencetak pesanan', variant: 'destructive' })
+      }
+    } finally {
+      setPrinting(false)
+    }
   }
 
   // ─── Excel: Order List ──────────────────────────────────────────────────
@@ -1160,15 +1179,15 @@ export function OrdersPage() {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog */}
+      {/* Add/Edit Dialog — melebar (max-w-6xl) + layout flex agar footer tidak menumpuk */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-6xl overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)]">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>{editingOrder ? 'Edit Pesanan' : 'Tambah Pesanan'}</DialogTitle>
             <DialogDescription>{editingOrder ? 'Perbarui data pesanan' : 'Isi data pesanan baru'}</DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[65vh] pr-4">
+          <div className="flex-1 overflow-y-auto pr-3 -mr-3 min-h-0">
             <div className="space-y-4">
               {/* Order Info */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1306,8 +1325,8 @@ export function OrdersPage() {
 
                 {orderItems.map((item, idx) => (
                   <div key={idx} className="border rounded-md p-3 space-y-2">
-                    <div className="grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                    <div className="grid grid-cols-12 gap-3 items-end">
+                      <div className="col-span-12 sm:col-span-5 space-y-1">
                         <Label className="text-xs">Nama Barang</Label>
                         <Input value={item.itemName} onChange={(e) => updateItem(idx, 'itemName', e.target.value)} placeholder="Nama barang" className="h-9" />
                       </div>
@@ -1325,7 +1344,7 @@ export function OrdersPage() {
                           className="h-9"
                         />
                       </div>
-                      <div className="col-span-3 sm:col-span-3 space-y-1">
+                      <div className="col-span-3 sm:col-span-2 space-y-1">
                         <Label className="text-xs">Harga Satuan</Label>
                         <CurrencyInput value={item.unitPrice} onChange={(val) => updateItem(idx, 'unitPrice', val)} className="h-9" />
                       </div>
@@ -1361,9 +1380,9 @@ export function OrdersPage() {
                 </div>
               </div>
             </div>
-          </ScrollArea>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 border-t pt-4 mt-2 gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Batal</Button>
             <Button onClick={handleSubmit} disabled={saving}>
               {saving && <Loader2 className="size-4 mr-2 animate-spin" />}
@@ -1448,13 +1467,14 @@ export function OrdersPage() {
       <PrintDialog
         open={printDialogOpen}
         onOpenChange={(open) => { setPrintDialogOpen(open); if (!open) setPrintOrderId(null) }}
-        onPrint={(orientation: PrintOrientation) => {
+        onPrint={async (orientation: PrintOrientation) => {
           if (printOrderId) {
             const order = orders.find(o => o.id === printOrderId)
-            if (order) handlePrint(order, orientation)
+            if (order) await handlePrint(order, orientation)
           }
           setPrintOrderId(null)
         }}
+        loading={printing}
         title="Cetak Surat Pesanan"
       />
     </PageContainer>

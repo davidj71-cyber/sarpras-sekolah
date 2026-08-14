@@ -17,7 +17,7 @@ type Orientation = 'portrait' | 'landscape'
 interface PrintDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onPrint: (orientation: Orientation) => void
+  onPrint: (orientation: Orientation) => void | Promise<void>
   title?: string
   description?: string
   loading?: boolean
@@ -33,9 +33,14 @@ export function PrintDialog({
 }: PrintDialogProps) {
   const [orientation, setOrientation] = useState<Orientation>('portrait')
 
-  function handlePrint() {
-    onPrint(orientation)
-    onOpenChange(false)
+  async function handlePrint() {
+    try {
+      await onPrint(orientation)
+    } finally {
+      // Tutup dialog SETELAH onPrint selesai (jika async) — supaya spinner
+      // "Mencetak..." tampil selama proses fetch data cetak berlangsung.
+      onOpenChange(false)
+    }
   }
 
   return (
