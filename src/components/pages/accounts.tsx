@@ -340,7 +340,11 @@ export function AccountsPage() {
                 <ul className="space-y-1 text-muted-foreground">
                   <li className="flex items-center gap-2">
                     <Shield className="size-3.5 text-primary shrink-0" />
-                    <span><strong>Operator (admin)</strong> &amp; <strong>Bendahara</strong> — dapat mengakses semua fitur aplikasi</span>
+                    <span><strong>Operator (admin)</strong> — dapat mengakses semua fitur aplikasi</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Shield className="size-3.5 text-primary shrink-0" />
+                    <span><strong>Bendahara</strong> — dapat mengakses fitur keuangan &amp; operasional, <span className="text-destructive font-medium">tanpa Pengaturan &amp; Kelola Akun</span></span>
                   </li>
                   <li className="flex items-center gap-2">
                     <User className="size-3.5 text-muted-foreground shrink-0" />
@@ -516,6 +520,13 @@ export function AccountsPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              {formData.role === 'bendahara' && (
+                <p className="text-xs text-muted-foreground flex items-center flex-wrap gap-1.5 mt-1">
+                  <Settings className="size-3" />
+                  <UserCog className="size-3" />
+                  Menu <strong>Pengaturan</strong> &amp; <strong>Kelola Akun</strong> akan disembunyikan dari sidebar pengguna ini.
+                </p>
+              )}
               {formData.role === 'sarpras' && (
                 <p className="text-xs text-muted-foreground flex items-center flex-wrap gap-1.5 mt-1">
                   <Wallet className="size-3" />
