@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { toast } from '@/hooks/use-toast'
 
@@ -221,9 +221,13 @@ export function MediaPage() {
   const [paymentEntry, setPaymentEntry] = useState<MediaData | null>(null)
   const [defaultPrintPlace, setDefaultPrintPlace] = useState('')
   const [printing, setPrinting] = useState(false)
+  // Guard against double-fire (click + Enter key) — prevents 2 print windows.
+  const printingRef = useRef(false)
 
-  const fetchEntries = useCallback(async () => {
-    setLoading(true)
+  const fetchEntries = useCallback(async (opts?: { silent?: boolean }) => {
+    // Silent mode: skip full-page loading spinner for background refreshes
+    // (e.g. after print/save/delete). Only show spinner on initial load.
+    if (!opts?.silent) setLoading(true)
     try {
       const res = await fetch('/api/media')
       if (!res.ok) throw new Error('Gagal')
@@ -297,7 +301,7 @@ export function MediaPage() {
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: editing ? 'Data media berhasil diperbarui' : 'Data media berhasil ditambahkan' })
       setDialogOpen(false)
-      fetchEntries()
+      fetchEntries({ silent: true })
     } catch {
       toast({ title: 'Error', description: 'Gagal menyimpan data media', variant: 'destructive' })
     } finally {
@@ -312,7 +316,7 @@ export function MediaPage() {
       const res = await fetch(`/api/media/${deleteId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: 'Data media berhasil dihapus' })
-      fetchEntries()
+      fetchEntries({ silent: true })
     } catch {
       toast({ title: 'Error', description: 'Gagal menghapus data media', variant: 'destructive' })
     } finally {
@@ -346,6 +350,11 @@ export function MediaPage() {
       toast({ title: 'Info', description: 'Tidak ada media/bulan yang akan dicetak' })
       return
     }
+
+    // Guard: cegah double-fire (click + Enter, atau double-click cepat).
+    // Tanpa ini, 2 window cetak bisa muncul saat loading.
+    if (printingRef.current) return
+    printingRef.current = true
 
     setPrinting(true)
 
@@ -566,10 +575,11 @@ export function MediaPage() {
 
     // ── 11. Tunggu recording selesai di background → refresh + toast ────────
     // Pakai .then() bukan await supaya tidak block return fungsi ini.
+    // Silent refresh: jangan flash full-page loading spinner untuk background update.
     recordPromise
       .then((result) => {
         // Refresh data media untuk update badge pembayaran & total
-        fetchEntries()
+        fetchEntries({ silent: true })
         if (result && typeof result.recorded === 'number') {
           if (result.recorded > 0) {
             toast({
@@ -593,7 +603,10 @@ export function MediaPage() {
       })
       .catch(() => {
         // Fallback: tetap refresh agar badge sinkron dengan server
-        fetchEntries()
+        fetchEntries({ silent: true })
+      })
+      .finally(() => {
+        printingRef.current = false
       })
   }
 

@@ -397,8 +397,9 @@ export function KibPage() {
 
   // ─── Fetch items ─────────────────────────────────────────────────────────
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true)
+  const fetchItems = useCallback(async (opts?: { silent?: boolean }) => {
+    // Silent mode: skip full-page loading spinner for background refreshes.
+    if (!opts?.silent) setLoading(true)
     try {
       const res = await fetch(`/api/items?kibType=${kibType}`)
       if (!res.ok) throw new Error('Gagal mengambil data')
@@ -523,7 +524,7 @@ export function KibPage() {
       }
 
       setDialogOpen(false)
-      fetchItems()
+      fetchItems({ silent: true })
     } catch {
       toast({ title: 'Error', description: 'Gagal menyimpan data barang', variant: 'destructive' })
     } finally {
@@ -542,7 +543,7 @@ export function KibPage() {
       const res = await fetch(`/api/items/${deleteId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Gagal menghapus')
       toast({ title: 'Berhasil', description: 'Barang berhasil dihapus' })
-      fetchItems()
+      fetchItems({ silent: true })
     } catch {
       toast({ title: 'Error', description: 'Gagal menghapus barang', variant: 'destructive' })
     } finally {

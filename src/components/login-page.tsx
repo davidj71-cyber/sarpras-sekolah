@@ -17,7 +17,7 @@ import { Loader2, Eye, EyeOff } from 'lucide-react'
 
 export function LoginPage() {
   const { login } = useNavigationStore()
-  const { appLogoUrl, schoolName, loading } = useSchoolBranding()
+  const { appLogoUrl, schoolName } = useSchoolBranding()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -95,7 +95,7 @@ export function LoginPage() {
           <div>
             <CardTitle className="text-2xl font-bold tracking-tight">{brandName}</CardTitle>
             <CardDescription className="mt-1">
-              {loading ? 'Memuat...' : brandTagline}
+              {brandTagline}
             </CardDescription>
           </div>
         </CardHeader>

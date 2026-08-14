@@ -106,8 +106,9 @@ export function EmployeesPage() {
   const [deleting, setDeleting] = useState(false)
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
 
-  const fetchEmployees = useCallback(async () => {
-    setLoading(true)
+  const fetchEmployees = useCallback(async (opts?: { silent?: boolean }) => {
+    // Silent mode: skip full-page loading spinner for background refreshes.
+    if (!opts?.silent) setLoading(true)
     try {
       const res = await fetch('/api/employees')
       if (!res.ok) throw new Error('Gagal')
@@ -158,7 +159,7 @@ export function EmployeesPage() {
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: editingEmployee ? 'Pegawai berhasil diperbarui' : 'Pegawai berhasil ditambahkan' })
       setDialogOpen(false)
-      fetchEmployees()
+      fetchEmployees({ silent: true })
     } catch {
       toast({ title: 'Error', description: 'Gagal menyimpan data pegawai', variant: 'destructive' })
     } finally {
@@ -173,7 +174,7 @@ export function EmployeesPage() {
       const res = await fetch(`/api/employees/${deleteId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: 'Pegawai berhasil dihapus' })
-      fetchEmployees()
+      fetchEmployees({ silent: true })
     } catch {
       toast({ title: 'Error', description: 'Gagal menghapus pegawai', variant: 'destructive' })
     } finally {

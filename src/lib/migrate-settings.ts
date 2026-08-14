@@ -20,8 +20,27 @@ import { db } from "@/lib/db";
  * touched.
  *
  * Returns the list of statements that were executed.
+ *
+ * PERFORMANCE: The result is cached at module level so subsequent calls
+ * resolve instantly. The schema check only runs ONCE per cold start.
  */
-export async function ensureSchoolSettingsSchema(): Promise<string[]> {
+let schoolSettingsSchemaPromise: Promise<string[]> | null = null;
+
+export function ensureSchoolSettingsSchema(): Promise<string[]> {
+  if (schoolSettingsSchemaPromise) return schoolSettingsSchemaPromise;
+  schoolSettingsSchemaPromise = (async () => {
+    try {
+      return await doEnsureSchoolSettingsSchema();
+    } catch (e) {
+      // Reset on failure so the next request can retry.
+      schoolSettingsSchemaPromise = null;
+      throw e;
+    }
+  })();
+  return schoolSettingsSchemaPromise;
+}
+
+async function doEnsureSchoolSettingsSchema(): Promise<string[]> {
   const executed: string[] = [];
 
   // Column name → DDL fragment (type + default). Mirrors schema.prisma.
@@ -160,8 +179,29 @@ export async function withSchemaHeal<T>(op: () => Promise<T>): Promise<T> {
  *
  * Idempotent — safe to call on every request. On SQLite (sandbox) the
  * tables already exist from `prisma db push`, so this is a no-op there.
+ *
+ * PERFORMANCE: The result is cached at module level so subsequent calls
+ * resolve instantly. The schema check (~20 ALTER TABLE IF NOT EXISTS
+ * queries on Postgres) only runs ONCE per cold start, not per request.
+ * This eliminates 1-2s overhead on every API call after the first.
  */
-export async function ensureSalaryMediaSchema(): Promise<string[]> {
+let salaryMediaSchemaPromise: Promise<string[]> | null = null;
+
+export function ensureSalaryMediaSchema(): Promise<string[]> {
+  if (salaryMediaSchemaPromise) return salaryMediaSchemaPromise;
+  salaryMediaSchemaPromise = (async () => {
+    try {
+      return await doEnsureSalaryMediaSchema();
+    } catch (e) {
+      // Reset on failure so the next request can retry.
+      salaryMediaSchemaPromise = null;
+      throw e;
+    }
+  })();
+  return salaryMediaSchemaPromise;
+}
+
+async function doEnsureSalaryMediaSchema(): Promise<string[]> {
   const executed: string[] = [];
 
   if (isSqlite()) {

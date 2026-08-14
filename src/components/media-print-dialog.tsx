@@ -515,10 +515,10 @@ export function MediaPrintDialog({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Batal
           </Button>
-          <Button onClick={handlePrint} disabled={loading || !canPrint}>
+          <Button type="button" onClick={handlePrint} disabled={loading || !canPrint}>
             {loading ? (
               <>
                 <Loader2 className="size-4 mr-2 animate-spin" />

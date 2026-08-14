@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { toast } from '@/hooks/use-toast'
 
@@ -165,6 +165,8 @@ export function SalaryPage() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
   const [paymentEntry, setPaymentEntry] = useState<SalaryData | null>(null)
   const [printing, setPrinting] = useState(false)
+  // Guard against double-fire (click + Enter) — prevents 2 print windows.
+  const printingRef = useRef(false)
 
   // ─── Import Excel state ──────────────────────────────────────────────────
   const [importDialogOpen, setImportDialogOpen] = useState(false)
@@ -174,8 +176,9 @@ export function SalaryPage() {
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<any>(null)
 
-  const fetchEntries = useCallback(async () => {
-    setLoading(true)
+  const fetchEntries = useCallback(async (opts?: { silent?: boolean }) => {
+    // Silent mode: skip full-page loading spinner for background refreshes.
+    if (!opts?.silent) setLoading(true)
     try {
       const res = await fetch('/api/salary')
       if (!res.ok) throw new Error('Gagal')
@@ -238,7 +241,7 @@ export function SalaryPage() {
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: editing ? 'Data gaji berhasil diperbarui' : 'Data gaji berhasil ditambahkan' })
       setDialogOpen(false)
-      fetchEntries()
+      fetchEntries({ silent: true })
     } catch {
       toast({ title: 'Error', description: 'Gagal menyimpan data gaji', variant: 'destructive' })
     } finally {
@@ -253,7 +256,7 @@ export function SalaryPage() {
       const res = await fetch(`/api/salary/${deleteId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Gagal')
       toast({ title: 'Berhasil', description: 'Data gaji berhasil dihapus' })
-      fetchEntries()
+      fetchEntries({ silent: true })
     } catch {
       toast({ title: 'Error', description: 'Gagal menghapus data gaji', variant: 'destructive' })
     } finally {
@@ -297,6 +300,11 @@ export function SalaryPage() {
       toast({ title: 'Info', description: 'Tidak ada guru/bulan yang akan dicetak' })
       return
     }
+
+    // Guard: cegah double-fire (click + Enter, atau double-click cepat).
+    // Tanpa ini, 2 window cetak bisa muncul saat loading.
+    if (printingRef.current) return
+    printingRef.current = true
 
     setPrinting(true)
 
@@ -531,9 +539,10 @@ export function SalaryPage() {
     setPrinting(false)
 
     // ── 11. Tunggu recording selesai di background → refresh + toast ────────
+    // Silent refresh: jangan flash full-page loading spinner untuk background update.
     recordPromise
       .then((result) => {
-        fetchEntries()
+        fetchEntries({ silent: true })
         if (result && typeof result.recorded === 'number') {
           const recorded = result.recorded ?? 0
           const updated = result.updated ?? 0
@@ -566,7 +575,10 @@ export function SalaryPage() {
         }
       })
       .catch(() => {
-        fetchEntries()
+        fetchEntries({ silent: true })
+      })
+      .finally(() => {
+        printingRef.current = false
       })
   }
 
@@ -729,7 +741,7 @@ export function SalaryPage() {
 
       // Jika ada data berhasil diimport, refresh list
       if (data.imported > 0) {
-        await fetchEntries()
+        await fetchEntries({ silent: true })
       }
 
       toast({
@@ -787,7 +799,7 @@ export function SalaryPage() {
               // Re-fetch entries supaya dialog cetak selalu pakai data DB
               // terbaru (mis. kalau user baru saja ubah jabatan/status guru).
               // Prefetch settings juga, supaya cetak instant begitu dialog buka.
-              fetchEntries()
+              fetchEntries({ silent: true })
               fetchSettingsCached()
               setPrintDialogOpen(true)
             }} disabled={loading || filteredEntries.length === 0 || printing}>
