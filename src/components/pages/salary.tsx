@@ -376,13 +376,30 @@ export function SalaryPage() {
     // ── 6. Judul (center, bold, uppercase) ────────────────────────────────────
     // Baris 1: TANDA TERIMA PEMBAYARAN HONOR [JENIS HONOR] BULAN [X SAMPAI Y]
     // Baris 2: [SEKOLAH] TAHUN [YEAR]
-    // Baris 1 selalu 1 baris — auto-fit JS akan sesuaikan font-size kalau overflow.
+    // Baris 1 SELALU 1 baris — font-size di-pre-compute di parent window pakai
+    // hidden probe div yang lebarnya = printable area (mm) sesuai orientasi,
+    // BUKAN lebar window browser. Ini fix bug judul terpotong ("...B") saat
+    // dicetak karena auto-fit JS lama ukur clientWidth = window (lebih lebar).
     const monthLabel = buildMonthRangeLabel(allMonths)
-    const honorLabel = (honorType || 'HONOR').trim().toUpperCase()
+    const honorLabel = (honorType || '').trim().toUpperCase()
+    // Hindari duplikasi "HONOR HONOR" — jika honorLabel kosong/'HONOR' (default
+    // saat user belum pilih status), cukup pakai "HONOR" tanpa diulang.
+    const honorPart = (!honorLabel || honorLabel === 'HONOR')
+      ? 'HONOR'
+      : `HONOR ${honorLabel}`
+    const titleLine1 = `TANDA TERIMA PEMBAYARAN ${honorPart} ${monthLabel}`.replace(/\s+/g, ' ').trim()
+    // Baris 2: [SEKOLAH] TAHUN [YEAR] — sekolah kosong → cukup "TAHUN ..."
+    const schoolUpper = (schoolName || '').trim().toUpperCase()
+    const titleLine2 = schoolUpper ? `${schoolUpper} TAHUN ${year}` : `TAHUN ${year}`
+    // Lebar printable A4 (@page margin 10mm/12mm):
+    //   portrait  = 210 - 12 - 10 = 188mm
+    //   landscape = 297 - 12 - 10 = 275mm
+    const maxWidthMm = orientation === 'landscape' ? 275 : 188
+    const titleFontSize = computeTitleFontSize(titleLine1, maxWidthMm, 20, 8)
     const titleHtml = `
-      <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: 20pt; line-height: 1.4; margin: 8px 0 18px; position: relative; z-index: 1;">
-        <div id="print-title-line1" style="white-space: nowrap; overflow: hidden;">TANDA TERIMA PEMBAYARAN HONOR ${honorLabel} ${monthLabel}</div>
-        <div>${schoolName.toUpperCase()} TAHUN ${year}</div>
+      <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: ${titleFontSize}pt; line-height: 1.4; margin: 8px 0 18px; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
+        <div id="print-title-line1" style="white-space: nowrap;">${titleLine1}</div>
+        <div>${titleLine2}</div>
       </div>
     `
 
@@ -482,42 +499,14 @@ export function SalaryPage() {
     `
 
     // ── 9. Gabungkan semua + BUKA print window segera ────────────────────────
-    // Auto-fit script: judul baris 1 (TANDA TERIMA PEMBAYARAN HONOR ... BULAN ...)
-    // selalu dijamin 1 baris — font-size dikurangi bertahap dari 20pt → 9pt sampai
-    // scrollWidth <= clientWidth. white-space:nowrap sudah set di titleHtml.
-    const autoFitScript = `
-      <script>
-        (function() {
-          function autoFitTitle() {
-            var el = document.getElementById('print-title-line1');
-            if (!el) return;
-            var maxSize = 20;
-            var minSize = 9;
-            var size = maxSize;
-            el.style.fontSize = size + 'pt';
-            while (size > minSize && el.scrollWidth > el.clientWidth) {
-              size -= 0.5;
-              el.style.fontSize = size + 'pt';
-            }
-          }
-          if (document.readyState === 'complete') {
-            autoFitTitle();
-          } else {
-            window.addEventListener('load', autoFitTitle);
-          }
-          setTimeout(autoFitTitle, 100);
-          setTimeout(autoFitTitle, 500);
-        })();
-      </script>
-    `
-
+    // Font-size judul sudah di-pre-compute di titleHtml (computeTitleFontSize),
+    // jadi tidak perlu auto-fit JS lagi — judul dijamin muat 1 baris.
     const bodyHtml = `
       ${watermarkHtml}
       ${metaBlock}
       ${titleHtml}
       ${tableHtml}
       ${signatureHtml}
-      ${autoFitScript}
     `
 
     openPrintWindow(
@@ -568,6 +557,55 @@ export function SalaryPage() {
     const sorted = [...months].sort((a, b) => a - b)
     if (sorted.length === 1) return `BULAN ${MONTHS[sorted[0] - 1].toUpperCase()}`
     return `BULAN ${MONTHS[sorted[0] - 1].toUpperCase()} SAMPAI ${MONTHS[sorted[sorted.length - 1] - 1].toUpperCase()}`
+  }
+
+  /**
+   * Pre-compute font-size (pt) supaya judul baris 1 SELALU muat 1 baris di
+   * halaman cetak. Mengukur lebar teks pakai hidden probe div yang lebarnya =
+   * printable area (mm) sesuai orientasi — BUKAN lebar window browser.
+   *
+   * Fix bug lama: auto-fit JS di print window ukur el.clientWidth = lebar
+   * window browser (~1240px) yang lebih lebar dari halaman cetak A4
+   * (~1039px landscape / ~710px portrait setelah @page margin). Akibatnya
+   * judul "fit" di preview tapi terpotong saat dicetak, memunculkan sisa
+   * karakter seperti "B" (awal "BULAN") dan ")" terlihat seperti "]".
+   *
+   * Dengan pre-compute di parent window, font-size sudah benar SEBELUM print
+   * window dibuka — tidak ada race condition, tidak ada clipping.
+   */
+  function computeTitleFontSize(
+    text: string,
+    maxWidthMm: number,
+    maxPt = 20,
+    minPt = 8,
+  ): number {
+    if (typeof window === 'undefined' || !text) return maxPt
+    try {
+      const probe = document.createElement('div')
+      probe.style.position = 'absolute'
+      probe.style.left = '-99999px'
+      probe.style.top = '0'
+      probe.style.visibility = 'hidden'
+      probe.style.width = `${maxWidthMm}mm`
+      probe.style.whiteSpace = 'nowrap'
+      probe.style.fontFamily = "'Times New Roman', serif"
+      probe.style.fontWeight = 'bold'
+      probe.style.textTransform = 'uppercase'
+      probe.style.lineHeight = '1.4'
+      probe.style.fontSize = `${maxPt}pt`
+      probe.textContent = text
+      document.body.appendChild(probe)
+      const targetWidth = probe.clientWidth // = maxWidthMm dalam px
+      const textWidth = probe.scrollWidth    // lebar teks actual pada maxPt
+      document.body.removeChild(probe)
+      if (textWidth <= targetWidth) return maxPt
+      // Skala proporsional + 3% safety margin supaya pasti muat
+      const scale = (targetWidth / textWidth) * 0.97
+      const fitted = maxPt * scale
+      return Math.max(minPt, Math.min(maxPt, Math.round(fitted * 10) / 10))
+    } catch {
+      return maxPt
+    }
   }
 
   async function handleExportExcel() {
