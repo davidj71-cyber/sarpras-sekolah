@@ -63,6 +63,7 @@ import {
   LogOut,
   Wallet,
   Newspaper,
+  Settings,
   Info,
 } from 'lucide-react'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
@@ -343,7 +344,7 @@ export function AccountsPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <User className="size-3.5 text-muted-foreground shrink-0" />
-                    <span><strong>Sarpras</strong> — <span className="text-destructive font-medium">tidak dapat mengakses fitur Gaji &amp; Media</span> (menu disembunyikan dari sidebar)</span>
+                    <span><strong>Sarpras</strong> — <span className="text-destructive font-medium">tidak dapat mengakses fitur Gaji, Media, Pengaturan, &amp; Kelola Akun</span> (menu disembunyikan dari sidebar)</span>
                   </li>
                 </ul>
               </div>
@@ -516,10 +517,12 @@ export function AccountsPage() {
                 </SelectContent>
               </Select>
               {formData.role === 'sarpras' && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                <p className="text-xs text-muted-foreground flex items-center flex-wrap gap-1.5 mt-1">
                   <Wallet className="size-3" />
                   <Newspaper className="size-3" />
-                  Menu <strong>Gaji</strong> &amp; <strong>Media</strong> akan disembunyikan dari sidebar pengguna ini.
+                  <Settings className="size-3" />
+                  <UserCog className="size-3" />
+                  Menu <strong>Gaji</strong>, <strong>Media</strong>, <strong>Pengaturan</strong>, &amp; <strong>Kelola Akun</strong> akan disembunyikan dari sidebar pengguna ini.
                 </p>
               )}
             </div>

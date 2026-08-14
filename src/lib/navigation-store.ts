@@ -36,12 +36,15 @@ export const roleLabels: Record<string, string> = {
 }
 
 // Halaman yang DILARANG untuk role tertentu.
+// Sarpras hanya bisa akses fitur operasional (Dashboard, Toko, Pegawai, KIB,
+// Inventaris). Menu admin (Pengaturan, Kelola Akun) & menu keuangan (Gaji,
+// Media) disembunyikan.
 const RESTRICTED_PAGES: Record<Page, string[]> = {
   salary: ['sarpras'],
   media: ['sarpras'],
+  settings: ['sarpras'],
+  accounts: ['sarpras'],
   dashboard: [],
-  settings: [],
-  accounts: [],
   stores: [],
   employees: [],
   kib: [],
