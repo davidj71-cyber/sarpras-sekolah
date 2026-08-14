@@ -419,7 +419,7 @@ export function SalaryPage() {
       return `
         <tr>
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${idx + 1}</td>
-          <td style="background: transparent; vertical-align: middle; white-space: nowrap;">${it.name || '-'}</td>
+          <td style="background: transparent; vertical-align: middle; white-space: nowrap; text-transform: uppercase;">${it.name || '-'}</td>
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${it.bankAccount || '-'}</td>
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlahBulan)}&nbsp;&nbsp;&nbsp;&nbsp;OB</td>
           <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(it.pricePerLesson)}</td>
@@ -447,13 +447,15 @@ export function SalaryPage() {
     // Kolom header TANDA TANGAN hanya di mode signature
     const signatureHeaderHtml = isBankMode
       ? ''
-      : '<th style="background: transparent; width: 12%; padding: 6px 4px;">TANDA TANGAN</th>'
+      : '<th style="background: transparent; width: 16%; padding: 6px 4px;">TANDA TANGAN</th>'
 
     // Lebar kolom dioptimasi:
-    //   - NAMA lebih lebar (32%) supaya nama pegawai 1 baris (white-space:nowrap)
-    //   - REKENING lebih sempit (16%) karena header sekarang 2 baris "NO. REKENING/ TABUNGAN"
+    //   - NAMA diperkecil (signature 28% / bank 32%) supaya kolom TANDA TANGAN lebih lebar
+    //   - Nama guru di-uppercase via text-transform: uppercase (tampilan kapital semua)
+    //   - TANDA TANGAN diperlebar 12% → 16% (signature mode) untuk tampilan lebih bagus
+    //   - REKENING lebih sempit (16%) karena header 2 baris "NO. REKENING/ TABUNGAN"
     //   - PENERIMAAN agak lebih lebar (15%) untuk akomodasi "Rp    nominal" dengan spasi
-    const namaWidth = isBankMode ? '35%' : '32%'
+    const namaWidth = isBankMode ? '32%' : '28%'
     const rekeningWidth = isBankMode ? '18%' : '16%'
     const penerimaanWidth = isBankMode ? '20%' : '15%'
 
