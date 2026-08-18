@@ -12,6 +12,7 @@ import {
   LogOut,
   Wallet,
   Newspaper,
+  BookOpen,
 } from 'lucide-react'
 
 import {
@@ -29,6 +30,7 @@ import {
 } from '@/components/ui/sidebar'
 import { useNavigationStore, type Page, canAccessPage, roleLabels } from '@/lib/navigation-store'
 import { useSchoolBranding } from '@/lib/use-school-branding'
+import { PanduanDialog } from '@/components/panduan-dialog'
 
 const navItems: {
   page: Page
@@ -49,6 +51,7 @@ const navItems: {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { currentPage, setPage, authUser, logout } = useNavigationStore()
   const { appLogoUrl, schoolName } = useSchoolBranding()
+  const [panduanOpen, setPanduanOpen] = React.useState(false)
   const brandName = 'SIMAPRAS'
   const brandSubtitle = schoolName?.trim() ? schoolName.trim() : 'Manajemen Sarpras'
 
@@ -116,6 +119,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
+                tooltip="Panduan Penggunaan"
+                onClick={() => setPanduanOpen(true)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <BookOpen className="size-4" />
+                <span className="text-sm">Panduan</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
                 tooltip="Keluar"
                 onClick={logout}
                 className="text-muted-foreground hover:text-destructive"
@@ -128,6 +141,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarFooter>
       )}
       <SidebarRail />
+      <PanduanDialog open={panduanOpen} onOpenChange={setPanduanOpen} />
     </Sidebar>
   )
 }
