@@ -331,13 +331,13 @@ function buildRekeningKoranHtml(
   `
 
   // Daftar rekening (numbered list, each item has its own sub-table)
-  // Layout mengikuti format baku:
-  //   1   Nomor rekening   : 271.01.02.000940-0
-  //       a/n rekening     : SMAN 1 TELUKDALAM
-  //       Rek. Koran Bank  : BOS Reguler
-  // "1" di kolom sendiri (lebar 28px), sub-items di kolom berikutnya yang
-  // lebih menjorok ke dalam supaya label "Nomor rekening / a/n rekening /
-  // Rek. Koran Bank" sejajar vertikal di bawah "1".
+  // Layout mengikuti format baku — angka "1" di kolom kiri (lebar 48px),
+  // sub-items (Nomor rekening/a/n/Rek. Koran Bank) di kolom kanan yang
+  // lebih menjorok ke dalam. Pakai table-based layout karena lebih reliable
+  // di print window dibanding flexbox.
+  //   1     Nomor rekening   : 271.01.02.000940-0
+  //         a/n rekening     : SMAN 1 TELUKDALAM
+  //         Rek. Koran Bank  : BOS Reguler
   const accountItemsHtml = accounts.length === 0
     ? '<div style="margin-top:8px; font-size:11pt;">(Belum ada rekening ditambahkan)</div>'
     : accounts.map((acc, idx) => {
@@ -345,28 +345,32 @@ function buildRekeningKoranHtml(
       const an = acc.accountName || '_____________________'
       const desc = acc.description || '_____________________'
       return `
-        <div style="margin-top: 10px; display:flex; align-items:flex-start; font-size: 11pt; line-height: 1.7;">
-          <div style="width: 28px; flex-shrink: 0; text-align: left;">${idx + 1}</div>
-          <table style="border:none; flex: 1; font-size: 11pt;">
-            <tbody>
-              <tr>
-                <td style="border:none; padding:1px 16px 1px 0; width:150px; vertical-align:top;">Nomor rekening</td>
-                <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
-                <td style="border:none; padding:1px 0; vertical-align:top;">${num}</td>
-              </tr>
-              <tr>
-                <td style="border:none; padding:1px 16px 1px 0; vertical-align:top;">a/n rekening</td>
-                <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
-                <td style="border:none; padding:1px 0; vertical-align:top;">${an}</td>
-              </tr>
-              <tr>
-                <td style="border:none; padding:1px 16px 1px 0; vertical-align:top;">Rek. Koran Bank</td>
-                <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
-                <td style="border:none; padding:1px 0; vertical-align:top;">${desc}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <table style="width: 100%; border: none; margin-top: 10px; font-size: 11pt; line-height: 1.7;">
+          <tr>
+            <td style="border: none; width: 48px; vertical-align: top; padding: 1px 12px 1px 0;">${idx + 1}</td>
+            <td style="border: none; vertical-align: top; padding: 0;">
+              <table style="border: none; font-size: 11pt;">
+                <tbody>
+                  <tr>
+                    <td style="border:none; padding:1px 16px 1px 0; width:150px; vertical-align:top;">Nomor rekening</td>
+                    <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
+                    <td style="border:none; padding:1px 0; vertical-align:top;">${num}</td>
+                  </tr>
+                  <tr>
+                    <td style="border:none; padding:1px 16px 1px 0; vertical-align:top;">a/n rekening</td>
+                    <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
+                    <td style="border:none; padding:1px 0; vertical-align:top;">${an}</td>
+                  </tr>
+                  <tr>
+                    <td style="border:none; padding:1px 16px 1px 0; vertical-align:top;">Rek. Koran Bank</td>
+                    <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
+                    <td style="border:none; padding:1px 0; vertical-align:top;">${desc}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </table>
       `
     }).join('')
 
