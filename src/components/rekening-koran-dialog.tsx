@@ -98,6 +98,11 @@ interface FormDefaults {
   year: number
   budgetYear: number
   purpose: string
+  // Alamat singkat di bagian "yang beralamat ..." — berbeda dari address KOP.
+  // Default diambil dari 2 chunk pertama address KOP (mis. "Jl. Pendidikan No.13 Kelurahan Pasar Telukdalam").
+  shortAddress: string
+  // Jabatan struktural tambahan di bawah nama penandatangan (mis. "Pembina Tk. I").
+  principalTitle: string
 }
 
 // ─── Konstanta format nomor surat ───────────────────────────────────────────
@@ -141,13 +146,15 @@ function readDefaults(): FormDefaults {
   const fallback: FormDefaults = {
     letterSeq: '',
     lampiran: '-',
-    bankName: 'PT. Bank SUMUT',
-    bankLocation: '',
+    bankName: 'PT. Bank SUMUT Telukdalam',
+    bankLocation: 'Telukdalam',
     startMonth: 0, // Januari
     endMonth: currentMonth,
     year: now.getFullYear(),
     budgetYear: now.getFullYear(),
     purpose: 'Surat Pertanggungjawaban (SPJ) BOS Tahun ' + now.getFullYear() + ', Gaji PNS, GTT Provinsi Tahun ' + now.getFullYear(),
+    shortAddress: '',
+    principalTitle: '',
   }
   if (typeof window === 'undefined') return fallback
   try {
@@ -203,6 +210,7 @@ function buildRekeningKoranHtml(
   const {
     letterSeq, lampiran, bankName, bankLocation,
     startMonth, endMonth, year, budgetYear, purpose,
+    shortAddress, principalTitle,
   } = defaults
 
   const dateStr = formatLetterDate(letterDate)
@@ -217,34 +225,61 @@ function buildRekeningKoranHtml(
   const jabatan = 'Kepala Sekolah'
   const unitKerja = schoolName || '-'
 
-  // Tanggal & info surat — rata kanan, 2 kolom (label : value)
+  // Kota untuk baris tanggal — diambil dari bankLocation (paling akurat),
+  // fallback: chunk terakhir dari address KOP.
+  const cityFromAddress = settings.address
+    ? (settings.address.split(',').pop()?.trim() || '')
+    : ''
+  const dateCity = bankLocation.trim() || cityFromAddress || '_____________'
+
+  // Alamat singkat di "yang beralamat ..." — default dari 2 chunk pertama address KOP.
+  // mis. "Jl. Pendidikan No.13, Kel. Pasar Teluk Dalam" → "Jl. Pendidikan No.13 Kelurahan Pasar Telukdalam".
+  // User bisa override lewat input form.
+  const chunks = (settings.address || '').split(',').map((c) => c.trim()).filter(Boolean)
+  const defaultShortAddr = chunks.length >= 2 ? `${chunks[0]} ${chunks[1]}` : (chunks[0] || settings.address || '_____________________')
+  const addressLine = (shortAddress || '').trim() || defaultShortAddr
+
+  // ── Layout info surat (mengikuti format baku) ────────────────────────────
+  //   Baris 1 (rata KANAN):  "Telukdalam, 24 Agustus 2026"
+  //   Baris 2-4 (rata KIRI): "Nomor    : 400.3.8/..."
+  //                          "Lampiran : -"
+  //                          "Perihal  : Permohonan Cetak Rekening Koran Bank"
   const letterInfoHtml = `
-    <div style="display:flex; justify-content:flex-end; margin-top: 12px;">
+    <div style="margin-top: 12px; font-size: 11pt; line-height: 1.5; position: relative; min-height: 24px;">
+      <div style="text-align: right; margin-bottom: 6px;">${dateCity}, ${dateStr}</div>
       <table style="width:auto; border:none; font-size: 11pt; line-height: 1.5;">
         <tbody>
           <tr>
-            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap;">${settings.address ? (settings.address.split(',').pop()?.trim() || '') : '_____________'}, ${dateStr}</td>
+            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap;">Nomor</td>
+            <td style="border:none; padding:1px 4px; text-align:left;">:</td>
+            <td style="border:none; padding:1px 0; text-align:left; white-space:nowrap;">${letterNumber || '____________________'}</td>
           </tr>
           <tr>
-            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap;">Nomor&nbsp;&nbsp;&nbsp;&nbsp; : ${letterNumber || '____________________'}</td>
+            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap;">Lampiran</td>
+            <td style="border:none; padding:1px 4px; text-align:left;">:</td>
+            <td style="border:none; padding:1px 0; text-align:left; white-space:nowrap;">${lampiran || '-'}</td>
           </tr>
           <tr>
-            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap;">Lampiran&nbsp;&nbsp; : ${lampiran || '-'}</td>
-          </tr>
-          <tr>
-            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap;">Perihal&nbsp;&nbsp;&nbsp; : Permohonan Cetak Rekening Koran Bank</td>
+            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap;">Perihal</td>
+            <td style="border:none; padding:1px 4px; text-align:left;">:</td>
+            <td style="border:none; padding:1px 0; text-align:left; white-space:nowrap;">Permohonan Cetak Rekening Koran Bank</td>
           </tr>
         </tbody>
       </table>
     </div>
   `
 
-  // Tujuan surat
+  // ── Tujuan surat — "di" dan kota di baris terpisah (mengikuti format baku) ──
+  //   Kepada Yth,
+  //   Pimpinan PT. Bank SUMUT Telukdalam
+  //   di
+  //   Telukdalam
   const tujuanHtml = `
     <div style="margin-top: 18px; font-size: 11pt; line-height: 1.5;">
       Kepada Yth,<br>
       Pimpinan ${bankName || 'PT. Bank __________'}<br>
-      ${bankLocation ? `di ${bankLocation}` : 'di __________'}
+      di<br>
+      ${bankLocation || '_____________'}
     </div>
   `
 
@@ -300,12 +335,12 @@ function buildRekeningKoranHtml(
       const desc = acc.description || '_____________________'
       return `
         <div style="margin-top: 10px; padding-left: 22px; text-indent: -22px; font-size: 11pt; line-height: 1.7;">
-          <span style="margin-right: 6px;">${idx + 1}.</span>
+          <span style="margin-right: 6px;">${idx + 1}</span>
           <table style="border:none; display:inline-table; vertical-align:top; width: calc(100% - 30px); font-size: 11pt;">
             <tbody>
               <tr>
                 <td style="border:none; padding:1px 8px 1px 0; width:140px; vertical-align:top;">Nomor rekening</td>
-                <td style="border:none; padding:1px 4px; width:8px; vertical-align:top;">:</td>
+                <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
                 <td style="border:none; padding:1px 0; vertical-align:top;">${num}</td>
               </tr>
               <tr>
@@ -324,8 +359,7 @@ function buildRekeningKoranHtml(
       `
     }).join('')
 
-  // Tujuan & alamat
-  const addressLine = settings.address || '_____________________'
+  // Tujuan & alamat — pakai alamat singkat (bukan alamat KOP lengkap)
   const tujuanAkhirHtml = `
     <div style="margin-top: 14px; font-size: 11pt; line-height: 1.5; text-align: justify; padding-left: 22px; text-indent: -22px;">
       yang beralamat ${addressLine} (sesuai rekening) guna kepentingan ${purpose || '_______________________'}.
@@ -339,13 +373,20 @@ function buildRekeningKoranHtml(
     </div>
   `
 
-  // Tanda tangan — rata kanan, "Kepala [Sekolah]"
+  // Tanda tangan — rata kanan, "Kepala [Sekolah]" + nama + jabatan struktural + NIP
+  // Format baku:
+  //   Kepala SMA Negeri 1 Telukdalam
+  //   [ruang ttd]
+  //   Nursari Rindu Simanullang, S.Pd., M.M.   (nama, underline + bold)
+  //   Pembina Tk. I                              (jabatan struktural tambahan, opsional)
+  //   NIP. 19691208 200502 2 001
   const signatureHtml = `
     <div style="margin-top: 28px; display:flex; justify-content:flex-end;">
       <div style="text-align: left; font-size: 11pt; line-height: 1.5; min-width: 240px;">
         <div>Kepala ${schoolName || 'Sekolah'}</div>
         <div style="height: 72px;"></div>
         <div style="text-decoration: underline; font-weight: bold;">${principalName}</div>
+        ${principalTitle.trim() ? `<div>${principalTitle.trim()}</div>` : ''}
         <div>${principalNip ? 'NIP. ' + principalNip : '&nbsp;'}</div>
       </div>
     </div>
@@ -739,6 +780,32 @@ export function RekeningKoranDialog({
           </div>
 
           {/* ── Tujuan / alamat ─────────────────────────────────────────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid gap-1.5">
+              <Label htmlFor="rk-short-address">Alamat Singkat (di surat)</Label>
+              <Input
+                id="rk-short-address"
+                placeholder="mis. Jl. Pendidikan No.13 Kelurahan Pasar Telukdalam"
+                value={defaults.shortAddress}
+                onChange={(e) => setDefaults((d) => ({ ...d, shortAddress: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Alamat pendek di kalimat &quot;yang beralamat ...&quot;. Default otomatis dari 2 bagian pertama alamat KOP.
+              </p>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="rk-principal-title">Jabatan Struktural (di bawah nama)</Label>
+              <Input
+                id="rk-principal-title"
+                placeholder="mis. Pembina Tk. I"
+                value={defaults.principalTitle}
+                onChange={(e) => setDefaults((d) => ({ ...d, principalTitle: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Jabatan struktural tambahan di tanda tangan (opsional, kosongkan jika tidak ada).
+              </p>
+            </div>
+          </div>
           <div className="grid gap-1.5">
             <Label htmlFor="rk-purpose">Tujuan (guna kepentingan)</Label>
             <Input
@@ -747,9 +814,6 @@ export function RekeningKoranDialog({
               value={defaults.purpose}
               onChange={(e) => setDefaults((d) => ({ ...d, purpose: e.target.value }))}
             />
-            <p className="text-xs text-muted-foreground">
-              Alamat surat otomatis diambil dari pengaturan sekolah (Settings).
-            </p>
           </div>
         </div>
 
