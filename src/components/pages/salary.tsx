@@ -63,6 +63,7 @@ import {
   CheckCircle2,
   FileUp,
   X,
+  Landmark,
 } from 'lucide-react'
 import {
   openPrintWindow,
@@ -73,6 +74,7 @@ import {
 import { terbilangRupiah } from '@/lib/terbilang'
 import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
 import { SalaryPrintDialog, type SalaryPrintPlan } from '@/components/salary-print-dialog'
+import { RekeningKoranDialog } from '@/components/rekening-koran-dialog'
 import { PaymentDialog } from '@/components/payment-dialog'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -164,6 +166,7 @@ export function SalaryPage() {
   const [deleting, setDeleting] = useState(false)
 
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
+  const [rekKoranDialogOpen, setRekKoranDialogOpen] = useState(false)
   const [paymentEntry, setPaymentEntry] = useState<SalaryData | null>(null)
   const [printing, setPrinting] = useState(false)
   // Guard against double-fire (click + Enter) — prevents 2 print windows.
@@ -283,6 +286,13 @@ export function SalaryPage() {
   // Daftar kategori (Status) unik dari data — untuk dropdown filter.
   const statusOptions = useMemo(
     () => Array.from(new Set(entries.map((e) => e.status).filter(Boolean))).sort(),
+    [entries]
+  )
+
+  // Daftar nomor rekening unik dari salary entries — dipakai sebagai suggestions
+  // untuk kolom "Nomor Rekening" di dialog Cetak Rekening Koran (datalist HTML).
+  const memoSalaryBankAccounts = useMemo(
+    () => Array.from(new Set(entries.map((e) => e.bankAccount).filter((v) => v && v.trim()))),
     [entries]
   )
 
@@ -823,6 +833,14 @@ export function SalaryPage() {
         actions={
           <>
             <Button variant="outline" onClick={() => {
+              // Prefetch settings supaya dialog langsung siap ketika dibuka.
+              fetchSettingsCached()
+              setRekKoranDialogOpen(true)
+            }} disabled={loading || printing}>
+              <Landmark className="size-4 mr-2" />
+              Cetak Rek. Koran
+            </Button>
+            <Button variant="outline" onClick={() => {
               // Re-fetch entries supaya dialog cetak selalu pakai data DB
               // terbaru (mis. kalau user baru saja ubah jabatan/status guru).
               // Prefetch settings juga, supaya cetak instant begitu dialog buka.
@@ -1101,6 +1119,12 @@ export function SalaryPage() {
           pricePerLesson: e.pricePerLesson,
         }))}
         loading={loading}
+      />
+
+      <RekeningKoranDialog
+        open={rekKoranDialogOpen}
+        onOpenChange={setRekKoranDialogOpen}
+        salaryBankAccounts={memoSalaryBankAccounts}
       />
 
       {paymentEntry && (
