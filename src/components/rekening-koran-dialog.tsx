@@ -53,12 +53,14 @@ import {
   Loader2,
   Printer,
   Landmark,
+  AlertTriangle,
 } from 'lucide-react'
 import {
   openPrintWindow,
   sanitizeFilename,
   fetchPrintSettings,
   buildKopHtml,
+  parseKopLines,
   type PrintSettings,
 } from '@/lib/print-utils'
 
@@ -85,7 +87,9 @@ interface RekeningKoranDialogProps {
 }
 
 interface FormDefaults {
-  letterNumber: string
+  // Nomor urut surat (angka saja) — auto di-compose jadi
+  // 400.3.8/[NOMOR]/ADM/[ROMAN_BULAN]/[TAHUN] saat dicetak.
+  letterSeq: string
   lampiran: string
   bankName: string
   bankLocation: string
@@ -94,6 +98,36 @@ interface FormDefaults {
   year: number
   budgetYear: number
   purpose: string
+}
+
+// ─── Konstanta format nomor surat ───────────────────────────────────────────
+// Format baku: 400.3.8/[NOMOR]/ADM/[ROMAN_BULAN]/[TAHUN]
+//   400.3.8 = kode klasifikasi surat keuangan/sekolah (fixed)
+//   NOMOR   = nomor urut surat (input user, angka saja)
+//   ADM     = kode unit Tata Usaha (fixed)
+//   ROMAN_BULAN = bulan surat dalam Romawi (I–XII), diambil dari Tanggal Surat
+//   TAHUN   = tahun surat, diambil dari Tanggal Surat
+const LETTER_PREFIX = '400.3.8'
+const LETTER_UNIT_CODE = 'ADM'
+
+const ROMAN_NUMERALS = [
+  'I', 'II', 'III', 'IV', 'V', 'VI',
+  'VII', 'VIII', 'IX', 'X', 'XI', 'XII',
+]
+
+/** Konversi monthIndex (0-11) → Romawi (I-XII). */
+function monthToRoman(monthIndex: number): string {
+  const i = Math.max(0, Math.min(11, monthIndex))
+  return ROMAN_NUMERALS[i]
+}
+
+/** Compose nomor surat lengkap dari nomor urut + tanggal surat. */
+function composeLetterNumber(seq: string, letterDate: Date): string {
+  const seqTrim = (seq || '').trim()
+  const nomor = seqTrim || '...'
+  const roman = monthToRoman(letterDate.getMonth())
+  const year = letterDate.getFullYear()
+  return `${LETTER_PREFIX}/${nomor}/${LETTER_UNIT_CODE}/${roman}/${year}`
 }
 
 function makeId(): string {
@@ -105,7 +139,7 @@ function readDefaults(): FormDefaults {
   // Default: periode Januari s/d bulan sekarang, tahun berjalan.
   const currentMonth = now.getMonth() // 0-11
   const fallback: FormDefaults = {
-    letterNumber: '',
+    letterSeq: '',
     lampiran: '-',
     bankName: 'PT. Bank SUMUT',
     bankLocation: '',
@@ -167,11 +201,14 @@ function buildRekeningKoranHtml(
   letterDate: Date,
 ): string {
   const {
-    letterNumber, lampiran, bankName, bankLocation,
+    letterSeq, lampiran, bankName, bankLocation,
     startMonth, endMonth, year, budgetYear, purpose,
   } = defaults
 
   const dateStr = formatLetterDate(letterDate)
+  // Compose nomor surat lengkap dari nomor urut + tanggal surat:
+  // 400.3.8/[NOMOR]/ADM/[ROMAN_BULAN]/[TAHUN]
+  const letterNumber = composeLetterNumber(letterSeq, letterDate)
 
   // Identitas pemohon — pakai Kepala Sekolah dari settings (yang menandatangani surat).
   const principalName = settings.principalName || '________________________'
@@ -339,6 +376,7 @@ export function RekeningKoranDialog({
 }: RekeningKoranDialogProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [settingsLoading, setSettingsLoading] = useState(false)
   const [settings, setSettings] = useState<PrintSettings | null>(null)
 
   // Form state
@@ -352,7 +390,11 @@ export function RekeningKoranDialog({
     setDefaults(readDefaults())
     setAccounts(readSavedAccounts())
     setLetterDateStr(new Date().toISOString().slice(0, 10))
-    fetchPrintSettings().then((s) => setSettings(s)).catch(() => setSettings(null))
+    setSettingsLoading(true)
+    fetchPrintSettings()
+      .then((s) => setSettings(s))
+      .catch(() => setSettings(null))
+      .finally(() => setSettingsLoading(false))
   }, [open])
 
   // Persist on change
@@ -402,6 +444,12 @@ export function RekeningKoranDialog({
       toast({ title: 'Nomor rekening kosong', description: 'Setiap rekening wajib punya Nomor Rekening.', variant: 'destructive' })
       return
     }
+    // Validasi: nomor urut surat wajib diisi (angka)
+    const seqTrim = (defaults.letterSeq || '').trim()
+    if (!seqTrim || !/^\d+$/.test(seqTrim)) {
+      toast({ title: 'Nomor urut surat belum diisi', description: 'Masukkan angka nomor urut surat (mis. 573).', variant: 'destructive' })
+      return
+    }
 
     setLoading(true)
 
@@ -433,6 +481,11 @@ export function RekeningKoranDialog({
   // ── Suggestion datalist id (unique) ──────────────────────────────────────
   const datalistId = 'rk-suggested-accounts'
 
+  // Cek apakah KOP surat sudah siap (schoolName + kopLines terisi).
+  // Jika belum, tampilkan warning supaya user isi dulu di menu Pengaturan.
+  const kopLinesCount = settings ? parseKopLines(settings.kopLines).filter((l) => l.text.trim()).length : 0
+  const isKopReady = !!settings && !!(settings.schoolName && settings.schoolName.trim()) && kopLinesCount > 0
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[760px] max-h-[92vh] overflow-y-auto">
@@ -455,16 +508,53 @@ export function RekeningKoranDialog({
         </datalist>
 
         <div className="grid gap-4 py-2">
+          {/* ── Warning KOP belum diisi ─────────────────────────────────────── */}
+          {settings && !isKopReady && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-200">
+              <AlertTriangle className="size-5 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">KOP surat belum lengkap</p>
+                <p className="mt-0.5">
+                  KOP sekolah belum diisi di menu <strong>Pengaturan</strong>.
+                  Surat akan tercetak tanpa KOP (header institusi) dan data
+                  penandatangan. Buka menu <strong>Pengaturan</strong> untuk
+                  mengisi Nama Sekolah, KOP Lines, dan Nama Kepala Sekolah.
+                </p>
+              </div>
+            </div>
+          )}
+          {settingsLoading && (
+            <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Memuat pengaturan sekolah...
+            </div>
+          )}
+
           {/* ── Info surat ──────────────────────────────────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="rk-letter-number">Nomor Surat</Label>
+              <Label htmlFor="rk-letter-seq">Nomor Urut Surat</Label>
               <Input
-                id="rk-letter-number"
-                placeholder="mis. 400.3.8/573/ADM/VIII/2026"
-                value={defaults.letterNumber}
-                onChange={(e) => setDefaults((d) => ({ ...d, letterNumber: e.target.value }))}
+                id="rk-letter-seq"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="mis. 573"
+                value={defaults.letterSeq}
+                onChange={(e) => {
+                  // Hanya izinkan angka
+                  const v = e.target.value.replace(/[^\d]/g, '')
+                  setDefaults((d) => ({ ...d, letterSeq: v }))
+                }}
               />
+              <p className="text-xs text-muted-foreground">
+                Format lengkap:{' '}
+                <span className="font-mono font-medium text-foreground">
+                  {composeLetterNumber(
+                    defaults.letterSeq,
+                    letterDateStr ? new Date(letterDateStr + 'T00:00:00') : new Date(),
+                  )}
+                </span>
+              </p>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="rk-letter-date">Tanggal Surat</Label>
@@ -665,8 +755,8 @@ export function RekeningKoranDialog({
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Tutup</Button>
-          <Button onClick={handlePrint} disabled={loading || !settings}>
-            {loading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
+          <Button onClick={handlePrint} disabled={loading || settingsLoading || !settings}>
+            {(loading || settingsLoading) ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
             Cetak Surat
           </Button>
         </DialogFooter>
