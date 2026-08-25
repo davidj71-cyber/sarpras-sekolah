@@ -18,7 +18,7 @@
 // Daftar rekening persisten di localStorage (key: simapras:bank-accounts) supaya
 // user tidak perlu input ulang setiap kali cetak.
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -54,6 +54,9 @@ import {
   Printer,
   Landmark,
   AlertTriangle,
+  Upload,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react'
 import {
   openPrintWindow,
@@ -63,6 +66,7 @@ import {
   parseKopLines,
   type PrintSettings,
 } from '@/lib/print-utils'
+import { resizeImageFile } from '@/lib/resize-image'
 
 const MONTHS_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -327,6 +331,13 @@ function buildRekeningKoranHtml(
   `
 
   // Daftar rekening (numbered list, each item has its own sub-table)
+  // Layout mengikuti format baku:
+  //   1   Nomor rekening   : 271.01.02.000940-0
+  //       a/n rekening     : SMAN 1 TELUKDALAM
+  //       Rek. Koran Bank  : BOS Reguler
+  // "1" di kolom sendiri (lebar 28px), sub-items di kolom berikutnya yang
+  // lebih menjorok ke dalam supaya label "Nomor rekening / a/n rekening /
+  // Rek. Koran Bank" sejajar vertikal di bawah "1".
   const accountItemsHtml = accounts.length === 0
     ? '<div style="margin-top:8px; font-size:11pt;">(Belum ada rekening ditambahkan)</div>'
     : accounts.map((acc, idx) => {
@@ -334,22 +345,22 @@ function buildRekeningKoranHtml(
       const an = acc.accountName || '_____________________'
       const desc = acc.description || '_____________________'
       return `
-        <div style="margin-top: 10px; padding-left: 22px; text-indent: -22px; font-size: 11pt; line-height: 1.7;">
-          <span style="margin-right: 6px;">${idx + 1}</span>
-          <table style="border:none; display:inline-table; vertical-align:top; width: calc(100% - 30px); font-size: 11pt;">
+        <div style="margin-top: 10px; display:flex; align-items:flex-start; font-size: 11pt; line-height: 1.7;">
+          <div style="width: 28px; flex-shrink: 0; text-align: left;">${idx + 1}</div>
+          <table style="border:none; flex: 1; font-size: 11pt;">
             <tbody>
               <tr>
-                <td style="border:none; padding:1px 8px 1px 0; width:140px; vertical-align:top;">Nomor rekening</td>
+                <td style="border:none; padding:1px 16px 1px 0; width:150px; vertical-align:top;">Nomor rekening</td>
                 <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
                 <td style="border:none; padding:1px 0; vertical-align:top;">${num}</td>
               </tr>
               <tr>
-                <td style="border:none; padding:1px 8px 1px 0; vertical-align:top;">a/n rekening</td>
+                <td style="border:none; padding:1px 16px 1px 0; vertical-align:top;">a/n rekening</td>
                 <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
                 <td style="border:none; padding:1px 0; vertical-align:top;">${an}</td>
               </tr>
               <tr>
-                <td style="border:none; padding:1px 8px 1px 0; vertical-align:top;">Rek. Koran Bank</td>
+                <td style="border:none; padding:1px 16px 1px 0; vertical-align:top;">Rek. Koran Bank</td>
                 <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
                 <td style="border:none; padding:1px 0; vertical-align:top;">${desc}</td>
               </tr>
@@ -360,8 +371,9 @@ function buildRekeningKoranHtml(
     }).join('')
 
   // Tujuan & alamat — pakai alamat singkat (bukan alamat KOP lengkap)
+  // Semua baris sejajar di kiri (text-align: justify, tanpa text-indent)
   const tujuanAkhirHtml = `
-    <div style="margin-top: 14px; font-size: 11pt; line-height: 1.5; text-align: justify; padding-left: 22px; text-indent: -22px;">
+    <div style="margin-top: 14px; font-size: 11pt; line-height: 1.5; text-align: justify;">
       yang beralamat ${addressLine} (sesuai rekening) guna kepentingan ${purpose || '_______________________'}.
     </div>
   `
@@ -419,6 +431,8 @@ export function RekeningKoranDialog({
   const [loading, setLoading] = useState(false)
   const [settingsLoading, setSettingsLoading] = useState(false)
   const [settings, setSettings] = useState<PrintSettings | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
 
   // Form state
   const [defaults, setDefaults] = useState<FormDefaults>(() => readDefaults())
@@ -468,6 +482,139 @@ export function RekeningKoranDialog({
   const removeAccount = useCallback((id: string) => {
     setAccounts((prev) => prev.filter((r) => r.id !== id))
   }, [])
+
+  // ── Upload logo KOP ────────────────────────────────────────────────────────
+  // Maks 3MB. Gambar di-resize ke max 512px untuk menjaga ukuran payload tetap
+  // kecil (request gateway limit). Disimpan ke SchoolSettings.logo via API,
+  // lalu update state lokal supaya KOP langsung ter-update di preview.
+  const MAX_LOGO_SIZE = 3 * 1024 * 1024 // 3 MB
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Reset input value supaya user bisa re-upload file yang sama
+    e.target.value = ''
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Format tidak didukung', description: 'File harus berupa gambar (JPG/PNG/SVG/dll).', variant: 'destructive' })
+      return
+    }
+    if (file.size > MAX_LOGO_SIZE) {
+      toast({ title: 'File terlalu besar', description: `Ukuran maksimal 3MB. File Anda ${(file.size / 1024 / 1024).toFixed(2)}MB.`, variant: 'destructive' })
+      return
+    }
+
+    setLogoUploading(true)
+    try {
+      // Resize ke max 512px supaya payload tidak terlalu besar untuk API
+      const { dataUrl } = await resizeImageFile(file, 512, 0.92)
+
+      // Kirim SEMUA field yang sudah ada di settings (preserved), plus logo baru.
+      // Backend POST /api/settings akan overwrite field yang dikirim dengan
+      // nilai baru — kalau kita kirim hanya {logo}, field lain (principalName,
+      // schoolName, kopLines, dll) akan ke-reset ke default kosong.
+      const payload: Record<string, unknown> = {
+        logo: dataUrl,
+      }
+      if (settings) {
+        // Preserve semua field yang relevan dari settings yang sudah ada
+        payload.schoolName = settings.schoolName
+        payload.address = settings.address
+        payload.phone = settings.phone
+        payload.email = settings.email
+        payload.npsn = settings.npsn
+        payload.principalName = settings.principalName
+        payload.principalNip = settings.principalNip
+        payload.treasurerName = settings.treasurerName
+        payload.treasurerNip = settings.treasurerNip
+        payload.goodsManagerName = settings.goodsManagerName
+        payload.goodsManagerNip = settings.goodsManagerNip
+        payload.kopLines = settings.kopLines
+        payload.logoWidth = settings.logoWidth
+        payload.logoHeight = settings.logoHeight
+        payload.fontFamily = settings.fontFamily
+        payload.fontSize = settings.fontSize
+        payload.isBold = settings.isBold
+        payload.textTransform = settings.textTransform
+        payload.underlineThickness = settings.underlineThickness
+        payload.underlineWidth = settings.underlineWidth
+      }
+
+      // POST ke /api/settings untuk persist logo
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        throw new Error('Gagal menyimpan logo ke server')
+      }
+
+      // Update state lokal supaya KOP langsung re-render dengan logo baru
+      setSettings((prev) => prev ? { ...prev, logo: dataUrl } : prev)
+
+      toast({
+        title: 'Logo berhasil diupload',
+        description: 'Logo KOP surat sudah diperbarui. KOP akan tampil di hasil cetak.',
+      })
+    } catch (err) {
+      console.error('Logo upload error:', err)
+      toast({
+        title: 'Gagal upload logo',
+        description: err instanceof Error ? err.message : 'Terjadi kesalahan saat memproses gambar.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLogoUploading(false)
+    }
+  }
+
+  async function handleRemoveLogo() {
+    if (!settings?.logo) return
+    setLogoUploading(true)
+    try {
+      // Sama seperti upload — preserve semua field, hanya logo yang di-null-kan
+      const payload: Record<string, unknown> = {
+        logo: null,
+      }
+      if (settings) {
+        payload.schoolName = settings.schoolName
+        payload.address = settings.address
+        payload.phone = settings.phone
+        payload.email = settings.email
+        payload.npsn = settings.npsn
+        payload.principalName = settings.principalName
+        payload.principalNip = settings.principalNip
+        payload.treasurerName = settings.treasurerName
+        payload.treasurerNip = settings.treasurerNip
+        payload.goodsManagerName = settings.goodsManagerName
+        payload.goodsManagerNip = settings.goodsManagerNip
+        payload.kopLines = settings.kopLines
+        payload.logoWidth = settings.logoWidth
+        payload.logoHeight = settings.logoHeight
+        payload.fontFamily = settings.fontFamily
+        payload.fontSize = settings.fontSize
+        payload.isBold = settings.isBold
+        payload.textTransform = settings.textTransform
+        payload.underlineThickness = settings.underlineThickness
+        payload.underlineWidth = settings.underlineWidth
+      }
+
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error('Gagal menghapus logo')
+      setSettings((prev) => prev ? { ...prev, logo: null } : prev)
+      toast({ title: 'Logo dihapus', description: 'Logo KOP surat sudah dihapus.' })
+    } catch (err) {
+      console.error('Remove logo error:', err)
+      toast({ title: 'Gagal menghapus logo', variant: 'destructive' })
+    } finally {
+      setLogoUploading(false)
+    }
+  }
 
   // ── Print ────────────────────────────────────────────────────────────────
   function handlePrint() {
@@ -570,6 +717,65 @@ export function RekeningKoranDialog({
               Memuat pengaturan sekolah...
             </div>
           )}
+
+          {/* ── Upload Logo KOP ──────────────────────────────────────────────── */}
+          <div className="rounded-md border p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <ImageIcon className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Logo KOP Surat</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Logo institusi yang tampil di header surat. Maks 3MB (JPG/PNG/SVG).
+                  Akan otomatis di-resize ke 512px.
+                </p>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploading || settingsLoading}
+                  >
+                    {logoUploading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Upload className="size-4 mr-2" />}
+                    {settings?.logo ? 'Ganti Logo' : 'Upload Logo'}
+                  </Button>
+                  {settings?.logo && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveLogo}
+                      disabled={logoUploading}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <X className="size-4 mr-1" />
+                      Hapus
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {settings?.logo && (
+                <div className="relative flex-shrink-0">
+                  <div className="flex size-20 items-center justify-center rounded-md border bg-muted p-1">
+                    <img
+                      src={settings.logo}
+                      alt="Logo KOP"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* ── Info surat ──────────────────────────────────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
