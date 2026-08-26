@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 // ─── PWA / Mobile meta tags ──────────────────────────────────────────────────
-// manifest: link ke /manifest.webmanifest (di-generate oleh src/app/manifest.ts)
+// manifest: link ke /manifest.webmanifest (static file di public/manifest.webmanifest)
 // apple-touch-icon: ikon saat diinstall di iOS home screen — pakai logo user
 //   (raster PNG 180 dari /api/pwa-icon/180, lebih reliable di iOS daripada SVG).
 // appleWebApp: mode standalone di iOS (tanpa Safari chrome).

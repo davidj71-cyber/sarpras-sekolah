@@ -1,0 +1,46 @@
+{
+  "name": "SIMAPRAS",
+  "short_name": "SIMAPRAS",
+  "description": "Sistem Informasi Manajemen Sarana Prasarana Sekolah — inventaris, pesanan, gaji, media.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "categories": ["education", "productivity", "business"],
+  "lang": "id",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/api/pwa-icon/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/api/pwa-icon/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/api/pwa-icon/192?maskable=1",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/api/pwa-icon/512?maskable=1",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/api/favicon",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
