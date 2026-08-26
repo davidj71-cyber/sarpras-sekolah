@@ -11,7 +11,7 @@ export type Page =
   | 'salary'
   | 'media'
 
-export type StoreSubPage = 'stores' | 'orders' | 'barangMasuk'
+export type StoreSubPage = 'stores' | 'orders' | 'barangMasuk' | 'galon'
 
 export type RoomSubPage = 'buildings' | 'rooms' | 'allItems'
 

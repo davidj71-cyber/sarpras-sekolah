@@ -7,7 +7,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { useNavigationStore, canAccessPage } from '@/lib/navigation-store'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2, Wallet, Newspaper } from 'lucide-react'
+import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2, Wallet, Newspaper, Droplet } from 'lucide-react'
 import type { StoreSubPage, RoomSubPage } from '@/lib/navigation-store'
 import { LoginPage } from '@/components/login-page'
 import { PageLoading } from '@/components/ui/loading-skeleton'
@@ -36,6 +36,7 @@ const KibPage = dynamic(() => import('@/components/pages/kib').then(m => ({ defa
 const RoomsPage = dynamic(() => import('@/components/pages/rooms').then(m => ({ default: m.RoomsPage })), { ssr: false, loading: loadingFallback })
 const OrdersPage = dynamic(() => import('@/components/pages/orders').then(m => ({ default: m.OrdersPage })), { ssr: false, loading: loadingFallback })
 const BarangMasukPage = dynamic(() => import('@/components/pages/barang-masuk').then(m => ({ default: m.BarangMasukPage })), { ssr: false, loading: loadingFallback })
+const GalonPage = dynamic(() => import('@/components/pages/galon').then(m => ({ default: m.GalonPage })), { ssr: false, loading: loadingFallback })
 const RoomItemsPage = dynamic(() => import('@/components/pages/room-items').then(m => ({ default: m.RoomItemsPage })), { ssr: false, loading: loadingFallback })
 const BuildingsPage = dynamic(() => import('@/components/pages/buildings').then(m => ({ default: m.BuildingsPage })), { ssr: false, loading: loadingFallback })
 const AccountsPage = dynamic(() => import('@/components/pages/accounts').then(m => ({ default: m.AccountsPage })), { ssr: false, loading: loadingFallback })
@@ -55,6 +56,7 @@ const storeItems: { key: StoreSubPage; label: string; icon: React.ElementType }[
   { key: 'stores', label: 'Toko', icon: Store },
   { key: 'orders', label: 'Pesanan', icon: FileText },
   { key: 'barangMasuk', label: 'Barang Masuk', icon: PackagePlus },
+  { key: 'galon', label: 'Galon', icon: Droplet },
 ]
 
 const roomItems: { key: RoomSubPage; label: string; icon: React.ElementType }[] = [
@@ -204,6 +206,8 @@ export default function Home() {
             return <OrdersPage />
           case 'barangMasuk':
             return <BarangMasukPage />
+          case 'galon':
+            return <GalonPage />
           default:
             return <StoresPage />
         }

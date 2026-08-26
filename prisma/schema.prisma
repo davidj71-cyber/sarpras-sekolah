@@ -51,6 +51,7 @@ model Store {
   updatedAt   DateTime @updatedAt
   orders        Order[]
   barangMasuk   BarangMasuk[]
+  galonEntries  GalonEntry[]
 }
 
 model Employee {
@@ -479,4 +480,29 @@ model SalaryPayment {
 
   @@unique([salaryId, year, month])
   @@index([salaryId])
+}
+
+// ─── Galon — Catatan Penerimaan & Pembayaran Galon ────────────────────────────
+// Melacak galon masuk (kosong & isi) dari toko, dengan status pembayaran
+// (Cash / Bon) & tanggal pelunasan. Berguna untuk SPJ galon kantor.
+model GalonEntry {
+  id              String    @id @default(cuid())
+  // Kuantitas galon
+  emptyCount      Int       @default(0) // 1. Galon kosong
+  filledCount     Int       @default(0) // 2. Galon di isi
+  // Toko asal galon
+  storeId         String? // 3. Toko (relasi opsional ke Store)
+  store           Store?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  storeName       String    @default("") // Snapshot nama toko (untuk tampilan cetak)
+  // Identitas
+  courier         String    @default("") // 4. Pengantar / Penandatangan
+  recipient       String    @default("") // 5. Penerima (nama media/penerima)
+  receivedDate    DateTime  @default(now()) // 6. Tanggal terima
+  // Status pembayaran
+  paymentMethod   String    @default("Cash") // 7. Cash atau Bon
+  paymentStatus   String    @default("LUNAS") // LUNAS / BELUM_BAYAR (auto dari method)
+  paidAt          DateTime? // 8. Tanggal bayar (null jika Cash = tanggal terima, Bon = tanggal lunas)
+  notes           String    @default("")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
