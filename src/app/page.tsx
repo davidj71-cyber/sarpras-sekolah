@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useNavigationStore, canAccessPage } from '@/lib/navigation-store'
+import { useAppBootstrap } from '@/lib/use-app-bootstrap'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2, Wallet, Newspaper, Droplet } from 'lucide-react'
@@ -155,6 +156,12 @@ export default function Home() {
   // Track apakah toast sudah pernah dimunculkan untuk blok ini — hindari
   // spam toast saat React re-render.
   const warnedRef = useRef<string | null>(null)
+
+  // ─── Performance: prefetch settings & critical chunks saat login ───────────
+  // Settings di-cache di localStorage (TTL 5 menit) supaya dialog cetak
+  // (Gaji/Media/Galon) langsung siap tanpa tunggu API. Critical page chunks
+  // (Dashboard/Salary/Galon) di-prefetch supaya navigasi antar menu instant.
+  useAppBootstrap(isAuthenticated)
 
   // Defense-in-depth: jika user tidak punya akses ke halaman saat ini
   // (mis. Sarpras mencoba buka Gaji/Media), paksa redirect ke dashboard.

@@ -73,6 +73,7 @@ import {
 } from '@/lib/print-utils'
 import { terbilangRupiah } from '@/lib/terbilang'
 import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
+import { readCachedSettings, prefetchSettings } from '@/lib/use-app-bootstrap'
 import { SalaryPrintDialog, type SalaryPrintPlan } from '@/components/salary-print-dialog'
 import { RekeningKoranDialog } from '@/components/rekening-koran-dialog'
 import { PaymentDialog } from '@/components/payment-dialog'
@@ -81,20 +82,39 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { PageLoading } from '@/components/ui/loading-skeleton'
 import { Badge } from '@/components/ui/badge'
 
-// ─── Settings cache (module-level) ───────────────────────────────────────────
+// ─── Settings cache (module-level + localStorage) ────────────────────────────
 // Settings sekolah hampir tidak berubah saat user aktif. Cache di level modul
 // supaya klik cetak ke-2+ → instant. Prefetch saat dialog cetak terbuka.
+//
+// Optimasi: cache juga di localStorage (TTL 5 menit) via use-app-bootstrap.
+// Saat user buka dialog cetak, cek localStorage dulu — kalau ada, pakai langsung
+// (instant, tanpa API call). Kalau tidak ada, fetch dari API & update cache.
+
 let settingsCache: Record<string, unknown> | null = null
 let settingsPromise: Promise<Record<string, unknown>> | null = null
 
 function fetchSettingsCached(): Promise<Record<string, unknown>> {
+  // 1. Cek module-level cache (paling cepat, in-memory)
   if (settingsCache) return Promise.resolve(settingsCache)
+
+  // 2. Cek localStorage cache (TTL 5 menit, set oleh useAppBootstrap saat login)
+  const cached = readCachedSettings()
+  if (cached) {
+    settingsCache = cached
+    return Promise.resolve(cached)
+  }
+
+  // 3. Cek jika sedang in-flight (avoid duplicate request)
   if (settingsPromise) return settingsPromise
+
+  // 4. Fetch dari API & update cache (module + localStorage via prefetchSettings)
   settingsPromise = fetch('/api/settings')
     .then((r) => (r.ok ? r.json() : {}))
     .then((d) => {
       settingsCache = d as Record<string, unknown>
       settingsPromise = null
+      // Update localStorage cache supaya refresh page tetap instant
+      void prefetchSettings()
       return d as Record<string, unknown>
     })
     .catch(() => {
