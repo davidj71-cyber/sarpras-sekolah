@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureGalonSchema } from "@/lib/migrate-settings";
 
 // ─── /api/galon — Galon (Catatan Penerimaan & Pembayaran Galon) ───────────────
 // List semua entry galon, atau buat baru.
 export async function GET() {
   try {
+    // Self-heal: create GalonEntry table on Postgres production if missing.
+    await ensureGalonSchema();
+
     const entries = await db.galonEntry.findMany({
       orderBy: { receivedDate: "desc" },
       include: {
@@ -24,6 +28,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Self-heal before write as well.
+    await ensureGalonSchema();
+
     const body = await request.json();
 
     const emptyCount = Number(body.emptyCount) || 0;

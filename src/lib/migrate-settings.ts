@@ -473,3 +473,81 @@ async function doEnsureSalaryMediaSchema(): Promise<string[]> {
 
   return executed;
 }
+
+// ─── Galon schema heal ──────────────────────────────────────────────────────
+// Auto-create GalonEntry table on Postgres production if missing.
+// Idempotent — safe to call on every request.
+let galonSchemaPromise: Promise<string[]> | null = null;
+
+export function ensureGalonSchema(): Promise<string[]> {
+  if (galonSchemaPromise) return galonSchemaPromise;
+  galonSchemaPromise = (async () => {
+    try {
+      return await doEnsureGalonSchema();
+    } catch (e) {
+      galonSchemaPromise = null;
+      throw e;
+    }
+  })();
+  return galonSchemaPromise;
+}
+
+async function doEnsureGalonSchema(): Promise<string[]> {
+  const executed: string[] = [];
+
+  if (isSqlite()) {
+    // Sandbox DB already has GalonEntry table from `prisma db push`.
+    return executed;
+  }
+
+  // ─── GalonEntry ──────────────────────────────────────────────────────────
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "GalonEntry" (
+        "id" TEXT NOT NULL,
+        "emptyCount" INTEGER NOT NULL DEFAULT 0,
+        "filledCount" INTEGER NOT NULL DEFAULT 0,
+        "storeId" TEXT,
+        "storeName" TEXT NOT NULL DEFAULT '',
+        "courier" TEXT NOT NULL DEFAULT '',
+        "recipient" TEXT NOT NULL DEFAULT '',
+        "receivedDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "paymentMethod" TEXT NOT NULL DEFAULT 'Cash',
+        "paymentStatus" TEXT NOT NULL DEFAULT 'LUNAS',
+        "paidAt" TIMESTAMP(3),
+        "notes" TEXT NOT NULL DEFAULT '',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "GalonEntry_pkey" PRIMARY KEY ("id")
+      )
+    `;
+    executed.push(`CREATE TABLE IF NOT EXISTS "GalonEntry"`);
+
+    // Foreign key ke Store (opsional). Idempotent — skip if already exists.
+    try {
+      await db.$executeRaw`
+        ALTER TABLE "GalonEntry"
+        ADD CONSTRAINT "GalonEntry_storeId_fkey"
+        FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE SET NULL ON UPDATE CASCADE
+      `;
+      executed.push(`ADD CONSTRAINT GalonEntry_storeId_fkey`);
+    } catch {
+      // Constraint sudah ada — expected, skip silently.
+    }
+
+    // Index pada receivedDate (untuk ORDER BY desc yang sering dipakai).
+    try {
+      await db.$executeRaw`
+        CREATE INDEX IF NOT EXISTS "GalonEntry_receivedDate_idx"
+        ON "GalonEntry"("receivedDate")
+      `;
+      executed.push(`CREATE INDEX GalonEntry_receivedDate_idx`);
+    } catch {
+      // skip
+    }
+  } catch (e) {
+    console.warn("igrate] CREATE TABLE GalonEntry skipped:", e);
+  }
+
+  return executed;
+}
