@@ -70,6 +70,12 @@ export async function PUT(
       if (store) storeName = store.name;
     }
 
+    // Parse deliveryPhotos — JSON array of base64 data URLs
+    let deliveryPhotos = "[]";
+    if (Array.isArray(body.deliveryPhotos)) {
+      deliveryPhotos = JSON.stringify(body.deliveryPhotos.filter((p: unknown) => typeof p === "string" && p.startsWith("data:image/")));
+    }
+
     const entry = await db.galonEntry.update({
       where: { id },
       data: {
@@ -83,6 +89,7 @@ export async function PUT(
         paymentMethod,
         paymentStatus,
         paidAt,
+        deliveryPhotos,
         notes: String(body.notes ?? "").trim(),
       },
       include: { store: { select: { id: true, name: true } } },

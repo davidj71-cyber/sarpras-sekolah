@@ -545,6 +545,17 @@ async function doEnsureGalonSchema(): Promise<string[]> {
     } catch {
       // skip
     }
+
+    // ─── GalonEntry: ADD COLUMN deliveryPhotos (bukti pengantaran) ─────────
+    // Foto bukti pengantaran galon. JSON string '[]' default. Idempoten.
+    try {
+      await db.$executeRawUnsafe(
+        `ALTER TABLE "GalonEntry" ADD COLUMN IF NOT EXISTS "deliveryPhotos" TEXT NOT NULL DEFAULT '[]'`
+      );
+      executed.push(`ADD COLUMN IF NOT EXISTS "GalonEntry.deliveryPhotos"`);
+    } catch (e) {
+      console.warn("igrate] ADD COLUMN GalonEntry.deliveryPhotos skipped:", e);
+    }
   } catch (e) {
     console.warn("igrate] CREATE TABLE GalonEntry skipped:", e);
   }

@@ -14,7 +14,7 @@
 //   8. Tanggal bayar      (paidAt)       — otomatis = tanggal terima jika Cash;
 //                                           diisi manual saat Bon dilunasi.
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { toast } from '@/hooks/use-toast'
 
@@ -79,7 +79,13 @@ import {
   CheckCircle2,
   XCircle,
   Calendar,
+  Printer,
+  FileSpreadsheet,
+  Camera,
 } from 'lucide-react'
+import { resizeImageFile } from '@/lib/resize-image'
+import { printWithKop, sanitizeFilename, type PrintOrientation } from '@/lib/print-utils'
+import { exportToExcel, getSchoolMeta } from '@/lib/export-excel'
 
 interface StoreOption {
   id: string
@@ -99,6 +105,7 @@ interface GalonData {
   paymentMethod: string
   paymentStatus: string
   paidAt: string | null
+  deliveryPhotos: string // JSON array of base64 data URLs
   notes: string
   createdAt: string
   updatedAt: string
@@ -114,6 +121,7 @@ interface FormData {
   paymentMethod: string
   paidAt: string
   notes: string
+  deliveryPhotos: string[] // base64 data URLs
 }
 
 const emptyForm: FormData = {
@@ -126,7 +134,14 @@ const emptyForm: FormData = {
   paymentMethod: 'Cash',
   paidAt: '',
   notes: '',
+  deliveryPhotos: [],
 }
+
+// Photo upload config
+const MAX_DELIVERY_PHOTOS = 5
+const MAX_PHOTO_SIZE = 3 * 1024 * 1024 // 3 MB input file limit
+const PHOTO_MAX_DIMENSION = 1024
+const PHOTO_QUALITY = 0.85
 
 function formatDateShort(s: string | null): string {
   if (!s) return '-'
@@ -161,6 +176,17 @@ export function GalonPage() {
   const [payEntry, setPayEntry] = useState<GalonData | null>(null)
   const [payDate, setPayDate] = useState<string>(new Date().toISOString().slice(0, 10))
   const [paying, setPaying] = useState(false)
+
+  // Photo upload state
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement | null>(null)
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
+  const [photoViewerIndex, setPhotoViewerIndex] = useState(0)
+
+  // Print state
+  const [printDialogOpen, setPrintDialogOpen] = useState(false)
+  const [printing, setPrinting] = useState(false)
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
@@ -220,12 +246,21 @@ export function GalonPage() {
 
   function openAddDialog() {
     setEditing(null)
-    setFormData({ ...emptyForm, receivedDate: new Date().toISOString().slice(0, 10) })
+    setFormData({ ...emptyForm, receivedDate: new Date().toISOString().slice(0, 10), deliveryPhotos: [] })
     setDialogOpen(true)
   }
 
   function openEditDialog(entry: GalonData) {
     setEditing(entry)
+    let photos: string[] = []
+    try {
+      const parsed = JSON.parse(entry.deliveryPhotos || '[]')
+      if (Array.isArray(parsed)) {
+        photos = parsed.filter((p: unknown) => typeof p === 'string')
+      }
+    } catch {
+      // ignore
+    }
     setFormData({
       emptyCount: String(entry.emptyCount),
       filledCount: String(entry.filledCount),
@@ -236,8 +271,203 @@ export function GalonPage() {
       paymentMethod: entry.paymentMethod,
       paidAt: entry.paidAt ? new Date(entry.paidAt).toISOString().slice(0, 10) : '',
       notes: entry.notes,
+      deliveryPhotos: photos,
     })
     setDialogOpen(true)
+  }
+
+  // ── Photo upload handlers ─────────────────────────────────────────────────
+  async function handlePhotoUpload(files: FileList, source: 'file' | 'camera') {
+    if (formData.deliveryPhotos.length + files.length > MAX_DELIVERY_PHOTOS) {
+      toast({
+        title: 'Batas Foto Tercapai',
+        description: `Maksimal ${MAX_DELIVERY_PHOTOS} foto. Saat ini sudah ada ${formData.deliveryPhotos.length} foto.`,
+        variant: 'destructive',
+      })
+      // Reset input value supaya user bisa re-upload file yang sama
+      if (source === 'file' && fileInputRef.current) fileInputRef.current.value = ''
+      if (source === 'camera' && cameraInputRef.current) cameraInputRef.current.value = ''
+      return
+    }
+
+    setPhotoUploading(true)
+    const newPhotos: string[] = []
+    const errors: string[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (!file.type.startsWith('image/')) {
+        errors.push(`${file.name}: bukan gambar`)
+        continue
+      }
+      // Maks 3MB per foto (input file, sebelum resize)
+      if (file.size > MAX_PHOTO_SIZE) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+        errors.push(`${file.name}: ${sizeMB}MB (maks 3MB)`)
+        continue
+      }
+      if (file.size === 0) {
+        errors.push(`${file.name}: file kosong`)
+        continue
+      }
+      try {
+        const { dataUrl } = await resizeImageFile(file, PHOTO_MAX_DIMENSION, PHOTO_QUALITY)
+        newPhotos.push(dataUrl)
+      } catch {
+        errors.push(`${file.name}: gagal diproses`)
+      }
+    }
+
+    if (newPhotos.length > 0) {
+      setFormData((d) => ({ ...d, deliveryPhotos: [...d.deliveryPhotos, ...newPhotos] }))
+      toast({
+        title: 'Foto ditambahkan',
+        description: `${newPhotos.length} foto bukti pengantaran ditambahkan`,
+      })
+    }
+    if (errors.length > 0) {
+      toast({
+        title: 'Beberapa foto gagal',
+        description: errors.join('; '),
+        variant: 'destructive',
+      })
+    }
+
+    // Reset input value supaya user bisa re-upload file yang sama
+    if (source === 'file' && fileInputRef.current) fileInputRef.current.value = ''
+    if (source === 'camera' && cameraInputRef.current) cameraInputRef.current.value = ''
+    setPhotoUploading(false)
+  }
+
+  function removePhoto(idx: number) {
+    setFormData((d) => ({
+      ...d,
+      deliveryPhotos: d.deliveryPhotos.filter((_, i) => i !== idx),
+    }))
+  }
+
+  // ── Print Laporan ──────────────────────────────────────────────────────────
+  async function handlePrint(orientation: PrintOrientation = 'landscape') {
+    if (filteredEntries.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data galon untuk dicetak' })
+      return
+    }
+
+    setPrinting(true)
+    try {
+      // Build table rows
+      const rowsHtml = filteredEntries
+        .map((e, idx) => `
+          <tr>
+            <td class="text-center">${idx + 1}</td>
+            <td class="text-center">${e.emptyCount > 0 ? e.emptyCount : '-'}</td>
+            <td class="text-center">${e.filledCount > 0 ? e.filledCount : '-'}</td>
+            <td>${e.storeName || e.store?.name || '-'}</td>
+            <td>${e.courier || '-'}</td>
+            <td>${e.recipient}</td>
+            <td class="text-center">${formatDateShort(e.receivedDate)}</td>
+            <td class="text-center">${e.paymentMethod}</td>
+            <td class="text-center">${e.paymentStatus === 'LUNAS' ? 'Lunas' : 'Belum'}</td>
+            <td class="text-center">${formatDateShort(e.paidAt)}</td>
+            <td>${e.notes || '-'}</td>
+          </tr>
+        `)
+        .join('')
+
+      const totalEmpty = filteredEntries.reduce((s, e) => s + e.emptyCount, 0)
+      const totalFilled = filteredEntries.reduce((s, e) => s + e.filledCount, 0)
+      const totalCash = filteredEntries.filter((e) => e.paymentMethod === 'Cash').length
+      const totalBon = filteredEntries.filter((e) => e.paymentMethod === 'Bon').length
+      const totalUnpaid = filteredEntries.filter((e) => e.paymentStatus === 'BELUM_BAYAR').length
+
+      const contentHtml = `
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 5%;">No</th>
+              <th style="width: 7%;">Galon Kosong</th>
+              <th style="width: 7%;">Galon Isi</th>
+              <th style="width: 14%;">Toko</th>
+              <th style="width: 11%;">Pengantar</th>
+              <th style="width: 12%;">Penerima</th>
+              <th style="width: 9%;">Tgl Terima</th>
+              <th style="width: 6%;">Metode</th>
+              <th style="width: 7%;">Status</th>
+              <th style="width: 9%;">Tgl Bayar</th>
+              <th style="width: 13%;">Catatan</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+        <div style="margin-top: 12px; font-size: 10pt;">
+          <strong>Ringkasan:</strong> ${filteredEntries.length} transaksi ·
+          ${totalEmpty} galon kosong · ${totalFilled} galon isi ·
+          ${totalCash} Cash · ${totalBon} Bon · ${totalUnpaid} belum lunas.
+        </div>
+      `
+
+      const filename = sanitizeFilename(`Laporan_Galon_${new Date().toLocaleDateString('id-ID').replace(/\//g, '-')}`)
+      await printWithKop('LAPORAN PENERIMAAN & PEMBAYARAN GALON', contentHtml, orientation, {
+        appendSignature: true,
+        signatureOptions: {
+          rightTitle: 'Bendahara',
+          rightSigner: 'treasurer',
+        },
+      })
+      // Set title for PDF filename
+      if (typeof document !== 'undefined') {
+        // Title is set by printWithKop via the print window's document.title
+      }
+      toast({ title: 'Laporan dicetak', description: `${filteredEntries.length} transaksi` })
+    } catch (err) {
+      console.error('Print error:', err)
+      toast({ title: 'Gagal mencetak', description: 'Terjadi kesalahan', variant: 'destructive' })
+    } finally {
+      setPrinting(false)
+      setPrintDialogOpen(false)
+    }
+  }
+
+  // ── Export Excel ───────────────────────────────────────────────────────────
+  async function handleExportExcel() {
+    if (filteredEntries.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data galon untuk diekspor' })
+      return
+    }
+    try {
+      const meta = await getSchoolMeta()
+      meta.push({ label: 'Total Transaksi', value: `${filteredEntries.length} entry` })
+      const totalEmpty = filteredEntries.reduce((s, e) => s + e.emptyCount, 0)
+      const totalFilled = filteredEntries.reduce((s, e) => s + e.filledCount, 0)
+      meta.push({ label: 'Total Galon Kosong', value: String(totalEmpty) })
+      meta.push({ label: 'Total Galon Isi', value: String(totalFilled) })
+
+      await exportToExcel({
+        filename: `Laporan_Galon_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheetName: 'Laporan Galon',
+        title: 'LAPORAN PENERIMAAN & PEMBAYARAN GALON',
+        meta,
+        columns: [
+          { header: 'No', key: (_, idx) => String(idx + 1), width: 6 },
+          { header: 'Galon Kosong', key: (e) => String(e.emptyCount), width: 12 },
+          { header: 'Galon Isi', key: (e) => String(e.filledCount), width: 12 },
+          { header: 'Toko', key: (e) => e.storeName || e.store?.name || '-', width: 22 },
+          { header: 'Pengantar/Penandatangan', key: (e) => e.courier || '-', width: 18 },
+          { header: 'Penerima', key: (e) => e.recipient || '-', width: 18 },
+          { header: 'Tanggal Terima', key: (e) => formatDateShort(e.receivedDate), width: 14 },
+          { header: 'Metode', key: (e) => e.paymentMethod, width: 10 },
+          { header: 'Status', key: (e) => e.paymentStatus === 'LUNAS' ? 'Lunas' : 'Belum Bayar', width: 12 },
+          { header: 'Tanggal Bayar', key: (e) => formatDateShort(e.paidAt), width: 14 },
+          { header: 'Catatan', key: (e) => e.notes || '-', width: 24 },
+        ],
+        data: filteredEntries,
+      })
+      toast({ title: 'Berhasil', description: 'Laporan galon berhasil diekspor ke Excel' })
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengekspor data ke Excel', variant: 'destructive' })
+    }
   }
 
   async function handleSubmit() {
@@ -335,10 +565,28 @@ export function GalonPage() {
         description="Catatan penerimaan & pembayaran galon (Cash / Bon)"
         icon={Droplet}
         actions={
-          <Button onClick={openAddDialog}>
-            <Plus className="size-4 mr-2" />
-            Tambah Data
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={() => handlePrint('landscape')}
+              disabled={loading || filteredEntries.length === 0 || printing}
+            >
+              {printing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Printer className="size-4 mr-2" />}
+              Cetak PDF
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={loading || filteredEntries.length === 0}
+            >
+              <FileSpreadsheet className="size-4 mr-2" />
+              Export Excel
+            </Button>
+            <Button onClick={openAddDialog}>
+              <Plus className="size-4 mr-2" />
+              Tambah Data
+            </Button>
+          </>
         }
       />
 
@@ -677,6 +925,97 @@ export function GalonPage() {
               </div>
             </div>
 
+            {/* Upload Foto Bukti Pengantaran */}
+            <div className="grid gap-2">
+              <Label className="text-sm font-medium">Foto Bukti Pengantaran (opsional)</Label>
+              <p className="text-xs text-muted-foreground">
+                Foto galon saat diterima/diangkut sebagai bukti. Maks {MAX_DELIVERY_PHOTOS} foto, 3MB per foto.
+                Mendukung kamera Android.
+              </p>
+              {/* Hidden file inputs */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handlePhotoUpload(e.target.files, 'file')
+                  }
+                }}
+                className="hidden"
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handlePhotoUpload(e.target.files, 'camera')
+                  }
+                }}
+                className="hidden"
+              />
+              {/* Action buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={photoUploading || formData.deliveryPhotos.length >= MAX_DELIVERY_PHOTOS}
+                >
+                  {photoUploading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Plus className="size-4 mr-2" />}
+                  Pilih File
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={photoUploading || formData.deliveryPhotos.length >= MAX_DELIVERY_PHOTOS}
+                >
+                  <Camera className="size-4 mr-2" />
+                  Ambil Foto
+                </Button>
+                {formData.deliveryPhotos.length > 0 && (
+                  <span className="text-xs text-muted-foreground ml-1">
+                    {formData.deliveryPhotos.length} / {MAX_DELIVERY_PHOTOS} foto
+                  </span>
+                )}
+              </div>
+              {/* Photo thumbnails */}
+              {formData.deliveryPhotos.length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
+                  {formData.deliveryPhotos.map((photo, idx) => (
+                    <div
+                      key={idx}
+                      className="relative group aspect-square rounded-md border overflow-hidden bg-muted"
+                    >
+                      <img
+                        src={photo}
+                        alt={`Bukti ${idx + 1}`}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => {
+                          setPhotoViewerIndex(idx)
+                          setPhotoViewerOpen(true)
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(idx)}
+                        className="absolute top-1 right-1 size-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Hapus foto"
+                      >
+                        <XCircle className="size-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Catatan */}
             <div className="grid gap-1.5">
               <Label htmlFor="g-notes">Catatan (opsional)</Label>
@@ -758,6 +1097,45 @@ export function GalonPage() {
               Tandai Lunas
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Photo Viewer Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={photoViewerOpen} onOpenChange={setPhotoViewerOpen}>
+        <DialogContent className="sm:max-w-[640px] p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Pratinjau Foto Bukti</DialogTitle>
+          {formData.deliveryPhotos.length > 0 && (
+            <div className="relative">
+              <img
+                src={formData.deliveryPhotos[photoViewerIndex]}
+                alt={`Bukti ${photoViewerIndex + 1}`}
+                className="w-full max-h-[70vh] object-contain bg-black"
+              />
+              {/* Navigation */}
+              {formData.deliveryPhotos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoViewerIndex((i) => (i - 1 + formData.deliveryPhotos.length) % formData.deliveryPhotos.length)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoViewerIndex((i) => (i + 1) % formData.deliveryPhotos.length)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+              {/* Counter */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-xs">
+                {photoViewerIndex + 1} / {formData.deliveryPhotos.length}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </PageContainer>

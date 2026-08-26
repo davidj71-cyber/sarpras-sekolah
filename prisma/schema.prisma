@@ -502,6 +502,8 @@ model GalonEntry {
   paymentMethod   String    @default("Cash") // 7. Cash atau Bon
   paymentStatus   String    @default("LUNAS") // LUNAS / BELUM_BAYAR (auto dari method)
   paidAt          DateTime? // 8. Tanggal bayar (null jika Cash = tanggal terima, Bon = tanggal lunas)
+  // ── Foto bukti pengantaran (base64 data URLs, JSON array) ──
+  deliveryPhotos  String    @default("[]") // JSON array of base64 data URLs
   notes           String    @default("")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
