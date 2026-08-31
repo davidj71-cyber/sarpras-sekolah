@@ -129,18 +129,26 @@ export async function DELETE(
     const { id } = await params;
 
     // Get item photos before deleting to clean up files
+    // Note: photo sekarang disimpan sebagai base64 data URL (bukan filename),
+    // jadi cleanup file tidak diperlukan untuk foto baru. Untuk backward compat
+    // dengan foto lama (filename), tetap coba unlink — fail silently kalau
+    // filesystem read-only (Vercel production).
     const item = await db.inventoryItem.findUnique({ where: { id } });
     if (item) {
       try {
         const photos: string[] = JSON.parse(item.photos || "[]");
-        const { unlink } = await import("fs/promises");
-        const path = await import("path");
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "items");
-        for (const photo of photos) {
-          try {
-            await unlink(path.join(uploadDir, photo));
-          } catch {
-            // File might not exist, that's OK
+        // Filter hanya photo yang bukan base64 data URL (filename lama)
+        const legacyFiles = photos.filter((p) => !p.startsWith("data:"));
+        if (legacyFiles.length > 0) {
+          const { unlink } = await import("fs/promises");
+          const path = await import("path");
+          const uploadDir = path.join(process.cwd(), "public", "uploads", "items");
+          for (const photo of legacyFiles) {
+            try {
+              await unlink(path.join(uploadDir, photo));
+            } catch {
+              // File might not exist, that's OK
+            }
           }
         }
       } catch {

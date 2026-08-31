@@ -1,5 +1,19 @@
 'use client'
 
+/**
+ * PhotoGallery — komponen upload foto untuk barang inventaris & KIB.
+ *
+ * Foto disimpan sebagai base64 data URL langsung di database (JSON array di
+ * field `photos`). Pendekatan ini:
+ *  - Tidak butuh endpoint upload terpisah (tidak ada /api/upload).
+ *  - Bekerja di Vercel production (filesystem read-only — tidak ada write ke disk).
+ *  - Foto dikompres client-side (max 1024px, JPEG 0.85) → ~100-300KB per foto.
+ *  - Mendukung kamera Android via `capture="environment"`.
+ *
+ * Komponen ini update photos di database lewat PUT ke {itemApiPath}/{itemId}
+ * dengan body { photos: [...] }. Backend tinggal simpan string JSON-nya.
+ */
+
 import { useState, useRef, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -17,10 +31,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
-  AlertTriangle,
-  WifiOff,
-  FileWarning,
 } from 'lucide-react'
+import { resizeImageFile } from '@/lib/resize-image'
 
 interface PhotoGalleryProps {
   photos: string[]
@@ -31,99 +43,11 @@ interface PhotoGalleryProps {
   /** Custom API base path for item updates. Defaults to '/api/items' */
   itemApiPath?: string
 }
-
-// Error type with icon and action
-interface UploadError {
-  title: string
-  description: string
-  icon?: React.ReactNode
-  variant?: 'destructive' | 'default'
-}
-
-function parseUploadError(error: unknown, fileName?: string): UploadError {
-  // Check if the error is from a Response object (API error)
-  if (error instanceof Response) {
-    // This shouldn't happen normally, but handle it
-    return {
-      title: 'Upload Gagal',
-      description: 'Server mengembalikan respons yang tidak terduga',
-      variant: 'destructive',
-    }
-  }
-
-  // Network errors
-  if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('network') || error.message.includes('Failed to fetch'))) {
-    return {
-      title: 'Koneksi Gagal',
-      description: 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda dan coba lagi.',
-      icon: <WifiOff className="size-4" />,
-      variant: 'destructive',
-    }
-  }
-
-  // Check for API error responses with specific codes
-  if (error && typeof error === 'object' && 'code' in error) {
-    const apiError = error as { code: string; error: string }
-    switch (apiError.code) {
-      case 'FILE_TOO_LARGE':
-        return {
-          title: 'File Terlalu Besar',
-          description: apiError.error || `${fileName || 'File'} melebihi batas 10MB. Kompres foto atau gunakan resolusi lebih kecil.`,
-          icon: <FileWarning className="size-4" />,
-          variant: 'destructive',
-        }
-      case 'INVALID_TYPE':
-        return {
-          title: 'Format Tidak Didukung',
-          description: apiError.error || `${fileName || 'File'} bukan format gambar yang didukung. Gunakan JPG, PNG, GIF, atau WebP.`,
-          variant: 'destructive',
-        }
-      case 'NO_FILE':
-        return {
-          title: 'File Tidak Ditemukan',
-          description: 'Tidak ada file yang terpilih. Silakan pilih foto terlebih dahulu.',
-          variant: 'destructive',
-        }
-      case 'EMPTY_FILE':
-        return {
-          title: 'File Kosong',
-          description: `${fileName || 'File'} tidak memiliki isi. Pilih foto lain.`,
-          variant: 'destructive',
-        }
-      case 'NETWORK_ERROR':
-        return {
-          title: 'Koneksi Terputus',
-          description: apiError.error || 'Koneksi terputus saat upload. Coba lagi.',
-          icon: <WifiOff className="size-4" />,
-          variant: 'destructive',
-        }
-      case 'SERVER_ERROR':
-        return {
-          title: 'Kesalahan Server',
-          description: 'Server sedang mengalami gangguan. Silakan coba lagi beberapa saat.',
-          icon: <AlertTriangle className="size-4" />,
-          variant: 'destructive',
-        }
-    }
-  }
-
-  // Generic error
-  const message = error instanceof Error ? error.message : String(error)
-  if (message.includes('503') || message.includes('502') || message.includes('500')) {
-    return {
-      title: 'Server Sedang Gangguan',
-      description: 'Server sedang mengalami masalah. Silakan coba lagi beberapa saat.',
-      icon: <AlertTriangle className="size-4" />,
-      variant: 'destructive',
-    }
-  }
-
-  return {
-    title: 'Upload Gagal',
-    description: message || 'Terjadi kesalahan yang tidak diketahui saat mengupload foto. Silakan coba lagi.',
-    variant: 'destructive',
-  }
-}
+// Photo upload config — base64 data URL approach (no /api/upload endpoint).
+// Foto di-resize client-side ke max 1024px JPEG 0.85 → ~100-300KB per foto.
+const MAX_PHOTO_DIMENSION = 1024
+const PHOTO_QUALITY = 0.85
+const MAX_PHOTO_SIZE_INPUT = 10 * 1024 * 1024 // 10MB input file limit
 
 export function PhotoGallery({
   photos,
@@ -172,7 +96,7 @@ export function PhotoGallery({
           continue
         }
 
-        if (file.size > 10 * 1024 * 1024) {
+        if (file.size > MAX_PHOTO_SIZE_INPUT) {
           const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
           errors.push(`"${file.name}" ukuran ${sizeMB}MB melebihi batas 10MB`)
           hasErrors = true
@@ -186,33 +110,12 @@ export function PhotoGallery({
         }
 
         try {
-          const formData = new FormData()
-          formData.append('file', file)
-
-          const res = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-          })
-
-          if (!res.ok) {
-            let apiError: { error: string; code: string }
-            try {
-              apiError = await res.json()
-            } catch {
-              apiError = { error: `Server error (${res.status})`, code: 'SERVER_ERROR' }
-            }
-
-            const parsed = parseUploadError(apiError, file.name)
-            errors.push(parsed.description)
-            hasErrors = true
-            continue
-          }
-
-          const data = await res.json()
-          newPhotos.push(data.filename)
-        } catch (fetchError) {
-          const parsed = parseUploadError(fetchError, file.name)
-          errors.push(parsed.description)
+          // Resize + compress client-side → base64 data URL.
+          // Pendekatan ini bekerja di Vercel production (filesystem read-only).
+          const { dataUrl } = await resizeImageFile(file, MAX_PHOTO_DIMENSION, PHOTO_QUALITY)
+          newPhotos.push(dataUrl)
+        } catch (resizeError) {
+          errors.push(`"${file.name}" gagal diproses: ${resizeError instanceof Error ? resizeError.message : 'error tidak diketahui'}`)
           hasErrors = true
           continue
         }
@@ -283,17 +186,9 @@ export function PhotoGallery({
 
     setDeletingPhoto(filename)
     try {
-      // Delete from server
-      const deleteRes = await fetch(`/api/upload/${filename}`, { method: 'DELETE' })
-      if (!deleteRes.ok) {
-        toast({
-          title: 'Gagal Menghapus File',
-          description: 'File foto tidak dapat dihapus dari server. Foto akan tetap dihapus dari daftar.',
-          variant: 'destructive',
-        })
-      }
-
-      // Update item photos
+      // Foto disimpan sebagai base64 data URL di database (bukan file di disk),
+      // jadi tidak perlu DELETE /api/upload/{filename}. Cukup update array
+      // photos di database lewat PUT ke {itemApiPath}/{itemId}.
       const updatedPhotos = photos.filter(p => p !== filename)
       const saveRes = await fetch(`${itemApiPath}/${itemId}`, {
         method: 'PUT',
@@ -328,7 +223,13 @@ export function PhotoGallery({
   }, [photos.length])
 
   // Get photo URL
-  const getPhotoUrl = (filename: string) => `/uploads/items/${filename}`
+  // Get photo URL — foto disimpan sebagai base64 data URL, jadi langsung pakai.
+  // Backward compat: kalau photo adalah filename (lama), pakai /uploads/items/{filename}.
+  const getPhotoUrl = (photo: string) => {
+    if (photo.startsWith('data:')) return photo
+    // Legacy filename fallback (untuk data lama sebelum refactor ke base64)
+    return `/uploads/items/${photo}`
+  }
 
   return (
     <div className="space-y-2">
