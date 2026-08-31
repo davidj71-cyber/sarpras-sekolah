@@ -25,7 +25,12 @@ export function PhotoThumbnail({ photos, className = '' }: PhotoThumbnailProps) 
     )
   }
 
-  const getPhotoUrl = (filename: string) => `/uploads/items/${filename}`
+  // Get photo URL — backward compat: base64 data URL dipakai langsung,
+  // filename lama (sebelum refactor) fallback ke /uploads/items/{filename}.
+  const getPhotoUrl = (photo: string) => {
+    if (photo.startsWith('data:')) return photo
+    return `/uploads/items/${photo}`
+  }
 
   const navigateViewer = (direction: 'prev' | 'next') => {
     if (direction === 'prev') {
