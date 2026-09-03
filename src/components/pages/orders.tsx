@@ -267,7 +267,7 @@ function OrderRowGroup({
             )}
           </div>
         </TableCell>
-        <TableCell className="text-right tabular-nums whitespace-nowrap font-medium">{formatRupiahPrint(order.totalAmount)}</TableCell>
+        <TableCell className="text-right tabular-nums whitespace-nowrap font-medium">{order.totalAmount > 0 ? formatRupiahPrint(order.totalAmount) : '-'}</TableCell>
       </TableRow>
 
       {/* Expanded Items Row */}
@@ -318,8 +318,8 @@ function OrderRowGroup({
                           <TableCell className="text-xs py-1.5 align-top">{item.itemName}</TableCell>
                           <TableCell className="text-xs py-1.5 text-center align-top">{item.quantity}</TableCell>
                           <TableCell className="text-xs py-1.5 text-center align-top">{item.unit}</TableCell>
-                          <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap align-top">{formatRupiahPrint(item.unitPrice)}</TableCell>
-                          <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap font-semibold align-top">{formatRupiahPrint(item.totalPrice)}</TableCell>
+                          <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap align-top">{item.unitPrice > 0 ? formatRupiahPrint(item.unitPrice) : '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap font-semibold align-top">{item.totalPrice > 0 ? formatRupiahPrint(item.totalPrice) : '-'}</TableCell>
                           <TableCell className="text-xs py-1.5 align-top">
                             {itemPhotos.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
@@ -347,7 +347,7 @@ function OrderRowGroup({
                     })}
                     <TableRow>
                       <TableCell colSpan={5} className="text-xs py-1.5 text-right font-semibold border-t">Total</TableCell>
-                      <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap font-semibold border-t">{formatRupiahPrint(order.totalAmount)}</TableCell>
+                      <TableCell className="text-xs py-1.5 text-right tabular-nums whitespace-nowrap font-semibold border-t">{order.totalAmount > 0 ? formatRupiahPrint(order.totalAmount) : '-'}</TableCell>
                       <TableCell className="text-xs py-1.5 border-t"></TableCell>
                     </TableRow>
                   </TableBody>
@@ -842,14 +842,18 @@ export function OrdersPage() {
     fullOrder.items?.forEach((item, idx) => {
       const total = item.quantity * item.unitPrice
       grandTotal += total
+      // Harga 0 = belum diinput (harga dari toko, baru diisi di barang masuk).
+      // Tampilkan kosong (bukan "Rp 0") supaya user tidak bingung.
+      const hargaSatuan = item.unitPrice > 0 ? `Rp ${formatNumberPrint(item.unitPrice)}` : ''
+      const totalHarga = total > 0 ? `Rp ${formatNumberPrint(total)}` : ''
       itemsHtml += `
         <tr>
           <td style="border: 1px solid #333; padding: 4px 8px; text-align: center;">${idx + 1}</td>
           <td style="border: 1px solid #333; padding: 4px 8px;">${item.itemName}</td>
           <td style="border: 1px solid #333; padding: 4px 8px; text-align: center;">${item.quantity}</td>
           <td style="border: 1px solid #333; padding: 4px 8px; text-align: center;">${item.unit}</td>
-          <td style="border: 1px solid #333; padding: 4px 8px; text-align: right;">Rp ${formatNumberPrint(item.unitPrice)}</td>
-          <td style="border: 1px solid #333; padding: 4px 8px; text-align: right;">Rp ${formatNumberPrint(total)}</td>
+          <td style="border: 1px solid #333; padding: 4px 8px; text-align: right;">${hargaSatuan}</td>
+          <td style="border: 1px solid #333; padding: 4px 8px; text-align: right;">${totalHarga}</td>
         </tr>
       `
     })
@@ -924,8 +928,8 @@ export function OrdersPage() {
             <td colspan="2" style="border: 1px solid #333; padding: 6px 8px; font-weight: bold; text-align: right;">Total</td>
             <td style="border: 1px solid #333; padding: 6px 8px; text-align: center; font-weight: bold;">${fullOrder.items?.reduce((s, i) => s + i.quantity, 0) || 0}</td>
             <td style="border: 1px solid #333; padding: 6px 8px; text-align: center;">-</td>
-            <td style="border: 1px solid #333; padding: 6px 8px;">Rp</td>
-            <td style="border: 1px solid #333; padding: 6px 8px; text-align: right; font-weight: bold;">Rp ${formatNumberPrint(grandTotal)}</td>
+            <td style="border: 1px solid #333; padding: 6px 8px;">${grandTotal > 0 ? 'Rp' : ''}</td>
+            <td style="border: 1px solid #333; padding: 6px 8px; text-align: right; font-weight: bold;">${grandTotal > 0 ? `Rp ${formatNumberPrint(grandTotal)}` : ''}</td>
           </tr>
         </tbody>
       </table>
@@ -1094,21 +1098,21 @@ export function OrdersPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Pesanan"
-          value={formatRupiahPrint(orders.reduce((s, o) => s + o.totalAmount, 0))}
+          value={(() => { const v = orders.reduce((s, o) => s + o.totalAmount, 0); return v > 0 ? formatRupiahPrint(v) : '-' })()}
           icon={DollarSign}
           tone="primary"
           delay={1}
         />
         <StatCard
           title="Cash (Tunai)"
-          value={formatRupiahPrint(totalCash)}
+          value={totalCash > 0 ? formatRupiahPrint(totalCash) : '-'}
           icon={Wallet}
           tone="success"
           delay={2}
         />
         <StatCard
           title="BON Belum Bayar"
-          value={formatRupiahPrint(totalBonUnpaid)}
+          value={totalBonUnpaid > 0 ? formatRupiahPrint(totalBonUnpaid) : '-'}
           subtitle={`${bonUnpaid.length} pesanan`}
           icon={CreditCard}
           tone="warning"
@@ -1116,7 +1120,7 @@ export function OrdersPage() {
         />
         <StatCard
           title="BON Lunas"
-          value={formatRupiahPrint(totalBonPaid)}
+          value={totalBonPaid > 0 ? formatRupiahPrint(totalBonPaid) : '-'}
           subtitle={`${bonPaid.length} pesanan`}
           icon={CheckCircle2}
           tone="info"
