@@ -338,6 +338,10 @@ model Order {
   paidAt          DateTime? // Tanggal pelunasan BON
   notes           String   @default("")
   totalAmount     Float    @default(0)
+  // ── Kategori pesanan (MasterCombobox, bisa tambah/edit/cari) ──
+  // Mis. "ATK", "Makanan", "Minuman", "Bahan Bangunan", dll.
+  // Dipakai di template cetak surat pesanan: "menyediakan [kategori] untuk [sekolah]"
+  category        String   @default("") // Kategori pesanan
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   items           OrderItem[]

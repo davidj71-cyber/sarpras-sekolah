@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
           paymentMethod,
           paymentStatus,
           notes: body.notes ?? existingOrder.notes,
+          category: body.category ?? existingOrder.category,
           items: newItems.length > 0
             ? {
                 create: newItems,
@@ -132,6 +133,7 @@ export async function POST(request: NextRequest) {
         paidAt: body.paidAt ? new Date(body.paidAt) : null,
         notes: body.notes ?? "",
         totalAmount: body.totalAmount ?? 0,
+        category: body.category ?? "",
         items: body.items
           ? {
               create: body.items.map(normalizeItem),

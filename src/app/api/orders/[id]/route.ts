@@ -124,6 +124,7 @@ export async function PUT(
         paidAt: body.paidAt !== undefined ? (body.paidAt ? new Date(body.paidAt) : null) : undefined,
         notes: body.notes,
         totalAmount: body.totalAmount,
+        category: body.category ?? "",
         items: body.items
           ? {
               create: body.items.map(normalizeItem),

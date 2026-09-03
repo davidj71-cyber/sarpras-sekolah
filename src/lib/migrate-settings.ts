@@ -676,5 +676,15 @@ async function doEnsureBarangMasukSchema(): Promise<string[]> {
     console.warn("igrate] ADD COLUMN OrderItem.usage skipped:", e);
   }
 
+  // ─── Order: ADD COLUMN category (kategori pesanan) ──────────────────────
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "category" TEXT NOT NULL DEFAULT ''`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "Order.category"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN Order.category skipped:", e);
+  }
+
   return executed;
 }

@@ -129,6 +129,7 @@ interface OrderData {
   paidAt: string | null
   notes: string
   totalAmount: number
+  category?: string
   store?: StoreData
   employee?: EmployeeData
   items?: OrderItemData[]
@@ -443,6 +444,8 @@ export function OrdersPage() {
   const [paymentStatus, setPaymentStatus] = useState('LUNAS')
   const [paidAt, setPaidAt] = useState('')
   const [orderNotes, setOrderNotes] = useState('')
+  // Kategori pesanan (ATK, Makanan, Minuman, dll) — MasterCombobox, bisa tambah/edit/cari
+  const [orderCategory, setOrderCategory] = useState('')
   const [orderItems, setOrderItems] = useState<OrderItemForm[]>([
     { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, usage: '', photos: [] },
   ])
@@ -556,6 +559,7 @@ export function OrdersPage() {
     setPaymentStatus('LUNAS')
     setPaidAt('')
     setOrderNotes('')
+    setOrderCategory('')
     setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, usage: '', photos: [] }])
     setDialogOpen(true)
     // Auto-generate nomor urut berdasarkan format dari Pengaturan
@@ -580,6 +584,7 @@ export function OrdersPage() {
     setPaymentStatus('BELUM_BAYAR')
     setPaidAt('')
     setOrderNotes('')
+    setOrderCategory('')
     setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, usage: '', photos: [] }])
     setDialogOpen(true)
   }
@@ -598,6 +603,7 @@ export function OrdersPage() {
     setPaymentStatus(order.paymentStatus || (order.paymentMethod === 'BON' ? 'BELUM_BAYAR' : 'LUNAS'))
     setPaidAt(order.paidAt ? new Date(order.paidAt).toISOString().split('T')[0] : '')
     setOrderNotes(order.notes)
+    setOrderCategory(order.category || '')
     setOrderItems(
       order.items?.map((i) => ({
         itemName: i.itemName,
@@ -702,6 +708,7 @@ export function OrdersPage() {
         paidAt: paymentMethod === 'BON' && paymentStatus === 'LUNAS' && paidAt ? paidAt : undefined,
         notes: orderNotes,
         totalAmount: getGrandTotal(),
+        category: orderCategory,
         items: orderItems.map((i) => ({
           itemName: i.itemName,
           quantity: i.quantity,
@@ -892,7 +899,7 @@ export function OrdersPage() {
 
       <!-- Isi Surat -->
       <div style="margin-bottom: 12px; font-size: 12pt; text-align: justify;">
-        Bersamaan dengan surat ini kami memohon bantuan saudara untuk menyediakan ATK untuk ${settings.schoolName || 'Sekolah'}
+        Bersamaan dengan surat ini kami memohon bantuan saudara untuk menyediakan ${fullOrder.category || 'barang'} untuk ${settings.schoolName || 'Sekolah'}
         dengan rincian berikut :
       </div>
 
@@ -1306,6 +1313,19 @@ export function OrdersPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Kategori Pesanan</Label>
+                  <MasterCombobox
+                    category="kategoriPesanan"
+                    value={orderCategory}
+                    onChange={setOrderCategory}
+                    placeholder="mis. ATK, Makanan, Minuman, Bahan Bangunan"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Kategori ini dipakai di surat pesanan: &quot;menyediakan <strong>[kategori]</strong> untuk [sekolah]&quot;.
+                    Bisa pilih dari daftar atau ketik baru.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Status</Label>
