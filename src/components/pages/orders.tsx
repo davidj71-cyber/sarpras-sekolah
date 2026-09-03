@@ -113,6 +113,7 @@ interface OrderItemData {
   unitPrice: number
   totalPrice: number
   notes: string
+  usage?: string
   photos?: string[]
 }
 
@@ -139,6 +140,7 @@ interface OrderItemForm {
   quantity: number
   unit: string
   unitPrice: number
+  usage: string
   photos: string[]
 }
 
@@ -442,7 +444,7 @@ export function OrdersPage() {
   const [paidAt, setPaidAt] = useState('')
   const [orderNotes, setOrderNotes] = useState('')
   const [orderItems, setOrderItems] = useState<OrderItemForm[]>([
-    { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, photos: [] },
+    { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, usage: '', photos: [] },
   ])
 
   // Delete
@@ -554,8 +556,17 @@ export function OrdersPage() {
     setPaymentStatus('LUNAS')
     setPaidAt('')
     setOrderNotes('')
-    setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, photos: [] }])
+    setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, usage: '', photos: [] }])
     setDialogOpen(true)
+    // Auto-generate nomor urut berdasarkan format dari Pengaturan
+    fetch('/api/orders/generate-doc-number')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.nomor) {
+          setOrderNumberInput(data.nomor)
+        }
+      })
+      .catch(() => { /* silent — user bisa input manual */ })
   }
 
   function openAddBonDialog() {
@@ -569,7 +580,7 @@ export function OrdersPage() {
     setPaymentStatus('BELUM_BAYAR')
     setPaidAt('')
     setOrderNotes('')
-    setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, photos: [] }])
+    setOrderItems([{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, usage: '', photos: [] }])
     setDialogOpen(true)
   }
 
@@ -593,14 +604,15 @@ export function OrdersPage() {
         quantity: i.quantity,
         unit: i.unit,
         unitPrice: i.unitPrice,
+        usage: i.usage || '',
         photos: Array.isArray(i.photos) ? i.photos : [],
-      })) || [{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, photos: [] }]
+      })) || [{ itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, usage: '', photos: [] }]
     )
     setDialogOpen(true)
   }
 
   function addItemRow() {
-    setOrderItems([...orderItems, { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, photos: [] }])
+    setOrderItems([...orderItems, { itemName: '', quantity: 1, unit: 'Unit', unitPrice: 0, usage: '', photos: [] }])
   }
 
   function removeItemRow(index: number) {
@@ -696,6 +708,7 @@ export function OrdersPage() {
           unit: i.unit,
           unitPrice: i.unitPrice,
           totalPrice: i.quantity * i.unitPrice,
+          usage: i.usage,
           notes: '',
           photos: i.photos,
         })),
@@ -1215,13 +1228,34 @@ export function OrdersPage() {
                       <span className="ml-1 text-xs font-normal text-muted-foreground">(opsional untuk BON)</span>
                     )}
                   </Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={orderNumberInput}
-                    onChange={(e) => setOrderNumberInput(e.target.value)}
-                    placeholder={paymentMethod === 'BON' ? 'Kosongkan untuk auto-generate' : 'Masukkan nomor surat (misal: 9)'}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={orderNumberInput}
+                      onChange={(e) => setOrderNumberInput(e.target.value)}
+                      placeholder={paymentMethod === 'BON' ? 'Kosongkan untuk auto-generate' : 'Masukkan nomor (misal: 9)'}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 px-3 shrink-0"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('/api/orders/generate-doc-number')
+                          if (res.ok) {
+                            const data = await res.json()
+                            if (data.nomor) setOrderNumberInput(data.nomor)
+                          }
+                        } catch { /* silent */ }
+                      }}
+                      title="Generate nomor otomatis"
+                    >
+                      <Plus className="size-3.5" />
+                    </Button>
+                  </div>
                   {generatedOrderNumber && (
                     <p className="text-xs text-muted-foreground">
                       Format lengkap: <span className="font-mono font-medium text-foreground">{generatedOrderNumber}</span>

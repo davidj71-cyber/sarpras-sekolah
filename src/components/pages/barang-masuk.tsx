@@ -242,16 +242,27 @@ export function BarangMasukPage() {
       if (storeRes.ok) setStores(await storeRes.json())
       if (empRes.ok) setEmployees(await empRes.json())
       if (orderRes.ok) {
-        const orderData = await orderRes.json()
-        // Hanya tampilkan pesanan yang status-nya Dikirim/Diterima (sudah Final),
-        // bukan Draft. Pesanan Draft belum final → belum relevan untuk barang masuk.
-        // Tapi tetap tampilkan semua biar user fleksibel.
-        setOrders(orderData)
+        const orderData: OrderData[] = await orderRes.json()
+        // Ambil daftar orderId yang sudah dipakai di barang masuk yang ada.
+        // Pesanan yang sudah di-link ke barang masuk mana pun akan disembunyikan
+        // dari daftar dropdown — supaya user tidak double-input.
+        const usedOrderIds = new Set(
+          data
+            .filter((bm) => bm.orderId)
+            .map((bm) => bm.orderId as string)
+        )
+        // Saat editing, pesanan yang sedang dipakai oleh record ini tetap tampil.
+        // Filter: tampilkan pesanan yang belum dipakai, ATAU yang dipakai oleh record yang sedang di-edit.
+        const availableOrders = orderData.filter((o) => {
+          if (editingData && editingData.orderId === o.id) return true // pesanan record ini sendiri
+          return !usedOrderIds.has(o.id)
+        })
+        setOrders(availableOrders)
       }
     } catch {
       // silent
     }
-  }, [])
+  }, [data, editingData])
 
   useEffect(() => { fetchData(); fetchSupporting() }, [fetchData, fetchSupporting])
 
