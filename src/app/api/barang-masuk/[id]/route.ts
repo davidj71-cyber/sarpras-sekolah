@@ -118,11 +118,15 @@ export async function PUT(
                   unit?: string;
                   condition?: string;
                   notes?: string;
+                  usage?: string;
+                  unitPrice?: number;
                 }) => ({
                   itemName: item.itemName,
                   quantity: item.quantity ?? 1,
                   unit: item.unit ?? "Unit",
                   condition: item.condition ?? "Baik",
+                  usage: item.usage ?? "",
+                  unitPrice: Number(item.unitPrice) || 0,
                   notes: item.notes ?? "",
                 })
               ),

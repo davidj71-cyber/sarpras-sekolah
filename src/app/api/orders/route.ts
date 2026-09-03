@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       unitPrice?: number;
       totalPrice?: number;
       notes?: string;
+      usage?: string;
       photos?: unknown;
     }) => ({
       itemName: item.itemName,
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
       unit: item.unit ?? "Unit",
       unitPrice: item.unitPrice ?? 0,
       totalPrice: item.totalPrice ?? 0,
+      usage: item.usage ?? "",
       notes: item.notes ?? "",
       photos: JSON.stringify(
         Array.isArray(item.photos) ? item.photos : []

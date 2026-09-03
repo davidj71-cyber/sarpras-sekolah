@@ -381,10 +381,22 @@ export function getPrintStyles(orientation: PrintOrientation = 'portrait'): stri
     }
     @media print {
       body { margin: 0; padding: 0; }
+      /* Pastikan tabel tidak terpotong di tengah row saat dicetak */
+      tr, td, th { page-break-inside: avoid; }
+      /* Header tabel di-repeat di setiap halaman jika tabel panjang */
+      thead { display: table-header-group; }
+      /* Hilangkan background color untuk hemat tinta printer */
+      th { background-color: transparent !important; border: 1px solid #333 !important; }
+      /* Pastikan konten tidak overflow halaman */
+      table { table-layout: auto; word-wrap: break-word; }
+      td, th { word-break: break-word; }
     }
     @media screen {
       body { padding: 20px; }
     }
+    /* Auto-scale font untuk tabel dengan banyak kolom (responsif) */
+    table.cols-8 td, table.cols-8 th { font-size: 9pt; }
+    table.cols-10 td, table.cols-10 th { font-size: 8pt; }
   `
 }
 

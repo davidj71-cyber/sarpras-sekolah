@@ -475,6 +475,36 @@ async function doEnsureSalaryMediaSchema(): Promise<string[]> {
     console.warn("[migrate] ADD COLUMN MediaPayment.proofPhotos skipped:", e);
   }
 
+  // ─── BarangMasukItem: ADD COLUMN usage (kegunaan barang) ────────────────
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "BarangMasukItem" ADD COLUMN IF NOT EXISTS "usage" TEXT NOT NULL DEFAULT ''`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "BarangMasukItem.usage"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN BarangMasukItem.usage skipped:", e);
+  }
+
+  // ─── BarangMasukItem: ADD COLUMN unitPrice (harga satuan dari toko) ──────
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "BarangMasukItem" ADD COLUMN IF NOT EXISTS "unitPrice" DOUBLE PRECISION NOT NULL DEFAULT 0`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "BarangMasukItem.unitPrice"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN BarangMasukItem.unitPrice skipped:", e);
+  }
+
+  // ─── OrderItem: ADD COLUMN usage (kegunaan barang) ──────────────────────
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "usage" TEXT NOT NULL DEFAULT ''`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "OrderItem.usage"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN OrderItem.usage skipped:", e);
+  }
+
   return executed;
 }
 

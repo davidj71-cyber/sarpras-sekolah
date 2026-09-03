@@ -63,7 +63,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { resizeImageFile } from '@/lib/resize-image'
-import { printWithKop, formatDatePrint, fetchPrintSettings } from '@/lib/print-utils'
+import { printWithKop, formatDatePrint, fetchPrintSettings, formatRupiahPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
 import { exportToExcel, getSchoolMeta, type ExcelColumn } from '@/lib/export-excel'
 import { PrintDialog } from '@/components/print-dialog'
@@ -97,6 +97,8 @@ interface BarangMasukItemData {
   unit: string
   condition: string
   notes: string
+  usage?: string // Kegunaan barang
+  unitPrice?: number // Harga satuan dari toko (0 = belum diinput)
 }
 
 interface OrderData {
@@ -105,7 +107,7 @@ interface OrderData {
   orderDate: string
   storeId: string
   store?: { id: string; name: string }
-  items: Array<{ itemName: string; quantity: number; unit: string }>
+  items: Array<{ itemName: string; quantity: number; unit: string; usage?: string }>
 }
 
 interface BarangMasukData {
@@ -133,6 +135,8 @@ interface BarangMasukItemForm {
   quantity: number
   unit: string
   condition: string
+  usage: string // Kegunaan barang
+  unitPrice: number // Harga satuan dari toko (0 = belum diinput)
 }
 
 const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -190,7 +194,7 @@ export function BarangMasukPage() {
   const proofFileInputRef = useRef<HTMLInputElement | null>(null)
   const proofCameraInputRef = useRef<HTMLInputElement | null>(null)
   const [items, setItems] = useState<BarangMasukItemForm[]>([
-    { itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' },
+    { itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik', usage: '', unitPrice: 0 },
   ])
 
   // Delete
@@ -204,6 +208,8 @@ export function BarangMasukPage() {
   const [printDetailRecord, setPrintDetailRecord] = useState<BarangMasukData | null>(null)
   // Print semua barang (flat list dari semua item di semua dokumen barang masuk)
   const [printAllItemsDialogOpen, setPrintAllItemsDialogOpen] = useState(false)
+  // Pegawai yang ditunjuk sebagai penanda tangan laporan (default: pengurus barang dari settings)
+  const [signEmployeeId, setSignEmployeeId] = useState('')
 
   // Status change
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
@@ -264,7 +270,7 @@ export function BarangMasukPage() {
     setSenderName('')
     setStorageLocation('')
     setProofPhotos([])
-    setItems([{ itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' }])
+    setItems([{ itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik', usage: '', unitPrice: 0 }])
     setDialogOpen(true)
     // Auto-generate nomor dokumen berdasarkan format dari Pengaturan
     fetch('/api/barang-masuk/generate-doc-number')
@@ -304,7 +310,9 @@ export function BarangMasukPage() {
         quantity: i.quantity,
         unit: i.unit,
         condition: i.condition,
-      })) || [{ itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' }]
+        usage: i.usage || '',
+        unitPrice: i.unitPrice || 0,
+      })) || [{ itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik', usage: '', unitPrice: 0 }]
     )
     setDialogOpen(true)
   }
@@ -337,6 +345,8 @@ export function BarangMasukPage() {
             quantity: oi.quantity,
             unit: oi.unit || 'Unit',
             condition: 'Baik',
+            usage: oi.usage || '',
+            unitPrice: 0, // harga belum diinput (akan diisi setelah dari toko)
           }))
         )
       }
@@ -408,7 +418,7 @@ export function BarangMasukPage() {
   }
 
   function addItemRow() {
-    setItems([...items, { itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' }])
+    setItems([...items, { itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik', usage: '', unitPrice: 0 }])
   }
 
   function removeItemRow(index: number) {
@@ -451,6 +461,8 @@ export function BarangMasukPage() {
           quantity: i.quantity,
           unit: i.unit,
           condition: i.condition,
+          usage: i.usage,
+          unitPrice: i.unitPrice || 0,
           notes: '',
         })),
       }
@@ -607,8 +619,40 @@ export function BarangMasukPage() {
 
     const totalQuantity = allItems.reduce((sum, i) => sum + i.quantity, 0)
 
+    // ── Custom signature block: bisa pilih dari Pegawai ──
+    // Default: pakai pengurus barang dari settings. Kalau user pilih pegawai
+    // lain di dropdown, override pakai pegawai tersebut.
+    const settings = await fetchPrintSettings()
+    const selectedEmployee = signEmployeeId
+      ? employees.find((e) => e.id === signEmployeeId)
+      : null
+    const signerName = selectedEmployee?.name || settings.goodsManagerName || '________________________'
+    const signerNip = selectedEmployee?.nip || settings.goodsManagerNip || ''
+    const signerJabatan = selectedEmployee?.position || 'Pengurus Barang'
+
+    const customSignatureHtml = `
+      <div class="signature-block">
+        <div style="display: flex; justify-content: space-between; margin-top: 24px;">
+          <div style="text-align: center; width: 45%;">
+            <div>Mengetahui,</div>
+            <div style="margin-top: 4px;">Kepala Sekolah</div>
+            <div style="height: 60px;"></div>
+            <div style="text-decoration: underline; font-weight: bold;">${settings.principalName || '________________________'}</div>
+            <div>NIP. ${settings.principalNip || '________________________'}</div>
+          </div>
+          <div style="text-align: center; width: 45%;">
+            <div>Yang melaporkan,</div>
+            <div style="margin-top: 4px;">${signerJabatan}</div>
+            <div style="height: 60px;"></div>
+            <div style="text-decoration: underline; font-weight: bold;">${signerName}</div>
+            <div>NIP. ${signerNip || '-'}</div>
+          </div>
+        </div>
+      </div>
+    `
+
     const contentHtml = `
-      <table>
+      <table class="cols-8">
         <thead>
           <tr>
             <th style="width: 40px;">No</th>
@@ -630,12 +674,10 @@ export function BarangMasukPage() {
         <strong>Jumlah Unit:</strong> ${totalQuantity} &nbsp;|&nbsp;
         <strong>Dari ${filteredData.length} dokumen</strong>
       </div>
+      ${customSignatureHtml}
     `
 
-    await printWithKop('LAPORAN SEMUA BARANG MASUK', contentHtml, orientation, {
-      appendSignature: true,
-      signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
-    })
+    await printWithKop('LAPORAN SEMUA BARANG MASUK', contentHtml, orientation)
   }
 
   async function handleExportExcelList() {
@@ -751,7 +793,8 @@ export function BarangMasukPage() {
           <td class="text-center">${item.quantity}</td>
           <td class="text-center">${item.unit}</td>
           <td class="text-center">${item.condition}</td>
-          <td>${item.notes || '-'}</td>
+          <td>${item.usage || '-'}</td>
+          <td class="text-right">${(item as { unitPrice?: number }).unitPrice ? formatRupiahPrint((item as { unitPrice?: number }).unitPrice!) : '-'}</td>
         </tr>
       `).join('')
 
@@ -777,7 +820,8 @@ export function BarangMasukPage() {
               <th style="width: 60px;">Jumlah</th>
               <th style="width: 60px;">Satuan</th>
               <th style="width: 100px;">Kondisi</th>
-              <th>Keterangan</th>
+              <th style="width: 150px;">Kegunaan</th>
+              <th style="width: 100px;">Harga Satuan</th>
             </tr>
           </thead>
           <tbody>
@@ -1183,48 +1227,75 @@ export function BarangMasukPage() {
                 </div>
 
                 {items.map((item, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2 items-end border rounded-md p-3">
-                    <div className="col-span-12 sm:col-span-4 space-y-1">
-                      <Label className="text-xs">Nama Barang</Label>
-                      <Input value={item.itemName} onChange={(e) => updateItem(idx, 'itemName', e.target.value)} placeholder="Nama barang" className="h-9" />
+                  <div key={idx} className="border rounded-md p-3 space-y-2">
+                    {/* Baris 1: Nama, Jumlah, Satuan, Kondisi, Hapus */}
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                        <Label className="text-xs">Nama Barang</Label>
+                        <Input value={item.itemName} onChange={(e) => updateItem(idx, 'itemName', e.target.value)} placeholder="Nama barang" className="h-9" />
+                      </div>
+                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                        <Label className="text-xs">Jumlah</Label>
+                        <Input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))} className="h-9" />
+                      </div>
+                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                        <Label className="text-xs">Satuan</Label>
+                        <MasterCombobox
+                          category="satuan"
+                          value={item.unit}
+                          onChange={(val) => updateItem(idx, 'unit', val)}
+                          placeholder="Satuan"
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="col-span-3 sm:col-span-3 space-y-1">
+                        <Label className="text-xs">Kondisi</Label>
+                        <Select value={item.condition} onValueChange={(value) => updateItem(idx, 'condition', value)}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {conditionOptions.map((opt) => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-1 flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-9 text-destructive hover:text-destructive"
+                          onClick={() => removeItemRow(idx)}
+                          disabled={items.length <= 1}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="col-span-4 sm:col-span-2 space-y-1">
-                      <Label className="text-xs">Jumlah</Label>
-                      <Input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))} className="h-9" />
-                    </div>
-                    <div className="col-span-4 sm:col-span-2 space-y-1">
-                      <Label className="text-xs">Satuan</Label>
-                      <MasterCombobox
-                        category="satuan"
-                        value={item.unit}
-                        onChange={(val) => updateItem(idx, 'unit', val)}
-                        placeholder="Satuan"
-                        className="h-9"
-                      />
-                    </div>
-                    <div className="col-span-3 sm:col-span-3 space-y-1">
-                      <Label className="text-xs">Kondisi</Label>
-                      <Select value={item.condition} onValueChange={(value) => updateItem(idx, 'condition', value)}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {conditionOptions.map((opt) => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-1 flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-9 text-destructive hover:text-destructive"
-                        onClick={() => removeItemRow(idx)}
-                        disabled={items.length <= 1}
-                      >
-                        <X className="size-4" />
-                      </Button>
+                    {/* Baris 2: Kegunaan & Harga Satuan */}
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-12 sm:col-span-7 space-y-1">
+                        <Label className="text-xs">Kegunaan (opsional)</Label>
+                        <MasterCombobox
+                          category="kegunaanBarang"
+                          value={item.usage}
+                          onChange={(val) => updateItem(idx, 'usage', val)}
+                          placeholder="mis. Menyediakan ATK, Operasional Kantor, Kegiatan Pembelajaran"
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="col-span-12 sm:col-span-5 space-y-1">
+                        <Label className="text-xs">Harga Satuan (dari toko, opsional)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={item.unitPrice || ''}
+                          onChange={(e) => updateItem(idx, 'unitPrice', Number(e.target.value) || 0)}
+                          placeholder="Kosongkan jika belum diketahui"
+                          className="h-9"
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1296,14 +1367,61 @@ export function BarangMasukPage() {
         title="Cetak Daftar Barang Masuk"
       />
 
-      {/* Print Dialog - Semua Barang (flat list) */}
-      <PrintDialog
-        open={printAllItemsDialogOpen}
-        onOpenChange={setPrintAllItemsDialogOpen}
-        onPrint={handlePrintAllItems}
-        title="Cetak Semua Barang Masuk"
-        description="Laporan semua barang masuk (No, Nama, Jumlah, Satuan, Kondisi, Tgl Terima, Penerima, Pengirim)"
-      />
+      {/* Print Dialog - Semua Barang (custom: dengan dropdown pilih pegawai) */}
+      <Dialog open={printAllItemsDialogOpen} onOpenChange={setPrintAllItemsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="size-5" />
+              Cetak Semua Barang Masuk
+            </DialogTitle>
+            <DialogDescription>
+              Laporan semua barang masuk (No, Nama, Jumlah, Satuan, Kondisi, Tgl Terima, Penerima, Pengirim). Pilih orientasi & pegawai penanda tangan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-2">
+              <Label className="text-sm">Orientasi Halaman</Label>
+              <Select defaultValue="landscape">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="portrait">Portrait (tegak)</SelectItem>
+                  <SelectItem value="landscape">Landscape (mendatar) — rekomendasi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Penanda Tangan (Yang Melaporkan)</Label>
+              <Select value={signEmployeeId || '__default__'} onValueChange={(v) => setSignEmployeeId(v === '__default__' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih pegawai (default: Pengurus Barang)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">— Default (Pengurus Barang dari Settings) —</SelectItem>
+                  {employees.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.name}{e.position ? ` (${e.position})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Pilih pegawai yang akan menandatangani laporan sebagai &quot;Yang Melaporkan&quot;.
+                Default: Pengurus Barang dari menu Pengaturan.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintAllItemsDialogOpen(false)}>Batal</Button>
+            <Button onClick={() => handlePrintAllItems('landscape')}>
+              <Printer className="size-4 mr-2" />
+              Cetak
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Print Dialog - Detail */}
       <PrintDialog

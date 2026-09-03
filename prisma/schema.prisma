@@ -353,6 +353,9 @@ model OrderItem {
   unit        String   @default("Unit")
   unitPrice   Float    @default(0)
   totalPrice  Float    @default(0)
+  // ── Kegunaan barang (MasterCombobox, pilihan bisa ditambah/edit) ──
+  // Mis. "Menyediakan ATK", "Operasional Kantor", "Kegiatan Pembelajaran"
+  usage       String   @default("") // Kegunaan/kategori barang
   notes       String   @default("")
   // ── Foto barang (bukti/foto pesanan) ──
   // Disimpan sebagai JSON array berisi base64 data URL.
@@ -404,6 +407,13 @@ model BarangMasukItem {
   quantity      Int      @default(1)
   unit          String   @default("Unit")
   condition     String   @default("Baik") // Kondisi (Baik, Rusak Ringan, Rusak Berat)
+  // ── Kegunaan barang (MasterCombobox, pilihan bisa ditambah/edit) ──
+  // Mis. "Menyediakan ATK", "Operasional Kantor", "Kegiatan Pembelajaran"
+  usage         String   @default("") // Kegunaan/kategori barang
+  // ── Harga satuan (opsional, dari toko) ──
+  // 0 = belum diinput (harga dari toko, baru diisi setelah barang masuk).
+  // Saat cetak: 0 ditampilkan kosong (bukan "Rp.0")
+  unitPrice     Float    @default(0)
   notes         String   @default("")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
