@@ -29,13 +29,16 @@ model SchoolSettings {
   letterUnitCode    String  @default("TU") // Kode unit untuk format nomor surat (misal: TU = Tata Usaha)
   // ── Format baku dokumen barang masuk ──
   // Template nomor dokumen. Placeholder yang didukung:
-  //   {PREFIX}     = kode depan (default: "BM")
-  //   {NOMOR}      = nomor urut (auto-increment per tahun)
-  //   {ROMAN}      = bulan Romawi (I-XII)
-  //   {TAHUN}      = tahun 4 digit
-  // Default: "{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}" → "BM/001/VIII/2026"
-  // User bisa edit di Pengaturan (mis. "BM/{NOMOR}/{ROMAN}/{TAHUN}" atau "{PREFIX}-{TAHUN}-{NOMOR}")
-  barangMasukDocFormat String  @default("{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}") // Template nomor dokumen barang masuk
+  //   {NOMOR}        = nomor urut 3-digit (001, 002, ...)
+  //   {PREFIX}       = kode depan (default: "BM")
+  //   {KODE_SEKOLAH} = kode sekolah dari schoolCode
+  //   {KODE_UNIT}    = kode unit dari letterUnitCode
+  //   {ROMAN}        = bulan Romawi (I-XII)
+  //   {TAHUN}        = tahun 4 digit
+  // Default: "{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}"
+  //          → "001/BM/SMANSATD-TU/IX/2026"
+  // User bisa edit di Pengaturan.
+  barangMasukDocFormat String  @default("{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}") // Template nomor dokumen barang masuk
   barangMasukDocPrefix String @default("BM") // Kode depan default untuk nomor dokumen
   // ── Format baku nomor surat pesanan ──
   // Template nomor surat pesanan. Placeholder:

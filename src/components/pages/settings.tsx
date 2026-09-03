@@ -66,7 +66,7 @@ const defaultSettings: SchoolSettingsData = {
   email: '',
   schoolCode: '',
   letterUnitCode: 'TU',
-  barangMasukDocFormat: '{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}',
+  barangMasukDocFormat: '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}',
   barangMasukDocPrefix: 'BM',
   orderDocFormat: '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}',
   orderDocPrefix: 'PB',
@@ -178,7 +178,7 @@ export function SettingsPage() {
           email: data.email ?? '',
           schoolCode: data.schoolCode ?? '',
           letterUnitCode: data.letterUnitCode ?? 'TU',
-          barangMasukDocFormat: data.barangMasukDocFormat ?? '{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}',
+          barangMasukDocFormat: data.barangMasukDocFormat ?? '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}',
           barangMasukDocPrefix: data.barangMasukDocPrefix ?? 'BM',
           orderDocFormat: data.orderDocFormat ?? '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}',
           orderDocPrefix: data.orderDocPrefix ?? 'PB',
@@ -589,13 +589,15 @@ export function SettingsPage() {
             <Label className="text-base font-semibold">Format Dokumen Barang Masuk</Label>
             <p className="text-xs text-muted-foreground mt-1 mb-3">
               Template nomor dokumen barang masuk. Placeholder yang didukung:
-              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{PREFIX}`}</span>(kode depan),
               <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{NOMOR}`}</span>(urut 3-digit),
-              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{ROMAN}`}</span>(bulan Romawi),
-              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{TAHUN}`}</span>(tahun).
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{PREFIX}`}</span>(kode depan),
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{KODE_SEKOLAH}`}</span>,
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{KODE_UNIT}`}</span>,
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{ROMAN}`}</span>(bulan),
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{TAHUN}`}</span>.
             </p>
             <p className="text-xs text-muted-foreground mb-3">
-              Contoh default: <span className="font-mono bg-muted px-1 py-0.5 rounded">BM/001/VIII/2026</span> — nomor urut & bulan otomatis, Anda hanya input kode depan.
+              Contoh default: <span className="font-mono bg-muted px-1 py-0.5 rounded">001/BM/SMANSATD-TU/IX/2026</span> — Anda hanya input angka nomor, sisanya otomatis.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -612,17 +614,19 @@ export function SettingsPage() {
                 <Label htmlFor="barangMasukDocFormat">Template Format</Label>
                 <Input
                   id="barangMasukDocFormat"
-                  placeholder="{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}"
+                  placeholder="{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}"
                   value={settings.barangMasukDocFormat}
                   onChange={(e) => updateSettings('barangMasukDocFormat', e.target.value)}
                   className="font-mono text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
                   Preview: <span className="font-mono">{
-                    (settings.barangMasukDocFormat || '{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}')
-                      .replace(/\{PREFIX\}/g, settings.barangMasukDocPrefix || 'BM')
+                    (settings.barangMasukDocFormat || '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}')
                       .replace(/\{NOMOR\}/g, '001')
-                      .replace(/\{ROMAN\}/g, 'VIII')
+                      .replace(/\{PREFIX\}/g, settings.barangMasukDocPrefix || 'BM')
+                      .replace(/\{KODE_SEKOLAH\}/g, settings.schoolCode || 'SMANSATD')
+                      .replace(/\{KODE_UNIT\}/g, settings.letterUnitCode || 'TU')
+                      .replace(/\{ROMAN\}/g, 'IX')
                       .replace(/\{TAHUN\}/g, String(new Date().getFullYear()))
                   }</span>
                 </p>

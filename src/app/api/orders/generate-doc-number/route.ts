@@ -36,7 +36,7 @@ export async function GET() {
         orderDate: { gte: yearStart, lt: yearEnd },
       },
     });
-    const nomor = String(countThisYear + 1);
+    const nomor = String(countThisYear + 1).padStart(3, '0');
 
     // Bulan Romawi (I-XII)
     const romanMonths = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];

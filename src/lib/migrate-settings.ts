@@ -64,7 +64,7 @@ async function doEnsureSchoolSettingsSchema(): Promise<string[]> {
     { name: "npsn", ddl: `TEXT` },
     { name: "schoolCode", ddl: `TEXT NOT NULL DEFAULT ''` },
     { name: "letterUnitCode", ddl: `TEXT NOT NULL DEFAULT 'TU'` },
-    { name: "barangMasukDocFormat", ddl: `TEXT NOT NULL DEFAULT '{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}'` },
+    { name: "barangMasukDocFormat", ddl: `TEXT NOT NULL DEFAULT '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}'` },
     { name: "barangMasukDocPrefix", ddl: `TEXT NOT NULL DEFAULT 'BM'` },
     { name: "orderDocFormat", ddl: `TEXT NOT NULL DEFAULT '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}'` },
     { name: "orderDocPrefix", ddl: `TEXT NOT NULL DEFAULT 'PB'` },

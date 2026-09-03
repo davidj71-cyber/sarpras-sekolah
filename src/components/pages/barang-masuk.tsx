@@ -171,6 +171,10 @@ export function BarangMasukPage() {
 
   // Form
   const [documentNumber, setDocumentNumber] = useState('')
+  // Nomor urut yang diinput user (mis. 001) — akan di-compose jadi full format
+  const [docNumberInput, setDocNumberInput] = useState('')
+  // Preview format lengkap (mis. 001/BM/SMANSATD-TU/IX/2026) — auto-compose dari settings
+  const [docNumberPreview, setDocNumberPreview] = useState('')
   const [entryDate, setEntryDate] = useState('')
   const [storeId, setStoreId] = useState('')
   const [employeeId, setEmployeeId] = useState('')
@@ -271,6 +275,8 @@ export function BarangMasukPage() {
   function openAddDialog() {
     setEditingData(null)
     setDocumentNumber('')
+    setDocNumberInput('')
+    setDocNumberPreview('')
     setEntryDate(new Date().toISOString().split('T')[0])
     setStoreId('')
     setEmployeeId('')
@@ -283,11 +289,15 @@ export function BarangMasukPage() {
     setProofPhotos([])
     setItems([{ itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik', usage: '', unitPrice: 0 }])
     setDialogOpen(true)
-    // Auto-generate nomor dokumen berdasarkan format dari Pengaturan
+    // Auto-generate nomor urut berdasarkan format dari Pengaturan
     fetch('/api/barang-masuk/generate-doc-number')
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
+        if (data?.nomor) {
+          setDocNumberInput(data.nomor)
+        }
         if (data?.documentNumber) {
+          setDocNumberPreview(data.documentNumber)
           setDocumentNumber(data.documentNumber)
         }
       })
@@ -297,6 +307,11 @@ export function BarangMasukPage() {
   function openEditDialog(record: BarangMasukData) {
     setEditingData(record)
     setDocumentNumber(record.documentNumber)
+    // Extract nomor urut dari documentNumber yang ada (untuk display di input)
+    // Coba parse: ambil segment yang berisi angka 3-digit
+    const numMatch = record.documentNumber.match(/(\d{3,})/)
+    setDocNumberInput(numMatch ? numMatch[1] : '')
+    setDocNumberPreview(record.documentNumber)
     setEntryDate(record.entryDate ? new Date(record.entryDate).toISOString().split('T')[0] : '')
     setStoreId(record.storeId || '')
     setEmployeeId(record.employeeId || '')
@@ -997,9 +1012,27 @@ export function BarangMasukPage() {
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Identitas Dokumen</div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Nomor Dokumen *</Label>
+                    <Label className="text-xs">Nomor Urut Dokumen *</Label>
                     <div className="flex gap-2">
-                      <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} placeholder="BM/001/2025" className="h-9 flex-1" />
+                      <Input
+                        value={docNumberInput}
+                        onChange={(e) => {
+                          // Hanya izinkan angka, auto-pad ke 3 digit
+                          const raw = e.target.value.replace(/[^\d]/g, '')
+                          setDocNumberInput(raw)
+                          // Compose preview saat user ketik
+                          // Pakai format dari preview yang sudah ada, ganti nomornya saja
+                          if (docNumberPreview) {
+                            const nomorPadded = raw ? raw.padStart(3, '0') : '000'
+                            const updated = docNumberPreview.replace(/\d{3,}/, nomorPadded)
+                            setDocNumberPreview(updated)
+                            setDocumentNumber(updated)
+                          }
+                        }}
+                        placeholder="mis. 001"
+                        className="h-9 flex-1"
+                        inputMode="numeric"
+                      />
                       <Button
                         type="button"
                         variant="outline"
@@ -1010,7 +1043,11 @@ export function BarangMasukPage() {
                             const res = await fetch('/api/barang-masuk/generate-doc-number')
                             if (res.ok) {
                               const data = await res.json()
-                              if (data.documentNumber) setDocumentNumber(data.documentNumber)
+                              if (data.nomor) setDocNumberInput(data.nomor)
+                              if (data.documentNumber) {
+                                setDocNumberPreview(data.documentNumber)
+                                setDocumentNumber(data.documentNumber)
+                              }
                             }
                           } catch { /* silent */ }
                         }}
@@ -1019,6 +1056,11 @@ export function BarangMasukPage() {
                         <Plus className="size-3.5" />
                       </Button>
                     </div>
+                    {docNumberPreview && (
+                      <p className="text-xs text-muted-foreground">
+                        Format lengkap: <span className="font-mono font-medium text-foreground">{docNumberPreview}</span>
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Tanggal Masuk</Label>

@@ -402,13 +402,16 @@ function generateOrderNumber(
   const unit = letterUnitCode || 'TU'
   const pfx = prefix || 'PB'
 
+  // Nomor di-padding ke 3 digit (001, 002, 003, ...)
+  const nomorPadded = String(normalizedNum).padStart(3, '0')
+
   // Pakai template format dari settings kalau ada.
   // Placeholder: {NOMOR}, {PREFIX}, {KODE_SEKOLAH}, {KODE_UNIT}, {ROMAN}, {TAHUN}
   // Default: "{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}"
-  //         → "9/PB/SMAN1TLD-TU/XI/2025"
+  //         → "001/PB/SMANSATD-TU/IX/2026"
   const template = format || '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}'
   return template
-    .replace(/\{NOMOR\}/g, String(normalizedNum))
+    .replace(/\{NOMOR\}/g, nomorPadded)
     .replace(/\{PREFIX\}/g, pfx)
     .replace(/\{KODE_SEKOLAH\}/g, code)
     .replace(/\{KODE_UNIT\}/g, unit)
