@@ -385,7 +385,9 @@ function generateOrderNumber(
   num: string,
   schoolCode: string,
   letterUnitCode: string,
-  dateStr: string
+  dateStr: string,
+  format?: string,
+  prefix?: string
 ): string {
   if (!num.trim()) return ''
   const normalizedNum = parseInt(num, 10)
@@ -395,7 +397,20 @@ function generateOrderNumber(
   const year = date.getFullYear()
   const code = schoolCode || 'SEKOLAH'
   const unit = letterUnitCode || 'TU'
-  return `${normalizedNum}/PB/${code}-${unit}/${toRoman(month)}/${year}`
+  const pfx = prefix || 'PB'
+
+  // Pakai template format dari settings kalau ada.
+  // Placeholder: {NOMOR}, {PREFIX}, {KODE_SEKOLAH}, {KODE_UNIT}, {ROMAN}, {TAHUN}
+  // Default: "{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}"
+  //         → "9/PB/SMAN1TLD-TU/XI/2025"
+  const template = format || '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}'
+  return template
+    .replace(/\{NOMOR\}/g, String(normalizedNum))
+    .replace(/\{PREFIX\}/g, pfx)
+    .replace(/\{KODE_SEKOLAH\}/g, code)
+    .replace(/\{KODE_UNIT\}/g, unit)
+    .replace(/\{ROMAN\}/g, toRoman(month))
+    .replace(/\{TAHUN\}/g, String(year))
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -457,7 +472,9 @@ export function OrdersPage() {
     orderNumberInput,
     settings?.schoolCode || '',
     settings?.letterUnitCode || '',
-    orderDate
+    orderDate,
+    settings?.orderDocFormat as string | undefined,
+    settings?.orderDocPrefix as string | undefined
   )
 
   // ─── BON Summary ────────────────────────────────────────────────────────

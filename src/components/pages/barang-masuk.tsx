@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { toast } from '@/hooks/use-toast'
 
@@ -59,7 +59,10 @@ import {
   Printer,
   X,
   FileSpreadsheet,
+  Camera,
+  Upload,
 } from 'lucide-react'
+import { resizeImageFile } from '@/lib/resize-image'
 import { printWithKop, formatDatePrint, fetchPrintSettings } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
 import { exportToExcel, getSchoolMeta, type ExcelColumn } from '@/lib/export-excel'
@@ -121,6 +124,7 @@ interface BarangMasukData {
   order?: OrderData | null
   senderName?: string
   storageLocation?: string
+  proofPhotos?: string // JSON array of base64 data URLs
   createdAt: string
 }
 
@@ -176,6 +180,15 @@ export function BarangMasukPage() {
   const [senderName, setSenderName] = useState('')
   // storageLocation: tempat penyimpanan (MasterCombobox category "tempatPenyimpanan")
   const [storageLocation, setStorageLocation] = useState('')
+  // ── Foto bukti penerimaan barang (base64 data URLs) ──
+  // Foto barang saat diterima sebagai bukti. Maks 5 foto, 3MB per foto.
+  // Mendukung kamera Android via capture="environment".
+  const [proofPhotos, setProofPhotos] = useState<string[]>([])
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
+  const [photoViewerIndex, setPhotoViewerIndex] = useState(0)
+  const proofFileInputRef = useRef<HTMLInputElement | null>(null)
+  const proofCameraInputRef = useRef<HTMLInputElement | null>(null)
   const [items, setItems] = useState<BarangMasukItemForm[]>([
     { itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' },
   ])
@@ -189,6 +202,8 @@ export function BarangMasukPage() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false)
   const [printDetailDialogOpen, setPrintDetailDialogOpen] = useState(false)
   const [printDetailRecord, setPrintDetailRecord] = useState<BarangMasukData | null>(null)
+  // Print semua barang (flat list dari semua item di semua dokumen barang masuk)
+  const [printAllItemsDialogOpen, setPrintAllItemsDialogOpen] = useState(false)
 
   // Status change
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
@@ -248,6 +263,7 @@ export function BarangMasukPage() {
     setOrderId('')
     setSenderName('')
     setStorageLocation('')
+    setProofPhotos([])
     setItems([{ itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' }])
     setDialogOpen(true)
     // Auto-generate nomor dokumen berdasarkan format dari Pengaturan
@@ -273,6 +289,15 @@ export function BarangMasukPage() {
     setOrderId(record.orderId || '')
     setSenderName(record.senderName || '')
     setStorageLocation(record.storageLocation || '')
+    // Parse proofPhotos dari JSON string
+    let loadedPhotos: string[] = []
+    try {
+      const parsed = JSON.parse(record.proofPhotos || '[]')
+      if (Array.isArray(parsed)) {
+        loadedPhotos = parsed.filter((p: unknown) => typeof p === 'string')
+      }
+    } catch { /* ignore */ }
+    setProofPhotos(loadedPhotos)
     setItems(
       record.items?.map((i) => ({
         itemName: i.itemName,
@@ -320,6 +345,68 @@ export function BarangMasukPage() {
     }
   }
 
+  // ── Photo upload handlers (bukti penerimaan barang) ────────────────────────
+  // Maks 5 foto, 3MB per foto. Auto-resize ke 1024px JPEG 0.85.
+  // Mendukung kamera Android via capture="environment".
+  const MAX_PROOF_PHOTOS = 5
+  const MAX_PROOF_SIZE = 3 * 1024 * 1024 // 3 MB input file limit
+
+  async function handleProofPhotoUpload(files: FileList, source: 'file' | 'camera') {
+    if (proofPhotos.length + files.length > MAX_PROOF_PHOTOS) {
+      toast({
+        title: 'Batas Foto Tercapai',
+        description: `Maksimal ${MAX_PROOF_PHOTOS} foto. Saat ini sudah ada ${proofPhotos.length} foto.`,
+        variant: 'destructive',
+      })
+      if (source === 'file' && proofFileInputRef.current) proofFileInputRef.current.value = ''
+      if (source === 'camera' && proofCameraInputRef.current) proofCameraInputRef.current.value = ''
+      return
+    }
+
+    setPhotoUploading(true)
+    const newPhotos: string[] = []
+    const errors: string[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (!file.type.startsWith('image/')) {
+        errors.push(`${file.name}: bukan gambar`)
+        continue
+      }
+      if (file.size > MAX_PROOF_SIZE) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+        errors.push(`${file.name}: ${sizeMB}MB (maks 3MB)`)
+        continue
+      }
+      if (file.size === 0) {
+        errors.push(`${file.name}: file kosong`)
+        continue
+      }
+      try {
+        const { dataUrl } = await resizeImageFile(file, 1024, 0.85)
+        newPhotos.push(dataUrl)
+      } catch {
+        errors.push(`${file.name}: gagal diproses`)
+      }
+    }
+
+    if (newPhotos.length > 0) {
+      setProofPhotos((prev) => [...prev, ...newPhotos])
+      toast({ title: 'Foto ditambahkan', description: `${newPhotos.length} foto bukti penerimaan` })
+    }
+    if (errors.length > 0) {
+      toast({ title: 'Beberapa foto gagal', description: errors.join('; '), variant: 'destructive' })
+    }
+
+    if (source === 'file' && proofFileInputRef.current) proofFileInputRef.current.value = ''
+    if (source === 'camera' && proofCameraInputRef.current) proofCameraInputRef.current.value = ''
+    setPhotoUploading(false)
+  }
+
+  function removeProofPhoto(idx: number) {
+    setProofPhotos((prev) => prev.filter((_, i) => i !== idx))
+  }
+
   function addItemRow() {
     setItems([...items, { itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' }])
   }
@@ -358,6 +445,7 @@ export function BarangMasukPage() {
         orderId: orderId || null,
         senderName: orderId ? '' : senderName.trim(), // hanya jika bukan dari pesanan
         storageLocation: storageLocation.trim(),
+        proofPhotos,
         items: items.map((i) => ({
           itemName: i.itemName,
           quantity: i.quantity,
@@ -465,6 +553,91 @@ export function BarangMasukPage() {
     })
   }
 
+  // ─── Cetak Laporan SEMUA BARANG MASUK ──────────────────────────────────────
+  // Format: No | Nama Barang | Jumlah | Satuan | Kondisi | Diterima (tgl) | Penerima | Pengirim
+  // Flat list: setiap item dari setiap dokumen dijadikan 1 baris.
+  async function handlePrintAllItems(orientation: PrintOrientation = 'landscape') {
+    if (filteredData.length === 0) {
+      toast({ title: 'Info', description: 'Tidak ada data untuk dicetak' })
+      return
+    }
+
+    // Flatten semua items dari semua dokumen, urutkan by entryDate desc
+    const allItems: Array<{
+      itemName: string
+      quantity: number
+      unit: string
+      condition: string
+      entryDate: string
+      penerima: string
+      pengirim: string
+      docNumber: string
+    }> = []
+
+    for (const record of filteredData) {
+      const penerima = record.employee?.name || '-'
+      // Pengirim: senderName (barang lepas) atau nama toko (dari pesanan/toko)
+      const pengirim = record.senderName || record.store?.name || record.order?.store?.name || '-'
+      for (const item of (record.items || [])) {
+        allItems.push({
+          itemName: item.itemName,
+          quantity: item.quantity,
+          unit: item.unit,
+          condition: item.condition,
+          entryDate: record.entryDate,
+          penerima,
+          pengirim,
+          docNumber: record.documentNumber,
+        })
+      }
+    }
+
+    const rowsHtml = allItems.map((item, idx) => `
+      <tr>
+        <td class="text-center">${idx + 1}</td>
+        <td>${item.itemName}</td>
+        <td class="text-center">${item.quantity}</td>
+        <td class="text-center">${item.unit}</td>
+        <td class="text-center">${item.condition}</td>
+        <td class="text-center">${item.entryDate ? formatDatePrint(item.entryDate) : '-'}</td>
+        <td>${item.penerima}</td>
+        <td>${item.pengirim}</td>
+      </tr>
+    `).join('')
+
+    const totalQuantity = allItems.reduce((sum, i) => sum + i.quantity, 0)
+
+    const contentHtml = `
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 40px;">No</th>
+            <th>Nama Barang</th>
+            <th style="width: 60px;">Jumlah</th>
+            <th style="width: 60px;">Satuan</th>
+            <th style="width: 90px;">Kondisi</th>
+            <th style="width: 100px;">Diterima Tanggal</th>
+            <th style="width: 150px;">Penerima</th>
+            <th style="width: 150px;">Pengirim</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+      <div style="margin-top: 12px; font-size: 10pt;">
+        <strong>Total:</strong> ${allItems.length} jenis barang &nbsp;|&nbsp;
+        <strong>Jumlah Unit:</strong> ${totalQuantity} &nbsp;|&nbsp;
+        <strong>Dari ${filteredData.length} dokumen</strong>
+      </div>
+    `
+
+    await printWithKop('LAPORAN SEMUA BARANG MASUK', contentHtml, orientation, {
+      appendSignature: true,
+      signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
+    })
+  }
+
   async function handleExportExcelList() {
     if (filteredData.length === 0) {
       toast({ title: 'Info', description: 'Tidak ada data untuk diekspor' })
@@ -544,8 +717,12 @@ export function BarangMasukPage() {
       const detail: BarangMasukData = await res.json()
 
       const settings = await fetchPrintSettings()
-      const penerimaName = detail.employee?.name || 'Pegawai'
+      const penerimaName = detail.employee?.name || '________________________'
       const penerimaNip = detail.employee?.nip || ''
+      // Jabatan penerima: pakai position dari Employee, fallback "Penerima Barang"
+      const penerimaJabatan = detail.employee?.position || 'Penerima Barang'
+      // Pengirim barang: senderName (kalau ada) atau kosong
+      const pengirimName = detail.senderName || ''
       const signatureHtml = `
         <div class="signature-block">
           <div style="display: flex; justify-content: space-between; margin-top: 24px;">
@@ -558,10 +735,10 @@ export function BarangMasukPage() {
             </div>
             <div style="text-align: center; width: 45%;">
               <div>Penerima,</div>
-              <div style="margin-top: 4px;">${penerimaName}</div>
+              <div style="margin-top: 4px;">${penerimaJabatan}</div>
               <div style="height: 60px;"></div>
-              <div style="text-decoration: underline; font-weight: bold;">________________________</div>
-              <div>NIP. ${penerimaNip}</div>
+              <div style="text-decoration: underline; font-weight: bold;">${penerimaName}</div>
+              <div>NIP. ${penerimaNip || '-'}</div>
             </div>
           </div>
         </div>
@@ -643,6 +820,10 @@ export function BarangMasukPage() {
             <Button variant="outline" onClick={() => setPrintDialogOpen(true)} disabled={loading || filteredData.length === 0}>
               <Printer className="size-4 mr-2" />
               Cetak
+            </Button>
+            <Button variant="outline" onClick={() => setPrintAllItemsDialogOpen(true)} disabled={loading || filteredData.length === 0}>
+              <Printer className="size-4 mr-2" />
+              Cetak Semua Barang
             </Button>
             <Button variant="outline" onClick={handleExportExcelList} disabled={loading || filteredData.length === 0}>
               <FileSpreadsheet className="size-4 mr-2" />
@@ -898,6 +1079,94 @@ export function BarangMasukPage() {
                 </div>
               </div>
 
+              {/* Section 5a: Foto Bukti Penerimaan */}
+              <div className="rounded-md border p-3 bg-muted/20">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Foto Bukti Penerimaan (opsional)</div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Foto barang saat diterima sebagai bukti. Maks {MAX_PROOF_PHOTOS} foto, 3MB per foto.
+                  Mendukung kamera Android.
+                </p>
+                {/* Hidden file inputs */}
+                <input
+                  ref={proofFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleProofPhotoUpload(e.target.files, 'file')
+                    }
+                  }}
+                  className="hidden"
+                />
+                <input
+                  ref={proofCameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleProofPhotoUpload(e.target.files, 'camera')
+                    }
+                  }}
+                  className="hidden"
+                />
+                {/* Action buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => proofFileInputRef.current?.click()}
+                    disabled={photoUploading || proofPhotos.length >= MAX_PROOF_PHOTOS}
+                  >
+                    {photoUploading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Upload className="size-4 mr-2" />}
+                    Pilih File
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => proofCameraInputRef.current?.click()}
+                    disabled={photoUploading || proofPhotos.length >= MAX_PROOF_PHOTOS}
+                  >
+                    <Camera className="size-4 mr-2" />
+                    Ambil Foto
+                  </Button>
+                  {proofPhotos.length > 0 && (
+                    <span className="text-xs text-muted-foreground ml-1">
+                      {proofPhotos.length} / {MAX_PROOF_PHOTOS} foto
+                    </span>
+                  )}
+                </div>
+                {/* Photo thumbnails */}
+                {proofPhotos.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
+                    {proofPhotos.map((photo, idx) => (
+                      <div
+                        key={idx}
+                        className="relative group aspect-square rounded-md border overflow-hidden bg-muted"
+                      >
+                        <img
+                          src={photo}
+                          alt={`Bukti ${idx + 1}`}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => { setPhotoViewerIndex(idx); setPhotoViewerOpen(true) }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeProofPhoto(idx)}
+                          className="absolute top-1 right-1 size-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Hapus foto"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Section 5: Keterangan */}
               <div className="space-y-2">
                 <Label className="text-xs">Keterangan (opsional)</Label>
@@ -1027,6 +1296,15 @@ export function BarangMasukPage() {
         title="Cetak Daftar Barang Masuk"
       />
 
+      {/* Print Dialog - Semua Barang (flat list) */}
+      <PrintDialog
+        open={printAllItemsDialogOpen}
+        onOpenChange={setPrintAllItemsDialogOpen}
+        onPrint={handlePrintAllItems}
+        title="Cetak Semua Barang Masuk"
+        description="Laporan semua barang masuk (No, Nama, Jumlah, Satuan, Kondisi, Tgl Terima, Penerima, Pengirim)"
+      />
+
       {/* Print Dialog - Detail */}
       <PrintDialog
         open={printDetailDialogOpen}
@@ -1035,6 +1313,43 @@ export function BarangMasukPage() {
         title="Cetak Detail Barang Masuk"
         description="Pilih orientasi halaman sebelum mencetak detail"
       />
+
+      {/* ─── Photo Viewer Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={photoViewerOpen} onOpenChange={setPhotoViewerOpen}>
+        <DialogContent className="sm:max-w-[640px] p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Pratinjau Foto Bukti Penerimaan</DialogTitle>
+          {proofPhotos.length > 0 && (
+            <div className="relative">
+              <img
+                src={proofPhotos[photoViewerIndex]}
+                alt={`Bukti ${photoViewerIndex + 1}`}
+                className="w-full max-h-[70vh] object-contain bg-black"
+              />
+              {proofPhotos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoViewerIndex((i) => (i - 1 + proofPhotos.length) % proofPhotos.length)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoViewerIndex((i) => (i + 1) % proofPhotos.length)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-xs">
+                {photoViewerIndex + 1} / {proofPhotos.length}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   )
 }

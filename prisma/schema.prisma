@@ -37,6 +37,18 @@ model SchoolSettings {
   // User bisa edit di Pengaturan (mis. "BM/{NOMOR}/{ROMAN}/{TAHUN}" atau "{PREFIX}-{TAHUN}-{NOMOR}")
   barangMasukDocFormat String  @default("{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}") // Template nomor dokumen barang masuk
   barangMasukDocPrefix String @default("BM") // Kode depan default untuk nomor dokumen
+  // ── Format baku nomor surat pesanan ──
+  // Template nomor surat pesanan. Placeholder:
+  //   {NOMOR}        = nomor urut (input user, mis. "9")
+  //   {PREFIX}       = kode depan (default "PB" = Pesanan Barang)
+  //   {KODE_SEKOLAH} = kode sekolah dari schoolCode
+  //   {KODE_UNIT}    = kode unit dari letterUnitCode
+  //   {ROMAN}        = bulan Romawi (I-XII)
+  //   {TAHUN}        = tahun 4 digit
+  // Default: "{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}"
+  //          → "9/PB/SMAN1TLD-TU/XI/2025"
+  orderDocFormat  String  @default("{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}") // Template nomor surat pesanan
+  orderDocPrefix  String  @default("PB") // Kode depan default untuk nomor surat pesanan
   kopLines          String  @default("[]") // JSON array of strings for KOP identity lines
   // Penandatangan laporan (disinkronisasi ke semua hasil cetak)
   principalName     String  @default("") // Nama Kepala Sekolah
@@ -374,6 +386,11 @@ model BarangMasuk {
   // Lokasi fisik barang ditempatkan setelah masuk (mis. "Gudang A", "Ruang TU").
   // Bisa pilih dari MasterOption category "tempatPenyimpanan" atau tambah manual.
   storageLocation String            @default("") // Tempat penyimpanan barang
+  // ── Foto bukti penerimaan barang (base64 data URLs, JSON array) ──
+  // Foto barang saat diterima sebagai bukti. Maks 3MB per foto (auto-resize
+  // client-side ke 1024px JPEG 0.85 → ~100-300KB per foto).
+  // Mendukung kamera Android via capture="environment".
+  proofPhotos     String            @default("[]") // JSON array of base64 data URLs
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   items           BarangMasukItem[]

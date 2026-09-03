@@ -35,6 +35,8 @@ interface SchoolSettingsData {
   letterUnitCode: string
   barangMasukDocFormat: string
   barangMasukDocPrefix: string
+  orderDocFormat: string
+  orderDocPrefix: string
   logo: string | null          // KOP surat / letterhead logo
   appLogo: string | null       // application logo (login & sidebar)
   favicon: string | null       // browser tab favicon
@@ -66,6 +68,8 @@ const defaultSettings: SchoolSettingsData = {
   letterUnitCode: 'TU',
   barangMasukDocFormat: '{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}',
   barangMasukDocPrefix: 'BM',
+  orderDocFormat: '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}',
+  orderDocPrefix: 'PB',
   logo: null,
   appLogo: null,
   favicon: null,
@@ -176,6 +180,8 @@ export function SettingsPage() {
           letterUnitCode: data.letterUnitCode ?? 'TU',
           barangMasukDocFormat: data.barangMasukDocFormat ?? '{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}',
           barangMasukDocPrefix: data.barangMasukDocPrefix ?? 'BM',
+          orderDocFormat: data.orderDocFormat ?? '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}',
+          orderDocPrefix: data.orderDocPrefix ?? 'PB',
           logo: data.logo ?? null,
           appLogo: data.appLogo ?? null,
           favicon: data.favicon ?? null,
@@ -520,6 +526,58 @@ export function SettingsPage() {
                   value={settings.letterUnitCode}
                   onChange={(e) => updateSettings('letterUnitCode', e.target.value)}
                 />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* ─── Format Nomor Surat Pesanan ─────────────────────────────────── */}
+          <div>
+            <Label className="text-base font-semibold">Format Nomor Surat Pesanan</Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-3">
+              Template nomor surat pesanan barang. Placeholder yang didukung:
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{NOMOR}`}</span>(input user),
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{PREFIX}`}</span>(kode depan),
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{KODE_SEKOLAH}`}</span>,
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{KODE_UNIT}`}</span>,
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{ROMAN}`}</span>(bulan),
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{TAHUN}`}</span>.
+            </p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Contoh default: <span className="font-mono bg-muted px-1 py-0.5 rounded">9/PB/SMAN1TLD-TU/XI/2025</span> — Anda hanya input angka "9", sisanya otomatis.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="orderDocPrefix">Kode Depan (Prefix)</Label>
+                <Input
+                  id="orderDocPrefix"
+                  placeholder="PB"
+                  value={settings.orderDocPrefix}
+                  onChange={(e) => updateSettings('orderDocPrefix', e.target.value.toUpperCase())}
+                />
+                <p className="text-xs text-muted-foreground">Mis. "PB" (Pesanan Barang), "SP", dll.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="orderDocFormat">Template Format</Label>
+                <Input
+                  id="orderDocFormat"
+                  placeholder="{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}"
+                  value={settings.orderDocFormat}
+                  onChange={(e) => updateSettings('orderDocFormat', e.target.value)}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Preview: <span className="font-mono">{
+                    (settings.orderDocFormat || '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}')
+                      .replace(/\{NOMOR\}/g, '9')
+                      .replace(/\{PREFIX\}/g, settings.orderDocPrefix || 'PB')
+                      .replace(/\{KODE_SEKOLAH\}/g, settings.schoolCode || 'SMAN1TLD')
+                      .replace(/\{KODE_UNIT\}/g, settings.letterUnitCode || 'TU')
+                      .replace(/\{ROMAN\}/g, 'XI')
+                      .replace(/\{TAHUN\}/g, String(new Date().getFullYear()))
+                  }</span>
+                </p>
               </div>
             </div>
           </div>

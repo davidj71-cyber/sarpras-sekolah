@@ -82,6 +82,14 @@ export async function PUT(
       }
     }
 
+    // ── Parse proofPhotos — JSON array of base64 data URLs ──
+    let proofPhotos = "[]";
+    if (Array.isArray(body.proofPhotos)) {
+      proofPhotos = JSON.stringify(
+        body.proofPhotos.filter((p: unknown) => typeof p === "string" && (p as string).startsWith("data:image/"))
+      );
+    }
+
     // Full update: delete old items and recreate
     await db.barangMasukItem.deleteMany({
       where: { barangMasukId: id },
@@ -100,6 +108,7 @@ export async function PUT(
         orderId: body.orderId || null,
         senderName,
         storageLocation: String(body.storageLocation ?? "").trim(),
+        proofPhotos,
         items: items
           ? {
               create: items.map(

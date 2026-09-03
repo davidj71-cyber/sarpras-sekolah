@@ -63,6 +63,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Parse proofPhotos — JSON array of base64 data URLs ──
+    let proofPhotos = "[]";
+    if (Array.isArray(body.proofPhotos)) {
+      proofPhotos = JSON.stringify(
+        body.proofPhotos.filter((p: unknown) => typeof p === "string" && (p as string).startsWith("data:image/"))
+      );
+    }
+
     const barangMasuk = await db.barangMasuk.create({
       data: {
         documentNumber: body.documentNumber,
@@ -75,6 +83,7 @@ export async function POST(request: NextRequest) {
         orderId: body.orderId || null,
         senderName,
         storageLocation: String(body.storageLocation ?? "").trim(),
+        proofPhotos,
         items: items
           ? {
               create: items.map(

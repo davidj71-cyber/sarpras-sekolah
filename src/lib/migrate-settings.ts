@@ -66,6 +66,8 @@ async function doEnsureSchoolSettingsSchema(): Promise<string[]> {
     { name: "letterUnitCode", ddl: `TEXT NOT NULL DEFAULT 'TU'` },
     { name: "barangMasukDocFormat", ddl: `TEXT NOT NULL DEFAULT '{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}'` },
     { name: "barangMasukDocPrefix", ddl: `TEXT NOT NULL DEFAULT 'BM'` },
+    { name: "orderDocFormat", ddl: `TEXT NOT NULL DEFAULT '{NOMOR}/{PREFIX}/{KODE_SEKOLAH}-{KODE_UNIT}/{ROMAN}/{TAHUN}'` },
+    { name: "orderDocPrefix", ddl: `TEXT NOT NULL DEFAULT 'PB'` },
     { name: "kopLines", ddl: `TEXT NOT NULL DEFAULT '[]'` },
     { name: "principalName", ddl: `TEXT NOT NULL DEFAULT ''` },
     { name: "principalNip", ddl: `TEXT NOT NULL DEFAULT ''` },
@@ -632,6 +634,16 @@ async function doEnsureBarangMasukSchema(): Promise<string[]> {
     executed.push(`ADD COLUMN IF NOT EXISTS "BarangMasuk.storageLocation"`);
   } catch (e) {
     console.warn("igrate] ADD COLUMN BarangMasuk.storageLocation skipped:", e);
+  }
+
+  // proofPhotos: foto bukti penerimaan barang (JSON array base64)
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "BarangMasuk" ADD COLUMN IF NOT EXISTS "proofPhotos" TEXT NOT NULL DEFAULT '[]'`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "BarangMasuk.proofPhotos"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN BarangMasuk.proofPhotos skipped:", e);
   }
 
   return executed;
