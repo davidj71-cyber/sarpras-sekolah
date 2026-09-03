@@ -562,3 +562,75 @@ async function doEnsureGalonSchema(): Promise<string[]> {
 
   return executed;
 }
+
+// ─── BarangMasuk schema heal ────────────────────────────────────────────────
+// Auto-create tabel & kolom baru (orderId, senderName, storageLocation) di
+// Postgres production kalau belum ada. Idempotent.
+let barangMasukSchemaPromise: Promise<string[]> | null = null;
+
+export function ensureBarangMasukSchema(): Promise<string[]> {
+  if (barangMasukSchemaPromise) return barangMasukSchemaPromise;
+  barangMasukSchemaPromise = (async () => {
+    try {
+      return await doEnsureBarangMasukSchema();
+    } catch (e) {
+      barangMasukSchemaPromise = null;
+      throw e;
+    }
+  })();
+  return barangMasukSchemaPromise;
+}
+
+async function doEnsureBarangMasukSchema(): Promise<string[]> {
+  const executed: string[] = [];
+
+  if (isSqlite()) {
+    // Sandbox DB already has these columns from `prisma db push`.
+    return executed;
+  }
+
+  // ─── Add new columns to BarangMasuk (idempotent) ────────────────────────
+  // orderId: relasi opsional ke Order (pesanan barang)
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "BarangMasuk" ADD COLUMN IF NOT EXISTS "orderId" TEXT`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "BarangMasuk.orderId"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN BarangMasuk.orderId skipped:", e);
+  }
+
+  // Foreign key orderId → Order(id) ON DELETE SET NULL
+  try {
+    await db.$executeRaw`
+      ALTER TABLE "BarangMasuk"
+      ADD CONSTRAINT "BarangMasuk_orderId_fkey"
+      FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE SET NULL ON UPDATE CASCADE
+    `;
+    executed.push(`ADD CONSTRAINT BarangMasuk_orderId_fkey`);
+  } catch {
+    // Constraint sudah ada — expected, skip silently.
+  }
+
+  // senderName: pengirim barang (hanya jika BUKAN dari pesanan)
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "BarangMasuk" ADD COLUMN IF NOT EXISTS "senderName" TEXT NOT NULL DEFAULT ''`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "BarangMasuk.senderName"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN BarangMasuk.senderName skipped:", e);
+  }
+
+  // storageLocation: tempat penyimpanan barang
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "BarangMasuk" ADD COLUMN IF NOT EXISTS "storageLocation" TEXT NOT NULL DEFAULT ''`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "BarangMasuk.storageLocation"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN BarangMasuk.storageLocation skipped:", e);
+  }
+
+  return executed;
+}

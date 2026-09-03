@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureBarangMasukSchema } from "@/lib/migrate-settings";
 
+// ─── /api/barang-masuk — Barang Masuk ────────────────────────────────────────
+// Jika body.orderId di-set, auto-fill storeId & items dari pesanan terkait.
+// Jika orderId null, simpan senderName (pengirim) untuk barang masuk lepas.
 export async function GET() {
   try {
+    await ensureBarangMasukSchema();
+
     const barangMasuk = await db.barangMasuk.findMany({
       orderBy: { createdAt: "desc" },
       include: {
         store: true,
         employee: true,
         items: true,
+        order: { include: { store: true } },
       },
     });
 
@@ -24,20 +31,53 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureBarangMasukSchema();
+
     const body = await request.json();
+
+    // ── Jika orderId di-set, auto-fill storeId & items dari pesanan ──────────
+    // Logic: barang masuk berasal dari pesanan → toko sudah pasti (dari pesanan),
+    // items juga auto-fill dari OrderItem pesanan. senderName dikosongkan.
+    let storeId = body.storeId || null;
+    let items = body.items;
+    let senderName = String(body.senderName ?? "").trim();
+
+    if (body.orderId) {
+      const order = await db.order.findUnique({
+        where: { id: String(body.orderId) },
+        include: { items: true },
+      });
+      if (order) {
+        storeId = order.storeId; // auto-fill toko dari pesanan
+        senderName = ""; // pesanan sudah punya toko, tidak perlu pengirim
+        // Auto-fill items dari OrderItem kalau tidak dikirim manual
+        if (!items || !Array.isArray(items) || items.length === 0) {
+          items = order.items.map((oi) => ({
+            itemName: oi.itemName,
+            quantity: oi.quantity,
+            unit: oi.unit,
+            condition: "Baik",
+            notes: "",
+          }));
+        }
+      }
+    }
 
     const barangMasuk = await db.barangMasuk.create({
       data: {
         documentNumber: body.documentNumber,
         entryDate: body.entryDate ? new Date(body.entryDate) : new Date(),
-        storeId: body.storeId || null,
+        storeId: storeId || null,
         employeeId: body.employeeId || null,
         source: body.source ?? "",
         notes: body.notes ?? "",
         status: body.status ?? "Draft",
-        items: body.items
+        orderId: body.orderId || null,
+        senderName,
+        storageLocation: String(body.storageLocation ?? "").trim(),
+        items: items
           ? {
-              create: body.items.map(
+              create: items.map(
                 (item: {
                   itemName: string;
                   quantity?: number;
@@ -59,6 +99,7 @@ export async function POST(request: NextRequest) {
         store: true,
         employee: true,
         items: true,
+        order: { include: { store: true } },
       },
     });
 

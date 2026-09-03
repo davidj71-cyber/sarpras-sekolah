@@ -97,6 +97,15 @@ interface BarangMasukItemData {
   notes: string
 }
 
+interface OrderData {
+  id: string
+  orderNumber: string
+  orderDate: string
+  storeId: string
+  store?: { id: string; name: string }
+  items: Array<{ itemName: string; quantity: number; unit: string }>
+}
+
 interface BarangMasukData {
   id: string
   documentNumber: string
@@ -109,6 +118,10 @@ interface BarangMasukData {
   store?: StoreData
   employee?: EmployeeData
   items?: BarangMasukItemData[]
+  orderId?: string | null
+  order?: OrderData | null
+  senderName?: string
+  storageLocation?: string
   createdAt: string
 }
 
@@ -140,6 +153,7 @@ export function BarangMasukPage() {
   const [data, setData] = useState<BarangMasukData[]>([])
   const [stores, setStores] = useState<StoreData[]>([])
   const [employees, setEmployees] = useState<EmployeeData[]>([])
+  const [orders, setOrders] = useState<OrderData[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
@@ -156,6 +170,13 @@ export function BarangMasukPage() {
   const [source, setSource] = useState('')
   const [entryNotes, setEntryNotes] = useState('')
   const [entryStatus, setEntryStatus] = useState('Draft')
+  // ── Field baru ──
+  // orderId: jika di-set, auto-fill toko + items dari pesanan, sembunyikan field pengirim
+  const [orderId, setOrderId] = useState('')
+  // senderName: pengirim barang (hanya tampil jika BUKAN dari pesanan)
+  const [senderName, setSenderName] = useState('')
+  // storageLocation: tempat penyimpanan (MasterCombobox category "tempatPenyimpanan")
+  const [storageLocation, setStorageLocation] = useState('')
   const [items, setItems] = useState<BarangMasukItemForm[]>([
     { itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' },
   ])
@@ -193,9 +214,20 @@ export function BarangMasukPage() {
 
   const fetchSupporting = useCallback(async () => {
     try {
-      const [storeRes, empRes] = await Promise.all([fetch('/api/stores'), fetch('/api/employees')])
+      const [storeRes, empRes, orderRes] = await Promise.all([
+        fetch('/api/stores'),
+        fetch('/api/employees'),
+        fetch('/api/orders'),
+      ])
       if (storeRes.ok) setStores(await storeRes.json())
       if (empRes.ok) setEmployees(await empRes.json())
+      if (orderRes.ok) {
+        const orderData = await orderRes.json()
+        // Hanya tampilkan pesanan yang status-nya Dikirim/Diterima (sudah Final),
+        // bukan Draft. Pesanan Draft belum final → belum relevan untuk barang masuk.
+        // Tapi tetap tampilkan semua biar user fleksibel.
+        setOrders(orderData)
+      }
     } catch {
       // silent
     }
@@ -214,6 +246,9 @@ export function BarangMasukPage() {
     setSource('')
     setEntryNotes('')
     setEntryStatus('Draft')
+    setOrderId('')
+    setSenderName('')
+    setStorageLocation('')
     setItems([{ itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' }])
     setDialogOpen(true)
   }
@@ -227,6 +262,9 @@ export function BarangMasukPage() {
     setSource(record.source)
     setEntryNotes(record.notes)
     setEntryStatus(record.status)
+    setOrderId(record.orderId || '')
+    setSenderName(record.senderName || '')
+    setStorageLocation(record.storageLocation || '')
     setItems(
       record.items?.map((i) => ({
         itemName: i.itemName,
@@ -236,6 +274,42 @@ export function BarangMasukPage() {
       })) || [{ itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' }]
     )
     setDialogOpen(true)
+  }
+
+  // ── Handle pilih pesanan: auto-fill toko + items ──────────────────────────
+  // Saat user pilih pesanan dari dropdown:
+  // 1. set orderId
+  // 2. auto-fill storeId dari pesanan (toko saja, tanpa pengirim)
+  // 3. auto-fill items dari OrderItem pesanan
+  // 4. clear senderName (pesanan sudah punya toko, tidak perlu pengirim)
+  function handleSelectOrder(selectedOrderId: string) {
+    setOrderId(selectedOrderId)
+    if (!selectedOrderId || selectedOrderId === '__none__') {
+      // Clear selection — kembali ke mode lepas (tampilkan toko + pengirim)
+      setOrderId('')
+      setSenderName('')
+      return
+    }
+    const order = orders.find((o) => o.id === selectedOrderId)
+    if (order) {
+      // Auto-fill toko dari pesanan
+      setStoreId(order.storeId)
+      // Clear pengirim (pesanan sudah punya toko)
+      setSenderName('')
+      // Auto-fill items dari OrderItem
+      if (order.items && order.items.length > 0) {
+        setItems(
+          order.items.map((oi) => ({
+            itemName: oi.itemName,
+            quantity: oi.quantity,
+            unit: oi.unit || 'Unit',
+            condition: 'Baik',
+          }))
+        )
+      }
+      // Auto-set source ke "Pembelian" kalau kosong
+      if (!source.trim()) setSource('Pembelian')
+    }
   }
 
   function addItemRow() {
@@ -273,6 +347,9 @@ export function BarangMasukPage() {
         source,
         notes: entryNotes,
         status: entryStatus,
+        orderId: orderId || null,
+        senderName: orderId ? '' : senderName.trim(), // hanya jika bukan dari pesanan
+        storageLocation: storageLocation.trim(),
         items: items.map((i) => ({
           itemName: i.itemName,
           quantity: i.quantity,
@@ -668,63 +745,132 @@ export function BarangMasukPage() {
 
           <ScrollArea className="max-h-[65vh] pr-4">
             <div className="space-y-4">
-              {/* Entry Info */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Nomor Dokumen *</Label>
-                  <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} placeholder="BM/001/2025" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Tanggal Masuk</Label>
-                  <Input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Toko (Opsional)</Label>
-                  <Select value={storeId} onValueChange={setStoreId}>
-                    <SelectTrigger><SelectValue placeholder="Pilih toko" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Tidak ada</SelectItem>
-                      {stores.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Pegawai Penerima</Label>
-                  <Select value={employeeId} onValueChange={setEmployeeId}>
-                    <SelectTrigger><SelectValue placeholder="Pilih pegawai" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Tidak ada</SelectItem>
-                      {employees.map((e) => (
-                        <SelectItem key={e.id} value={e.id}>{e.name}{e.position ? ` - ${e.position}` : ''}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Sumber Barang</Label>
-                  <MasterCombobox
-                    category="sumberBarang"
-                    value={source}
-                    onChange={setSource}
-                    placeholder="Pembelian, Donasi, Hibah, dll."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select value={entryStatus} onValueChange={setEntryStatus}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Draft">Draft</SelectItem>
-                      <SelectItem value="Diterima">Diterima</SelectItem>
-                      <SelectItem value="Ditolak">Ditolak</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {/* ─── Entry Info (layout rapih, tidak menumpuk) ─────────────────── */}
+              {/* Section 1: Identitas dokumen */}
+              <div className="rounded-md border p-3 bg-muted/20">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Identitas Dokumen</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Nomor Dokumen *</Label>
+                    <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} placeholder="BM/001/2025" className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Tanggal Masuk</Label>
+                    <Input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className="h-9" />
+                  </div>
                 </div>
               </div>
+
+              {/* Section 2: Relasi dengan Pesanan Barang */}
+              <div className="rounded-md border p-3 bg-muted/20">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Pesanan Barang (opsional)</div>
+                <div className="space-y-2">
+                  <Select value={orderId || '__none__'} onValueChange={handleSelectOrder}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Pilih pesanan (auto-fill toko + items)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Tidak ada (barang masuk lepas) —</SelectItem>
+                      {orders.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.orderNumber}{o.store ? ` · ${o.store.name}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Pilih pesanan untuk <strong>auto-fill toko & items</strong>. Jika dari pesanan, field pengirim disembunyikan (cukup toko saja).
+                    Jika tidak ada pesanan, isi toko + pengirim manual di bawah.
+                  </p>
+                </div>
+              </div>
+
+              {/* Section 3: Sumber & Penerima */}
+              <div className="rounded-md border p-3 bg-muted/20">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Sumber & Penerima</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {/* Toko — disable jika sudah ada pesanan (auto-fill dari pesanan) */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">
+                      Toko {orderId ? '(dari pesanan)' : '(opsional)'}
+                    </Label>
+                    <Select value={storeId} onValueChange={setStoreId} disabled={!!orderId}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Pilih toko" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Tidak ada</SelectItem>
+                        {stores.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Pengirim — HANYA tampil jika BUKAN dari pesanan */}
+                  {!orderId && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Pengirim (siapa yang mengantar)</Label>
+                      <Input
+                        value={senderName}
+                        onChange={(e) => setSenderName(e.target.value)}
+                        placeholder="mis. Pak Rahmat / Kurir JNE"
+                        className="h-9"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Sumber Barang</Label>
+                    <MasterCombobox
+                      category="sumberBarang"
+                      value={source}
+                      onChange={setSource}
+                      placeholder="Pembelian, Donasi, Hibah, dll."
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Pegawai Penerima</Label>
+                    <Select value={employeeId} onValueChange={setEmployeeId}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Pilih pegawai" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Tidak ada</SelectItem>
+                        {employees.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>{e.name}{e.position ? ` - ${e.position}` : ''}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Tempat Penyimpanan & Status */}
+              <div className="rounded-md border p-3 bg-muted/20">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Penyimpanan & Status</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Tempat Penyimpanan</Label>
+                    <MasterCombobox
+                      category="tempatPenyimpanan"
+                      value={storageLocation}
+                      onChange={setStorageLocation}
+                      placeholder="Gudang A, Ruang TU, Lemari 3, dll."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Bisa pilih dari daftar atau ketik baru (otomatis tersimpan ke daftar pilihan).
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Status</Label>
+                    <Select value={entryStatus} onValueChange={setEntryStatus}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Draft">Draft</SelectItem>
+                        <SelectItem value="Diterima">Diterima</SelectItem>
+                        <SelectItem value="Ditolak">Ditolak</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Keterangan */}
               <div className="space-y-2">
-                <Label>Keterangan</Label>
+                <Label className="text-xs">Keterangan (opsional)</Label>
                 <Textarea value={entryNotes} onChange={(e) => setEntryNotes(e.target.value)} placeholder="Keterangan tambahan" rows={2} />
               </div>
 
@@ -743,11 +889,11 @@ export function BarangMasukPage() {
                       <Label className="text-xs">Nama Barang</Label>
                       <Input value={item.itemName} onChange={(e) => updateItem(idx, 'itemName', e.target.value)} placeholder="Nama barang" className="h-9" />
                     </div>
-                    <div className="col-span-3 sm:col-span-2 space-y-1">
+                    <div className="col-span-4 sm:col-span-2 space-y-1">
                       <Label className="text-xs">Jumlah</Label>
                       <Input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))} className="h-9" />
                     </div>
-                    <div className="col-span-3 sm:col-span-2 space-y-1">
+                    <div className="col-span-4 sm:col-span-2 space-y-1">
                       <Label className="text-xs">Satuan</Label>
                       <MasterCombobox
                         category="satuan"
@@ -757,7 +903,7 @@ export function BarangMasukPage() {
                         className="h-9"
                       />
                     </div>
-                    <div className="col-span-4 sm:col-span-3 space-y-1">
+                    <div className="col-span-3 sm:col-span-3 space-y-1">
                       <Label className="text-xs">Kondisi</Label>
                       <Select value={item.condition} onValueChange={(value) => updateItem(idx, 'condition', value)}>
                         <SelectTrigger className="h-9">
@@ -770,7 +916,7 @@ export function BarangMasukPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="col-span-2 flex justify-end">
+                    <div className="col-span-1 flex justify-end">
                       <Button
                         variant="ghost"
                         size="icon"

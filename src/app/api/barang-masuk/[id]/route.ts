@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureBarangMasukSchema } from "@/lib/migrate-settings";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureBarangMasukSchema();
+
     const { id } = await params;
     const barangMasuk = await db.barangMasuk.findUnique({
       where: { id },
@@ -13,6 +16,7 @@ export async function GET(
         store: true,
         employee: true,
         items: true,
+        order: { include: { store: true } },
       },
     });
 
@@ -38,6 +42,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureBarangMasukSchema();
+
     const { id } = await params;
     const body = await request.json();
 
@@ -46,9 +52,34 @@ export async function PUT(
       const updated = await db.barangMasuk.update({
         where: { id },
         data: { status: body.status },
-        include: { store: true, employee: true, items: true },
+        include: { store: true, employee: true, items: true, order: { include: { store: true } } },
       });
       return NextResponse.json(updated);
+    }
+
+    // ── Jika orderId di-set, auto-fill storeId & items dari pesanan ──────────
+    let storeId = body.storeId || null;
+    let items = body.items;
+    let senderName = String(body.senderName ?? "").trim();
+
+    if (body.orderId) {
+      const order = await db.order.findUnique({
+        where: { id: String(body.orderId) },
+        include: { items: true },
+      });
+      if (order) {
+        storeId = order.storeId;
+        senderName = "";
+        if (!items || !Array.isArray(items) || items.length === 0) {
+          items = order.items.map((oi) => ({
+            itemName: oi.itemName,
+            quantity: oi.quantity,
+            unit: oi.unit,
+            condition: "Baik",
+            notes: "",
+          }));
+        }
+      }
     }
 
     // Full update: delete old items and recreate
@@ -61,14 +92,17 @@ export async function PUT(
       data: {
         documentNumber: body.documentNumber,
         entryDate: body.entryDate ? new Date(body.entryDate) : undefined,
-        storeId: body.storeId || null,
+        storeId: storeId || null,
         employeeId: body.employeeId || null,
         source: body.source ?? "",
         notes: body.notes ?? "",
         status: body.status ?? "Draft",
-        items: body.items
+        orderId: body.orderId || null,
+        senderName,
+        storageLocation: String(body.storageLocation ?? "").trim(),
+        items: items
           ? {
-              create: body.items.map(
+              create: items.map(
                 (item: {
                   itemName: string;
                   quantity?: number;
@@ -90,6 +124,7 @@ export async function PUT(
         store: true,
         employee: true,
         items: true,
+        order: { include: { store: true } },
       },
     });
 
@@ -108,6 +143,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureBarangMasukSchema();
+
     const { id } = await params;
 
     await db.barangMasukItem.deleteMany({

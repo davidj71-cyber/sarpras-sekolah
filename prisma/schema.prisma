@@ -319,6 +319,7 @@ model Order {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   items           OrderItem[]
+  barangMasukEntries BarangMasuk[] // Relasi balik: barang masuk yang berasal dari pesanan ini
 }
 
 model OrderItem {
@@ -352,8 +353,19 @@ model BarangMasuk {
   source          String            @default("") // Sumber barang (donasi, pembelian, dll)
   notes           String            @default("")
   status          String            @default("Draft") // Draft, Diterima, Ditolak
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  // ── Relasi dengan Pesanan Barang ──
+  // orderId: jika barang masuk berasal dari pesanan (Order), link ke sini.
+  // Saat orderId di-set: storeId & items auto-fill dari pesanan, tampilkan toko saja.
+  // Saat orderId null: barang masuk lepas, tampilkan toko + pengirim (senderName).
+  orderId         String?           // Relasi opsional ke Order (Pesanan Barang)
+  order           Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  senderName      String            @default("") // Pengirim barang (hanya jika BUKAN dari pesanan)
+  // ── Tempat penyimpanan ──
+  // Lokasi fisik barang ditempatkan setelah masuk (mis. "Gudang A", "Ruang TU").
+  // Bisa pilih dari MasterOption category "tempatPenyimpanan" atau tambah manual.
+  storageLocation String            @default("") // Tempat penyimpanan barang
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   items           BarangMasukItem[]
 }
 
