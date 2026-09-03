@@ -33,6 +33,8 @@ interface SchoolSettingsData {
   email: string | null
   schoolCode: string
   letterUnitCode: string
+  barangMasukDocFormat: string
+  barangMasukDocPrefix: string
   logo: string | null          // KOP surat / letterhead logo
   appLogo: string | null       // application logo (login & sidebar)
   favicon: string | null       // browser tab favicon
@@ -62,6 +64,8 @@ const defaultSettings: SchoolSettingsData = {
   email: '',
   schoolCode: '',
   letterUnitCode: 'TU',
+  barangMasukDocFormat: '{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}',
+  barangMasukDocPrefix: 'BM',
   logo: null,
   appLogo: null,
   favicon: null,
@@ -170,6 +174,8 @@ export function SettingsPage() {
           email: data.email ?? '',
           schoolCode: data.schoolCode ?? '',
           letterUnitCode: data.letterUnitCode ?? 'TU',
+          barangMasukDocFormat: data.barangMasukDocFormat ?? '{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}',
+          barangMasukDocPrefix: data.barangMasukDocPrefix ?? 'BM',
           logo: data.logo ?? null,
           appLogo: data.appLogo ?? null,
           favicon: data.favicon ?? null,
@@ -514,6 +520,54 @@ export function SettingsPage() {
                   value={settings.letterUnitCode}
                   onChange={(e) => updateSettings('letterUnitCode', e.target.value)}
                 />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* ─── Format Dokumen Barang Masuk ──────────────────────────────────── */}
+          <div>
+            <Label className="text-base font-semibold">Format Dokumen Barang Masuk</Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-3">
+              Template nomor dokumen barang masuk. Placeholder yang didukung:
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{PREFIX}`}</span>(kode depan),
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{NOMOR}`}</span>(urut 3-digit),
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{ROMAN}`}</span>(bulan Romawi),
+              <span className="font-mono bg-muted px-1 py-0.5 rounded mx-1">{`{TAHUN}`}</span>(tahun).
+            </p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Contoh default: <span className="font-mono bg-muted px-1 py-0.5 rounded">BM/001/VIII/2026</span> — nomor urut & bulan otomatis, Anda hanya input kode depan.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="barangMasukDocPrefix">Kode Depan (Prefix)</Label>
+                <Input
+                  id="barangMasukDocPrefix"
+                  placeholder="BM"
+                  value={settings.barangMasukDocPrefix}
+                  onChange={(e) => updateSettings('barangMasukDocPrefix', e.target.value.toUpperCase())}
+                />
+                <p className="text-xs text-muted-foreground">Mis. "BM" (Barang Masuk), "BRM", dll.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="barangMasukDocFormat">Template Format</Label>
+                <Input
+                  id="barangMasukDocFormat"
+                  placeholder="{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}"
+                  value={settings.barangMasukDocFormat}
+                  onChange={(e) => updateSettings('barangMasukDocFormat', e.target.value)}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Preview: <span className="font-mono">{
+                    (settings.barangMasukDocFormat || '{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}')
+                      .replace(/\{PREFIX\}/g, settings.barangMasukDocPrefix || 'BM')
+                      .replace(/\{NOMOR\}/g, '001')
+                      .replace(/\{ROMAN\}/g, 'VIII')
+                      .replace(/\{TAHUN\}/g, String(new Date().getFullYear()))
+                  }</span>
+                </p>
               </div>
             </div>
           </div>

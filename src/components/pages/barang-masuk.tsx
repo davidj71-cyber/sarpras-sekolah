@@ -49,7 +49,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Plus,
   Pencil,
@@ -251,6 +250,15 @@ export function BarangMasukPage() {
     setStorageLocation('')
     setItems([{ itemName: '', quantity: 1, unit: 'Unit', condition: 'Baik' }])
     setDialogOpen(true)
+    // Auto-generate nomor dokumen berdasarkan format dari Pengaturan
+    fetch('/api/barang-masuk/generate-doc-number')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.documentNumber) {
+          setDocumentNumber(data.documentNumber)
+        }
+      })
+      .catch(() => { /* silent — user bisa input manual */ })
   }
 
   function openEditDialog(record: BarangMasukData) {
@@ -737,13 +745,15 @@ export function BarangMasukPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-3xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <DialogTitle>{editingData ? 'Edit Barang Masuk' : 'Tambah Barang Masuk'}</DialogTitle>
             <DialogDescription>{editingData ? 'Perbarui data barang masuk' : 'Isi data barang masuk baru'}</DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[65vh] pr-4">
+          {/* Scrollable body — flex-1 supaya ambil sisa tinggi, overflow-y-auto
+              supaya konten panjang bisa di-scroll tanpa menumpuk footer. */}
+          <div className="flex-1 overflow-y-auto px-6 py-4">
             <div className="space-y-4">
               {/* ─── Entry Info (layout rapih, tidak menumpuk) ─────────────────── */}
               {/* Section 1: Identitas dokumen */}
@@ -752,7 +762,27 @@ export function BarangMasukPage() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Nomor Dokumen *</Label>
-                    <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} placeholder="BM/001/2025" className="h-9" />
+                    <div className="flex gap-2">
+                      <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} placeholder="BM/001/2025" className="h-9 flex-1" />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-3 shrink-0"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/barang-masuk/generate-doc-number')
+                            if (res.ok) {
+                              const data = await res.json()
+                              if (data.documentNumber) setDocumentNumber(data.documentNumber)
+                            }
+                          } catch { /* silent */ }
+                        }}
+                        title="Generate nomor otomatis"
+                      >
+                        <Plus className="size-3.5" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Tanggal Masuk</Label>
@@ -935,9 +965,10 @@ export function BarangMasukPage() {
                 </div>
               </div>
             </div>
-          </ScrollArea>
+          </div>
 
-          <DialogFooter>
+          {/* Footer — sticky di bawah dialog, tidak ikut scroll */}
+          <DialogFooter className="px-6 py-4 border-t bg-background shrink-0">
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Batal</Button>
             <Button onClick={handleSubmit} disabled={saving}>
               {saving && <Loader2 className="size-4 mr-2 animate-spin" />}

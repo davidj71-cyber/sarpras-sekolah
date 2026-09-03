@@ -27,6 +27,16 @@ model SchoolSettings {
   npsn              String? // Nomor Pokok Sekolah Nasional
   schoolCode        String  @default("") // Kode sekolah untuk format nomor surat (misal: SMAN1TLD)
   letterUnitCode    String  @default("TU") // Kode unit untuk format nomor surat (misal: TU = Tata Usaha)
+  // ── Format baku dokumen barang masuk ──
+  // Template nomor dokumen. Placeholder yang didukung:
+  //   {PREFIX}     = kode depan (default: "BM")
+  //   {NOMOR}      = nomor urut (auto-increment per tahun)
+  //   {ROMAN}      = bulan Romawi (I-XII)
+  //   {TAHUN}      = tahun 4 digit
+  // Default: "{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}" → "BM/001/VIII/2026"
+  // User bisa edit di Pengaturan (mis. "BM/{NOMOR}/{ROMAN}/{TAHUN}" atau "{PREFIX}-{TAHUN}-{NOMOR}")
+  barangMasukDocFormat String  @default("{PREFIX}/{NOMOR}/{ROMAN}/{TAHUN}") // Template nomor dokumen barang masuk
+  barangMasukDocPrefix String @default("BM") // Kode depan default untuk nomor dokumen
   kopLines          String  @default("[]") // JSON array of strings for KOP identity lines
   // Penandatangan laporan (disinkronisasi ke semua hasil cetak)
   principalName     String  @default("") // Nama Kepala Sekolah
