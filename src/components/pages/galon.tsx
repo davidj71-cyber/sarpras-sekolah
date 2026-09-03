@@ -139,7 +139,7 @@ const emptyForm: FormData = {
 
 // Photo upload config
 const MAX_DELIVERY_PHOTOS = 5
-const MAX_PHOTO_SIZE = 3 * 1024 * 1024 // 3 MB input file limit
+const MAX_PHOTO_SIZE = 10 * 1024 * 1024 // 10 MB input file limit
 const PHOTO_MAX_DIMENSION = 1024
 const PHOTO_QUALITY = 0.85
 
@@ -300,10 +300,10 @@ export function GalonPage() {
         errors.push(`${file.name}: bukan gambar`)
         continue
       }
-      // Maks 3MB per foto (input file, sebelum resize)
+      // Maks 10MB per foto (input file, sebelum resize)
       if (file.size > MAX_PHOTO_SIZE) {
         const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
-        errors.push(`${file.name}: ${sizeMB}MB (maks 3MB)`)
+        errors.push(`${file.name}: ${sizeMB}MB (maks 10MB)`)
         continue
       }
       if (file.size === 0) {
@@ -929,7 +929,7 @@ export function GalonPage() {
             <div className="grid gap-2">
               <Label className="text-sm font-medium">Foto Bukti Pengantaran (opsional)</Label>
               <p className="text-xs text-muted-foreground">
-                Foto galon saat diterima/diangkut sebagai bukti. Maks {MAX_DELIVERY_PHOTOS} foto, 3MB per foto.
+                Foto galon saat diterima/diangkut sebagai bukti. Maks {MAX_DELIVERY_PHOTOS} foto, 10MB per foto.
                 Mendukung kamera Android.
               </p>
               {/* Hidden file inputs */}

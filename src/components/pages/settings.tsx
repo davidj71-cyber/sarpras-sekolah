@@ -298,7 +298,7 @@ export function SettingsPage() {
 
   // ─── App logo & favicon handlers (max 3 MB input, auto-resized) ───────────
 
-  const MAX_APP_IMAGE_SIZE = 3 * 1024 * 1024 // 3 MB input file limit
+  const MAX_APP_IMAGE_SIZE = 10 * 1024 * 1024 // 10 MB input file limit
 
   const processImageFile = useCallback(
     async (

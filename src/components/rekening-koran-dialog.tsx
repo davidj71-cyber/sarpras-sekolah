@@ -488,10 +488,10 @@ export function RekeningKoranDialog({
   }, [])
 
   // ── Upload logo KOP ────────────────────────────────────────────────────────
-  // Maks 3MB. Gambar di-resize ke max 512px untuk menjaga ukuran payload tetap
+  // Maks 10MB. Gambar di-resize ke max 512px untuk menjaga ukuran payload tetap
   // kecil (request gateway limit). Disimpan ke SchoolSettings.logo via API,
   // lalu update state lokal supaya KOP langsung ter-update di preview.
-  const MAX_LOGO_SIZE = 3 * 1024 * 1024 // 3 MB
+  const MAX_LOGO_SIZE = 10 * 1024 * 1024 // 10 MB
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -504,7 +504,7 @@ export function RekeningKoranDialog({
       return
     }
     if (file.size > MAX_LOGO_SIZE) {
-      toast({ title: 'File terlalu besar', description: `Ukuran maksimal 3MB. File Anda ${(file.size / 1024 / 1024).toFixed(2)}MB.`, variant: 'destructive' })
+      toast({ title: 'File terlalu besar', description: `Ukuran maksimal 10MB. File Anda ${(file.size / 1024 / 1024).toFixed(2)}MB.`, variant: 'destructive' })
       return
     }
 
@@ -731,7 +731,7 @@ export function RekeningKoranDialog({
                   <span className="text-sm font-medium">Logo KOP Surat</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Logo institusi yang tampil di header surat. Maks 3MB (JPG/PNG/SVG).
+                  Logo institusi yang tampil di header surat. Maks 10MB (JPG/PNG/SVG).
                   Akan otomatis di-resize ke 512px.
                 </p>
                 <input

@@ -181,7 +181,7 @@ export function BarangMasukPage() {
   // storageLocation: tempat penyimpanan (MasterCombobox category "tempatPenyimpanan")
   const [storageLocation, setStorageLocation] = useState('')
   // ── Foto bukti penerimaan barang (base64 data URLs) ──
-  // Foto barang saat diterima sebagai bukti. Maks 5 foto, 3MB per foto.
+  // Foto barang saat diterima sebagai bukti. Maks 5 foto, 10MB per foto.
   // Mendukung kamera Android via capture="environment".
   const [proofPhotos, setProofPhotos] = useState<string[]>([])
   const [photoUploading, setPhotoUploading] = useState(false)
@@ -346,10 +346,10 @@ export function BarangMasukPage() {
   }
 
   // ── Photo upload handlers (bukti penerimaan barang) ────────────────────────
-  // Maks 5 foto, 3MB per foto. Auto-resize ke 1024px JPEG 0.85.
+  // Maks 5 foto, 10MB per foto. Auto-resize ke 1024px JPEG 0.85.
   // Mendukung kamera Android via capture="environment".
   const MAX_PROOF_PHOTOS = 5
-  const MAX_PROOF_SIZE = 3 * 1024 * 1024 // 3 MB input file limit
+  const MAX_PROOF_SIZE = 10 * 1024 * 1024 // 10 MB input file limit
 
   async function handleProofPhotoUpload(files: FileList, source: 'file' | 'camera') {
     if (proofPhotos.length + files.length > MAX_PROOF_PHOTOS) {
@@ -375,7 +375,7 @@ export function BarangMasukPage() {
       }
       if (file.size > MAX_PROOF_SIZE) {
         const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
-        errors.push(`${file.name}: ${sizeMB}MB (maks 3MB)`)
+        errors.push(`${file.name}: ${sizeMB}MB (maks 10MB)`)
         continue
       }
       if (file.size === 0) {
@@ -1083,7 +1083,7 @@ export function BarangMasukPage() {
               <div className="rounded-md border p-3 bg-muted/20">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Foto Bukti Penerimaan (opsional)</div>
                 <p className="text-xs text-muted-foreground mb-2">
-                  Foto barang saat diterima sebagai bukti. Maks {MAX_PROOF_PHOTOS} foto, 3MB per foto.
+                  Foto barang saat diterima sebagai bukti. Maks {MAX_PROOF_PHOTOS} foto, 10MB per foto.
                   Mendukung kamera Android.
                 </p>
                 {/* Hidden file inputs */}
