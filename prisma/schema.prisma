@@ -564,3 +564,74 @@ model GalonEntry {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
+
+// ─── Berita Acara Peminjaman & Pengembalian Barang ────────────────────────────
+// Catatan peminjaman barang inventaris (dari sekolah ke pihak lain, atau
+// sebaliknya). Berita Acara (BA) Peminjaman dicetak saat barang dipinjam,
+// BA Pengembalian dicetak saat barang dikembalikan.
+
+// ── Master Borrower (Peminjam) — bisa dari daftar pegawai atau pihak eksternal ──
+model Borrower {
+  id            String   @id @default(cuid())
+  name          String   // Nama peminjam
+  organization  String   @default("") // Institusi/instansi peminjam
+  address       String   @default("") // Alamat peminjam
+  phone         String   @default("") // No. HP/telp peminjam
+  role          String   @default("Eksternal") // Eksternal, Pegawai, dll
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  borrowings     BorrowingEntry[]
+}
+
+// ── Berita Acara Peminjaman ──
+model BorrowingEntry {
+  id              String   @id @default(cuid())
+  baNumber        String   // Nomor Berita Acara Peminjaman (mis. 001/BA-PIN/...)
+  borrowDate      DateTime @default(now()) // Tanggal peminjaman
+  expectedReturnDate DateTime? // Tanggal rencana pengembalian
+  actualReturnDate DateTime? // Tanggal aktual pengembalian (diisi saat BA Pengembalian)
+  borrowerId      String   // Relasi ke Borrower
+  borrower        Borrower @relation(fields: [borrowerId], references: [id])
+  purpose         String   @default("") // Keperluan peminjaman
+  notes           String   @default("") // Catatan
+  status          String   @default("Dipinjam") // Dipinjam, Dikembalikan
+  // Penandatangan BA Peminjaman
+  lenderName      String   @default("") // Nama pemberi pinjaman (PIC dari sekolah)
+  lenderNip       String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  items           BorrowingItem[]
+  returnEntry     ReturnEntry? // Relasi 1:1 ke BA Pengembalian
+}
+
+// ── Item yang dipinjam ──
+model BorrowingItem {
+  id              String   @id @default(cuid())
+  borrowingId     String
+  borrowing       BorrowingEntry @relation(fields: [borrowingId], references: [id], onDelete: Cascade)
+  itemName        String   // Nama barang
+  registrationNumber String @default("") // No. Register
+  quantity        Int      @default(1) // Jumlah
+  unit            String   @default("Unit")
+  condition       String   @default("Baik") // Kondisi saat dipinjam
+  notes           String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ── Berita Acara Pengembalian ──
+model ReturnEntry {
+  id              String   @id @default(cuid())
+  baNumber        String   // Nomor Berita Acara Pengembalian
+  returnDate      DateTime @default(now()) // Tanggal pengembalian
+  borrowingId     String   @unique // Relasi 1:1 ke BA Peminjaman
+  borrowing       BorrowingEntry @relation(fields: [borrowingId], references: [id])
+  notes           String   @default("") // Catatan pengembalian
+  // Penandatangan BA Pengembalian
+  receiverName    String   @default("") // Nama penerima pengembalian
+  receiverNip     String   @default("")
+  // kondisi saat dikembalikan per item — disimpan sebagai JSON array
+  returnItems     String   @default("[]") // JSON array: [{itemName, condition, notes}]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

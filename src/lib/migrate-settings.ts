@@ -688,3 +688,144 @@ async function doEnsureBarangMasukSchema(): Promise<string[]> {
 
   return executed;
 }
+
+// ─── Borrowing/Return schema heal ───────────────────────────────────────────
+// Auto-create Borrower, BorrowingEntry, BorrowingItem, ReturnEntry tables
+// di Postgres production kalau belum ada. Idempotent.
+let borrowingSchemaPromise: Promise<string[]> | null = null;
+
+export function ensureBorrowingSchema(): Promise<string[]> {
+  if (borrowingSchemaPromise) return borrowingSchemaPromise;
+  borrowingSchemaPromise = (async () => {
+    try {
+      return await doEnsureBorrowingSchema();
+    } catch (e) {
+      borrowingSchemaPromise = null;
+      throw e;
+    }
+  })();
+  return borrowingSchemaPromise;
+}
+
+async function doEnsureBorrowingSchema(): Promise<string[]> {
+  const executed: string[] = [];
+
+  if (isSqlite()) {
+    return executed;
+  }
+
+  // Borrower
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "Borrower" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "organization" TEXT NOT NULL DEFAULT '',
+        "address" TEXT NOT NULL DEFAULT '',
+        "phone" TEXT NOT NULL DEFAULT '',
+        "role" TEXT NOT NULL DEFAULT 'Eksternal',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Borrower_pkey" PRIMARY KEY ("id")
+      )
+    `;
+    executed.push(`CREATE TABLE IF NOT EXISTS "Borrower"`);
+  } catch (e) {
+    console.warn("igrate] CREATE TABLE Borrower skipped:", e);
+  }
+
+  // BorrowingEntry
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "BorrowingEntry" (
+        "id" TEXT NOT NULL,
+        "baNumber" TEXT NOT NULL,
+        "borrowDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "expectedReturnDate" TIMESTAMP(3),
+        "actualReturnDate" TIMESTAMP(3),
+        "borrowerId" TEXT NOT NULL,
+        "purpose" TEXT NOT NULL DEFAULT '',
+        "notes" TEXT NOT NULL DEFAULT '',
+        "status" TEXT NOT NULL DEFAULT 'Dipinjam',
+        "lenderName" TEXT NOT NULL DEFAULT '',
+        "lenderNip" TEXT NOT NULL DEFAULT '',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "BorrowingEntry_pkey" PRIMARY KEY ("id")
+      )
+    `;
+    executed.push(`CREATE TABLE IF NOT EXISTS "BorrowingEntry"`);
+    try {
+      await db.$executeRaw`
+        ALTER TABLE "BorrowingEntry"
+        ADD CONSTRAINT "BorrowingEntry_borrowerId_fkey"
+        FOREIGN KEY ("borrowerId") REFERENCES "Borrower"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+      `;
+    } catch { /* constraint already exists */ }
+  } catch (e) {
+    console.warn("igrate] CREATE TABLE BorrowingEntry skipped:", e);
+  }
+
+  // BorrowingItem
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "BorrowingItem" (
+        "id" TEXT NOT NULL,
+        "borrowingId" TEXT NOT NULL,
+        "itemName" TEXT NOT NULL,
+        "registrationNumber" TEXT NOT NULL DEFAULT '',
+        "quantity" INTEGER NOT NULL DEFAULT 1,
+        "unit" TEXT NOT NULL DEFAULT 'Unit',
+        "condition" TEXT NOT NULL DEFAULT 'Baik',
+        "notes" TEXT NOT NULL DEFAULT '',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "BorrowingItem_pkey" PRIMARY KEY ("id")
+      )
+    `;
+    executed.push(`CREATE TABLE IF NOT EXISTS "BorrowingItem"`);
+    try {
+      await db.$executeRaw`
+        ALTER TABLE "BorrowingItem"
+        ADD CONSTRAINT "BorrowingItem_borrowingId_fkey"
+        FOREIGN KEY ("borrowingId") REFERENCES "BorrowingEntry"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      `;
+    } catch { /* constraint already exists */ }
+  } catch (e) {
+    console.warn("igrate] CREATE TABLE BorrowingItem skipped:", e);
+  }
+
+  // ReturnEntry
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "ReturnEntry" (
+        "id" TEXT NOT NULL,
+        "baNumber" TEXT NOT NULL,
+        "returnDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "borrowingId" TEXT NOT NULL,
+        "notes" TEXT NOT NULL DEFAULT '',
+        "receiverName" TEXT NOT NULL DEFAULT '',
+        "receiverNip" TEXT NOT NULL DEFAULT '',
+        "returnItems" TEXT NOT NULL DEFAULT '[]',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "ReturnEntry_pkey" PRIMARY KEY ("id")
+      )
+    `;
+    executed.push(`CREATE TABLE IF NOT EXISTS "ReturnEntry"`);
+    try {
+      await db.$executeRaw`
+        ALTER TABLE "ReturnEntry"
+        ADD CONSTRAINT "ReturnEntry_borrowingId_fkey"
+        FOREIGN KEY ("borrowingId") REFERENCES "BorrowingEntry"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      `;
+    } catch { /* constraint already exists */ }
+    try {
+      await db.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS "ReturnEntry_borrowingId_key" ON "ReturnEntry"("borrowingId")`;
+    } catch { /* index already exists */ }
+  } catch (e) {
+    console.warn("igrate] CREATE TABLE ReturnEntry skipped:", e);
+  }
+
+  return executed;
+}

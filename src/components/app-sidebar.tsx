@@ -13,6 +13,7 @@ import {
   Wallet,
   Newspaper,
   BookOpen,
+  FileCheck,
 } from 'lucide-react'
 
 import {
@@ -46,6 +47,7 @@ const navItems: {
   { page: 'rooms', label: 'Inventaris', icon: Archive },
   { page: 'salary', label: 'Gaji', icon: Wallet },
   { page: 'media', label: 'Media', icon: Newspaper },
+  { page: 'beritaAcara', label: 'Berita Acara', icon: FileCheck },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

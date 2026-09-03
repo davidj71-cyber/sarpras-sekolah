@@ -8,7 +8,7 @@ import { useNavigationStore, canAccessPage } from '@/lib/navigation-store'
 import { useAppBootstrap } from '@/lib/use-app-bootstrap'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2, Wallet, Newspaper, Droplet } from 'lucide-react'
+import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2, Wallet, Newspaper, Droplet, FileCheck } from 'lucide-react'
 import type { StoreSubPage, RoomSubPage } from '@/lib/navigation-store'
 import { LoginPage } from '@/components/login-page'
 import { PageLoading } from '@/components/ui/loading-skeleton'
@@ -38,6 +38,7 @@ const RoomsPage = dynamic(() => import('@/components/pages/rooms').then(m => ({ 
 const OrdersPage = dynamic(() => import('@/components/pages/orders').then(m => ({ default: m.OrdersPage })), { ssr: false, loading: loadingFallback })
 const BarangMasukPage = dynamic(() => import('@/components/pages/barang-masuk').then(m => ({ default: m.BarangMasukPage })), { ssr: false, loading: loadingFallback })
 const GalonPage = dynamic(() => import('@/components/pages/galon').then(m => ({ default: m.GalonPage })), { ssr: false, loading: loadingFallback })
+const BeritaAcaraPage = dynamic(() => import('@/components/pages/berita-acara').then(m => ({ default: m.BeritaAcaraPage })), { ssr: false, loading: loadingFallback })
 const RoomItemsPage = dynamic(() => import('@/components/pages/room-items').then(m => ({ default: m.RoomItemsPage })), { ssr: false, loading: loadingFallback })
 const BuildingsPage = dynamic(() => import('@/components/pages/buildings').then(m => ({ default: m.BuildingsPage })), { ssr: false, loading: loadingFallback })
 const AccountsPage = dynamic(() => import('@/components/pages/accounts').then(m => ({ default: m.AccountsPage })), { ssr: false, loading: loadingFallback })
@@ -148,6 +149,7 @@ const pageTitles: Record<string, string> = {
   rooms: 'Inventaris',
   salary: 'Gaji',
   media: 'Media',
+  beritaAcara: 'Berita Acara',
 }
 
 export default function Home() {
@@ -224,6 +226,8 @@ export default function Home() {
         return <SalaryPage />
       case 'media':
         return <MediaPage />
+      case 'beritaAcara':
+        return <BeritaAcaraPage />
       case 'kib':
         return <KibPage />
       case 'rooms':

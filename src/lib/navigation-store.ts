@@ -10,6 +10,7 @@ export type Page =
   | 'rooms'
   | 'salary'
   | 'media'
+  | 'beritaAcara'
 
 export type StoreSubPage = 'stores' | 'orders' | 'barangMasuk' | 'galon'
 
@@ -52,6 +53,7 @@ const RESTRICTED_PAGES: Record<Page, string[]> = {
   employees: [],
   kib: [],
   rooms: [],
+  beritaAcara: [],
 }
 
 /**
