@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { ensureSalaryMediaSchema } from "@/lib/migrate-settings";
+import { ensureSalaryMediaSchema, ensureBarangMasukSchema } from "@/lib/migrate-settings";
 
 export async function GET() {
   try {
     // Self-heal: pastikan kolom photos ada di OrderItem (idempotent).
     await ensureSalaryMediaSchema();
+    await ensureBarangMasukSchema(); // heal OrderItem.usage
 
     const orders = await db.order.findMany({
       orderBy: { createdAt: "desc" },
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
   try {
     // Self-heal before write as well.
     await ensureSalaryMediaSchema();
+    await ensureBarangMasukSchema(); // heal OrderItem.usage
 
     const body = await request.json();
 
