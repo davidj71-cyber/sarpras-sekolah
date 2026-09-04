@@ -574,6 +574,8 @@ model GalonEntry {
 model Borrower {
   id            String   @id @default(cuid())
   name          String   // Nama peminjam
+  nip           String   @default("") // NIP peminjam (untuk pegawai/guru)
+  jabatan       String   @default("") // Jabatan: Guru, TU, Kepala Sekolah, dll
   organization  String   @default("") // Institusi/instansi peminjam
   address       String   @default("") // Alamat peminjam
   phone         String   @default("") // No. HP/telp peminjam

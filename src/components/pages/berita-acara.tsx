@@ -68,6 +68,7 @@ import {
   ArrowLeftRight,
   UserPlus,
   ClipboardCheck,
+  ChevronsUpDown,
 } from 'lucide-react'
 import {
   printWithKop,
@@ -78,6 +79,11 @@ import type { PrintOrientation } from '@/lib/print-utils'
 import { resizeImageFile } from '@/lib/resize-image'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageLoading } from '@/components/ui/loading-skeleton'
@@ -87,6 +93,8 @@ import { PageLoading } from '@/components/ui/loading-skeleton'
 interface Borrower {
   id: string
   name: string
+  nip?: string
+  jabatan?: string
   organization: string
   address: string
   phone: string
@@ -228,6 +236,151 @@ function generateBaNumber(prefix: 'BA-PIN' | 'BA-PENG', existingCount: number): 
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+// Searchable dropdown untuk Nama Barang di form BA Peminjaman.
+// <datalist> HTML native tidak reliable — user sering tidak bisa klik pilih
+// dari daftar suggestion di Android/iOS. Komponen ini pakai Popover (Radix)
+// yang lebih kontrollable:
+//  - Trigger: Button yang menampilkan nama barang saat ini (atau placeholder)
+//  - Content: search input + list scrollable (max 200px)
+//  - Setiap item menampilkan: Nama, No. Register, Kondisi, Sisa: X unit
+//  - Filter case-insensitive terhadap name / registrationNumber / brand
+//  - Saat user klik item → auto-fill itemName + registrationNumber + unit + condition
+//  - User juga bisa ketik manual: ada tombol "Gunakan: ..." di bawah list
+//    (muncul hanya kalau query tidak persis sama dengan nama yang sudah ada)
+function ItemNamePicker({
+  value,
+  suggestions,
+  onChange,
+  onSelectItem,
+}: {
+  value: string
+  suggestions: Array<{
+    name: string
+    registrationNumber: string
+    unit: string
+    condition: string
+    brand: string
+    quantity: number
+  }>
+  onChange: (val: string) => void
+  onSelectItem: (item: {
+    name: string
+    registrationNumber: string
+    unit: string
+    condition: string
+  }) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const q = query.trim().toLowerCase()
+  const filtered = q
+    ? suggestions.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.registrationNumber.toLowerCase().includes(q) ||
+          s.brand.toLowerCase().includes(q)
+      )
+    : suggestions
+
+  // Sembunyikan tombol "Gunakan" kalau query persis sama dengan nama yang ada
+  const isExactMatch = suggestions.some((s) => s.name.toLowerCase() === q)
+
+  function close() {
+    setOpen(false)
+    setQuery('')
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o)
+        if (!o) setQuery('')
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal h-9"
+        >
+          <span className={`truncate ${!value ? 'text-muted-foreground' : ''}`}>
+            {value || 'Cari dari inventaris atau ketik manual'}
+          </span>
+          <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="p-0 w-[--radix-popover-trigger-width] min-w-[280px]"
+        align="start"
+      >
+        <div className="p-2 border-b">
+          <Input
+            placeholder="Cari nama / no. register / merek..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-8"
+            // autoFocus di sini supaya langsung bisa ketik saat popover dibuka
+            autoFocus
+          />
+        </div>
+        <div className="max-h-[200px] overflow-y-auto">
+          {filtered.length === 0 && !q && (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              Tidak ada barang di inventaris
+            </div>
+          )}
+          {filtered.length === 0 && q && (
+            <div className="py-4 text-center text-sm text-muted-foreground">
+              Tidak ada barang yang cocok
+            </div>
+          )}
+          {filtered.map((s, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                onSelectItem(s)
+                close()
+              }}
+              className="w-full text-left px-3 py-2 hover:bg-accent text-sm border-b last:border-0"
+            >
+              <div className="font-medium truncate">{s.name}</div>
+              <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-1.5 mt-0.5">
+                {s.registrationNumber && (
+                  <span className="font-mono">{s.registrationNumber}</span>
+                )}
+                {s.condition && <span>— {s.condition}</span>}
+                {s.quantity > 0 && (
+                  <span>— Sisa: {s.quantity} {s.unit || 'unit'}</span>
+                )}
+              </div>
+            </button>
+          ))}
+          {q && !isExactMatch && (
+            <button
+              type="button"
+              onClick={() => {
+                onChange(query.trim())
+                close()
+              }}
+              className="w-full text-left px-3 py-2 hover:bg-accent text-sm bg-muted/40 border-t flex items-center"
+            >
+              <Plus className="size-3 mr-1.5 shrink-0" />
+              <span className="truncate">
+                Gunakan: <strong>&ldquo;{query.trim()}&rdquo;</strong>
+              </span>
+            </button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export function BeritaAcaraPage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<string>('borrow')
@@ -257,15 +410,17 @@ export function BeritaAcaraPage() {
   ])
 
   // ── Barang suggestions (dari Inventaris + Barang Masuk + KIB) ──────────────
-  // Dipakai untuk datalist auto-complete di field Nama Barang.
+  // Dipakai untuk searchable dropdown (Popover) di field Nama Barang.
   // User bisa pilih dari daftar (auto-fill No. Register, Satuan, Kondisi)
   // atau ketik manual kalau barang belum di inventarisasi.
+  // quantity = sisa barang tersedia di inventaris.
   const [itemSuggestions, setItemSuggestions] = useState<Array<{
     name: string
     registrationNumber: string
     unit: string
     condition: string
     brand: string
+    quantity: number
   }>>([])
 
   useEffect(() => {
@@ -278,6 +433,8 @@ export function BeritaAcaraPage() {
   // Add borrower inline dialog
   const [addBorrowerOpen, setAddBorrowerOpen] = useState(false)
   const [newBorrowerName, setNewBorrowerName] = useState('')
+  const [newBorrowerNip, setNewBorrowerNip] = useState('')
+  const [newBorrowerJabatan, setNewBorrowerJabatan] = useState('')
   const [newBorrowerOrg, setNewBorrowerOrg] = useState('')
   const [newBorrowerAddress, setNewBorrowerAddress] = useState('')
   const [newBorrowerPhone, setNewBorrowerPhone] = useState('')
@@ -520,6 +677,8 @@ export function BeritaAcaraPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newBorrowerName,
+          nip: newBorrowerNip,
+          jabatan: newBorrowerJabatan,
           organization: newBorrowerOrg,
           address: newBorrowerAddress,
           phone: newBorrowerPhone,
@@ -533,6 +692,8 @@ export function BeritaAcaraPage() {
       setBorrowerId(created.id)
       setAddBorrowerOpen(false)
       setNewBorrowerName('')
+      setNewBorrowerNip('')
+      setNewBorrowerJabatan('')
       setNewBorrowerOrg('')
       setNewBorrowerAddress('')
       setNewBorrowerPhone('')
@@ -932,6 +1093,18 @@ export function BeritaAcaraPage() {
           </tr>
           <tr>
             <td></td>
+            <td>NIP</td>
+            <td>:</td>
+            <td>${borrower?.nip || '-'}</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>Jabatan</td>
+            <td>:</td>
+            <td>${borrower?.jabatan || '-'}</td>
+          </tr>
+          <tr>
+            <td></td>
             <td>Institusi</td>
             <td>:</td>
             <td>${borrower?.organization || '-'}</td>
@@ -1151,6 +1324,18 @@ export function BeritaAcaraPage() {
             <td>Nama</td>
             <td>:</td>
             <td><strong>${borrower?.name || '-'}</strong></td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>NIP</td>
+            <td>:</td>
+            <td>${borrower?.nip || '-'}</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>Jabatan</td>
+            <td>:</td>
+            <td>${borrower?.jabatan || '-'}</td>
           </tr>
           <tr>
             <td></td>
@@ -1391,7 +1576,14 @@ export function BeritaAcaraPage() {
                           <TableCell>{idx + 1}</TableCell>
                           <TableCell className="font-medium">{record.baNumber}</TableCell>
                           <TableCell>{formatDate(record.borrowDate)}</TableCell>
-                          <TableCell>{record.borrower?.name || '-'}</TableCell>
+                          <TableCell>
+                            <div>
+                              <div>{record.borrower?.name || '-'}</div>
+                              {record.borrower?.jabatan && (
+                                <div className="text-xs text-muted-foreground">{record.borrower.jabatan}</div>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="max-w-[200px] truncate" title={record.purpose || ''}>
                             {record.purpose || '-'}
                           </TableCell>
@@ -1518,7 +1710,14 @@ export function BeritaAcaraPage() {
                           <TableCell className="font-medium">{record.baNumber}</TableCell>
                           <TableCell>{formatDate(record.returnDate)}</TableCell>
                           <TableCell>{record.borrowing?.baNumber || '-'}</TableCell>
-                          <TableCell>{record.borrowing?.borrower?.name || '-'}</TableCell>
+                          <TableCell>
+                            <div>
+                              <div>{record.borrowing?.borrower?.name || '-'}</div>
+                              {record.borrowing?.borrower?.jabatan && (
+                                <div className="text-xs text-muted-foreground">{record.borrowing.borrower.jabatan}</div>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right tabular-nums whitespace-nowrap">
                             {record.borrowing?.items?.length || 0}
                           </TableCell>
@@ -1631,35 +1830,22 @@ export function BeritaAcaraPage() {
                   </Button>
                 </div>
                 <div className="space-y-3">
-                  {/* Datalist untuk auto-complete nama barang dari Inventaris + Barang Masuk + KIB */}
-                  <datalist id="ba-item-suggestions">
-                    {itemSuggestions.map((s, i) => (
-                      <option key={i} value={s.name} data-reg={s.registrationNumber} data-unit={s.unit} data-cond={s.condition} />
-                    ))}
-                  </datalist>
                   {borrowItems.map((item, idx) => (
                     <div key={idx} className="border rounded-md p-3 space-y-2 bg-background">
                       <div className="grid grid-cols-12 gap-2 items-end">
                         <div className="col-span-12 sm:col-span-4 space-y-1">
                           <Label className="text-xs">Nama Barang</Label>
-                          <Input
+                          <ItemNamePicker
                             value={item.itemName}
-                            list="ba-item-suggestions"
-                            onChange={(e) => {
-                              const selectedName = e.target.value
-                              updateBorrowItem(idx, 'itemName', selectedName)
-                              // Auto-fill No. Register, Satuan, Kondisi kalau barang ada di suggestions
-                              const matched = itemSuggestions.find(
-                                (s) => s.name.toLowerCase() === selectedName.toLowerCase()
-                              )
-                              if (matched) {
-                                if (matched.registrationNumber) updateBorrowItem(idx, 'registrationNumber', matched.registrationNumber)
-                                if (matched.unit) updateBorrowItem(idx, 'unit', matched.unit)
-                                if (matched.condition) updateBorrowItem(idx, 'condition', matched.condition)
-                              }
+                            suggestions={itemSuggestions}
+                            onChange={(val) => updateBorrowItem(idx, 'itemName', val)}
+                            onSelectItem={(s) => {
+                              // Auto-fill No. Register, Satuan, Kondisi dari inventaris
+                              updateBorrowItem(idx, 'itemName', s.name)
+                              if (s.registrationNumber) updateBorrowItem(idx, 'registrationNumber', s.registrationNumber)
+                              if (s.unit) updateBorrowItem(idx, 'unit', s.unit)
+                              if (s.condition) updateBorrowItem(idx, 'condition', s.condition)
                             }}
-                            placeholder="Cari dari inventaris atau ketik manual"
-                            className="h-9"
                           />
                         </div>
                         <div className="col-span-6 sm:col-span-3 space-y-1">
@@ -1904,6 +2090,27 @@ export function BeritaAcaraPage() {
                 placeholder="Nama lengkap peminjam"
                 className="h-9"
               />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">NIP (opsional)</Label>
+                <Input
+                  value={newBorrowerNip}
+                  onChange={(e) => setNewBorrowerNip(e.target.value)}
+                  placeholder="mis. 198512152010011001"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Jabatan</Label>
+                <MasterCombobox
+                  category="jabatanPeminjam"
+                  value={newBorrowerJabatan}
+                  onChange={setNewBorrowerJabatan}
+                  placeholder="mis. Guru, TU, Kepala Sekolah"
+                  className="h-9"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">

@@ -734,6 +734,24 @@ async function doEnsureBorrowingSchema(): Promise<string[]> {
     console.warn("igrate] CREATE TABLE Borrower skipped:", e);
   }
 
+  // Borrower: ADD COLUMN nip & jabatan (idempotent)
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "Borrower" ADD COLUMN IF NOT EXISTS "nip" TEXT NOT NULL DEFAULT ''`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "Borrower.nip"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN Borrower.nip skipped:", e);
+  }
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "Borrower" ADD COLUMN IF NOT EXISTS "jabatan" TEXT NOT NULL DEFAULT ''`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "Borrower.jabatan"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN Borrower.jabatan skipped:", e);
+  }
+
   // BorrowingEntry
   try {
     await db.$executeRaw`

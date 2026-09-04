@@ -2,13 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // ─── /api/items/suggestions ─────────────────────────────────────────────────
-// Return daftar barang unik dari InventoryItem + BarangMasukItem untuk
-// dipakai sebagai suggestions (datalist) di form BA Peminjaman.
-// User bisa pilih dari daftar (auto-fill No. Register, Satuan, Kondisi)
-// atau ketik manual kalau barang belum di inventarisasi.
+// Return daftar barang unik dari InventoryItem + BarangMasukItem + KIB
+// untuk dipakai sebagai suggestions di form BA Peminjaman.
+// Include: name, registrationNumber, unit, condition, brand, quantity (sisa tersedia)
 export async function GET() {
   try {
-    // Fetch dari InventoryItem
+    // Fetch dari InventoryItem — include quantity (sisa barang)
     const inventoryItems = await db.inventoryItem.findMany({
       select: {
         name: true,
@@ -16,19 +15,11 @@ export async function GET() {
         unit: true,
         condition: true,
         brand: true,
+        quantity: true,
       },
     });
 
-    // Fetch dari BarangMasukItem (barang yang sudah masuk)
-    const barangMasukItems = await db.barangMasukItem.findMany({
-      select: {
-        itemName: true,
-        unit: true,
-        condition: true,
-      },
-    });
-
-    // Fetch dari Item (KIB)
+    // Fetch dari KIB Item
     const kibItems = await db.item.findMany({
       select: {
         name: true,
@@ -36,70 +27,57 @@ export async function GET() {
         unit: true,
         condition: true,
         brand: true,
+        quantity: true,
+      },
+    });
+
+    // Fetch dari BarangMasukItem
+    const barangMasukItems = await db.barangMasukItem.findMany({
+      select: {
+        itemName: true,
+        unit: true,
+        condition: true,
+        quantity: true,
       },
     });
 
     // Merge & deduplicate by name (case-insensitive)
-    const seen = new Set<string>();
-    const suggestions: Array<{
+    // Akumulasi quantity untuk barang dengan nama sama
+    const seen = new Map<string, {
       name: string;
       registrationNumber: string;
       unit: string;
       condition: string;
       brand: string;
-    }> = [];
+      quantity: number;
+    }>();
 
-    // Add from InventoryItem
+    const addItem = (name: string, reg: string, unit: string, cond: string, brand: string, qty: number) => {
+      const key = name.toLowerCase().trim();
+      if (!key) return;
+      const existing = seen.get(key);
+      if (existing) {
+        existing.quantity += qty;
+      } else {
+        seen.set(key, { name, registrationNumber: reg, unit, condition: cond, brand, quantity: qty });
+      }
+    };
+
     for (const item of inventoryItems) {
-      const key = item.name.toLowerCase().trim();
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      suggestions.push({
-        name: item.name,
-        registrationNumber: item.registrationNumber || "",
-        unit: item.unit || "Unit",
-        condition: item.condition || "Baik",
-        brand: item.brand || "",
-      });
+      addItem(item.name, item.registrationNumber || "", item.unit || "Unit", item.condition || "Baik", item.brand || "", item.quantity);
     }
-
-    // Add from KIB Item
     for (const item of kibItems) {
-      const key = item.name.toLowerCase().trim();
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      suggestions.push({
-        name: item.name,
-        registrationNumber: item.registrationNumber || "",
-        unit: item.unit || "Unit",
-        condition: item.condition || "Baik",
-        brand: item.brand || "",
-      });
+      addItem(item.name, item.registrationNumber || "", item.unit || "Unit", item.condition || "Baik", item.brand || "", item.quantity);
     }
-
-    // Add from BarangMasukItem
     for (const item of barangMasukItems) {
-      const key = item.itemName.toLowerCase().trim();
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      suggestions.push({
-        name: item.itemName,
-        registrationNumber: "",
-        unit: item.unit || "Unit",
-        condition: item.condition || "Baik",
-        brand: "",
-      });
+      addItem(item.itemName, "", item.unit || "Unit", item.condition || "Baik", "", item.quantity);
     }
 
-    // Sort alphabetically
-    suggestions.sort((a, b) => a.name.localeCompare(b.name));
+    const suggestions = Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
 
     return NextResponse.json(suggestions);
   } catch (error) {
     console.error("Error fetching item suggestions:", error);
-    return NextResponse.json(
-      { error: "Gagal mengambil daftar barang" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Gagal mengambil daftar barang" }, { status: 500 });
   }
 }

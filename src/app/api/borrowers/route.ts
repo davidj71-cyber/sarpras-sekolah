@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
     const borrower = await db.borrower.create({
       data: {
         name: String(body.name ?? "").trim(),
+        nip: String(body.nip ?? "").trim(),
+        jabatan: String(body.jabatan ?? "").trim(),
         organization: String(body.organization ?? "").trim(),
         address: String(body.address ?? "").trim(),
         phone: String(body.phone ?? "").trim(),
