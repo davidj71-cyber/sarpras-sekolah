@@ -256,6 +256,25 @@ export function BeritaAcaraPage() {
     { itemName: '', registrationNumber: '', quantity: 1, unit: 'Unit', condition: 'Baik', notes: '' },
   ])
 
+  // ── Barang suggestions (dari Inventaris + Barang Masuk + KIB) ──────────────
+  // Dipakai untuk datalist auto-complete di field Nama Barang.
+  // User bisa pilih dari daftar (auto-fill No. Register, Satuan, Kondisi)
+  // atau ketik manual kalau barang belum di inventarisasi.
+  const [itemSuggestions, setItemSuggestions] = useState<Array<{
+    name: string
+    registrationNumber: string
+    unit: string
+    condition: string
+    brand: string
+  }>>([])
+
+  useEffect(() => {
+    fetch('/api/items/suggestions')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { if (Array.isArray(data)) setItemSuggestions(data) })
+      .catch(() => { /* silent */ })
+  }, [])
+
   // Add borrower inline dialog
   const [addBorrowerOpen, setAddBorrowerOpen] = useState(false)
   const [newBorrowerName, setNewBorrowerName] = useState('')
@@ -1612,6 +1631,12 @@ export function BeritaAcaraPage() {
                   </Button>
                 </div>
                 <div className="space-y-3">
+                  {/* Datalist untuk auto-complete nama barang dari Inventaris + Barang Masuk + KIB */}
+                  <datalist id="ba-item-suggestions">
+                    {itemSuggestions.map((s, i) => (
+                      <option key={i} value={s.name} data-reg={s.registrationNumber} data-unit={s.unit} data-cond={s.condition} />
+                    ))}
+                  </datalist>
                   {borrowItems.map((item, idx) => (
                     <div key={idx} className="border rounded-md p-3 space-y-2 bg-background">
                       <div className="grid grid-cols-12 gap-2 items-end">
@@ -1619,8 +1644,21 @@ export function BeritaAcaraPage() {
                           <Label className="text-xs">Nama Barang</Label>
                           <Input
                             value={item.itemName}
-                            onChange={(e) => updateBorrowItem(idx, 'itemName', e.target.value)}
-                            placeholder="Nama barang"
+                            list="ba-item-suggestions"
+                            onChange={(e) => {
+                              const selectedName = e.target.value
+                              updateBorrowItem(idx, 'itemName', selectedName)
+                              // Auto-fill No. Register, Satuan, Kondisi kalau barang ada di suggestions
+                              const matched = itemSuggestions.find(
+                                (s) => s.name.toLowerCase() === selectedName.toLowerCase()
+                              )
+                              if (matched) {
+                                if (matched.registrationNumber) updateBorrowItem(idx, 'registrationNumber', matched.registrationNumber)
+                                if (matched.unit) updateBorrowItem(idx, 'unit', matched.unit)
+                                if (matched.condition) updateBorrowItem(idx, 'condition', matched.condition)
+                              }
+                            }}
+                            placeholder="Cari dari inventaris atau ketik manual"
                             className="h-9"
                           />
                         </div>
