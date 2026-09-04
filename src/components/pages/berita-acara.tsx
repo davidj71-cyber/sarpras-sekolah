@@ -653,6 +653,7 @@ export function BeritaAcaraPage() {
 
       const lenderNameDisplay = detail.lenderName || settings.principalName || '________________________'
       const lenderNipDisplay = detail.lenderNip || settings.principalNip || ''
+      const lenderJabatan = settings.principalName ? 'Kepala Sekolah' : 'Pemberi Pinjaman'
 
       const itemsHtml = (detail.items || []).map((item, idx) => `
         <tr>
@@ -670,33 +671,35 @@ export function BeritaAcaraPage() {
         ? `<tr><td style="width: 30px;"></td><td style="width: 150px;">Tanggal Rencana Kembali</td><td style="width: 10px;">:</td><td>${formatDatePrint(detail.expectedReturnDate)}</td></tr>`
         : ''
 
+      // Signature block mengikuti format BA Pinjam-Pakai:
+      // Kiri = PIHAK PERTAMA (Pemberi/PIC Sekolah), Kanan = PIHAK KEDUA (Peminjam)
       const signatureHtml = `
-        <div class="signature-block">
-          <div style="display: flex; justify-content: space-between; margin-top: 24px;">
-            <div style="text-align: center; width: 45%;">
-              <div>Pemberi Pinjaman,</div>
-              <div style="margin-top: 4px;">PIC Sekolah</div>
-              <div style="height: 60px;"></div>
-              <div style="text-decoration: underline; font-weight: bold;">${lenderNameDisplay}</div>
-              <div>NIP. ${lenderNipDisplay || '________________________'}</div>
-            </div>
-            <div style="text-align: center; width: 45%;">
-              <div>Peminjam,</div>
-              <div style="margin-top: 4px;">${borrower?.organization || '&nbsp;'}</div>
-              <div style="height: 60px;"></div>
-              <div style="text-decoration: underline; font-weight: bold;">${borrower?.name || '________________________'}</div>
-              <div>${borrower?.phone || '&nbsp;'}</div>
-            </div>
+        <div style="text-align: right; margin-top: 20px; font-size: 11pt;">
+          ${settings.address ? (settings.address.split(',').pop()?.trim() || '___________') : '___________'}, ${formatDatePrint(detail.borrowDate)}
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 11pt;">
+          <div style="text-align: center; width: 45%;">
+            <div><strong>PIHAK PERTAMA,</strong></div>
+            <div style="height: 60px;"></div>
+            <div style="text-decoration: underline; font-weight: bold;">${lenderNameDisplay}</div>
+            <div style="font-weight: bold; text-decoration: underline;">NIP. ${lenderNipDisplay || '________________________'}</div>
+          </div>
+          <div style="text-align: center; width: 45%;">
+            <div><strong>PIHAK KEDUA,</strong></div>
+            <div style="height: 60px;"></div>
+            <div style="text-decoration: underline; font-weight: bold;">${borrower?.name || '________________________'}</div>
+            <div>${borrower?.organization || '&nbsp;'}</div>
           </div>
         </div>
       `
 
       const contentHtml = `
-        <div style="text-align: center; font-size: 11pt; margin-top: 8px; margin-bottom: 12px;">
-          Nomor: ${detail.baNumber}
+        <div style="text-align: center; margin-top: 8px; margin-bottom: 12px;">
+          <div style="font-size: 13pt; font-weight: bold; text-decoration: underline; text-transform: uppercase;">BERITA ACARA PINJAM-PAKAI</div>
+          <div style="font-size: 11pt; margin-top: 6px;">Nomor: ${detail.baNumber}</div>
         </div>
         <p style="text-align: justify; font-size: 11pt; line-height: 1.6;">
-          Pada hari ini, <strong>${day}</strong>, tanggal <strong>${dateNum}</strong> bulan <strong>${month}</strong> tahun <strong>${year}</strong>, yang bertanda tangan di bawah ini:
+          Pada hari ini, <strong>${day}</strong>, tanggal <strong>${dateNum}</strong> bulan <strong>${month}</strong> tahun <strong>${year}</strong>, kami yang bertanda tangan di bawah ini masing-masing:
         </p>
         <table class="meta-table" style="margin-top: 6px;">
           <tr>
@@ -715,9 +718,15 @@ export function BeritaAcaraPage() {
             <td></td>
             <td>Jabatan</td>
             <td>:</td>
-            <td>Pemberi Pinjaman (PIC Sekolah)</td>
+            <td>${lenderJabatan}</td>
           </tr>
-          <tr><td style="height: 6px;"></td></tr>
+          <tr>
+            <td></td>
+            <td style="vertical-align: top;">Instansi</td>
+            <td>:</td>
+            <td>${settings.schoolName || '-'}</td>
+          </tr>
+          <tr><td style="height: 8px;"></td></tr>
           <tr>
             <td>2.</td>
             <td>Nama</td>
@@ -736,10 +745,16 @@ export function BeritaAcaraPage() {
             <td>:</td>
             <td>${borrower?.address || '-'}</td>
           </tr>
+          <tr>
+            <td></td>
+            <td>No. HP/Telp</td>
+            <td>:</td>
+            <td>${borrower?.phone || '-'}</td>
+          </tr>
           ${expectedReturnLine}
         </table>
         <p style="text-align: justify; font-size: 11pt; line-height: 1.6; margin-top: 10px;">
-          Telah meminjamkan barang-barang inventaris kepada peminjam dengan rincian sebagai berikut:
+          Dalam rangka menunjang kelancaran tugas dan ketertiban administrasi ${settings.schoolName || 'sekolah'}, maka <strong>PIHAK PERTAMA</strong> telah menyerahkan kepada <strong>PIHAK KEDUA</strong> barang-barang inventaris dengan kondisi baik dan rincian sebagai berikut:
         </p>
         <table style="margin-top: 8px;">
           <thead>
@@ -758,12 +773,15 @@ export function BeritaAcaraPage() {
           </tbody>
         </table>
         <p style="text-align: justify; font-size: 11pt; line-height: 1.6; margin-top: 12px;">
-          Barang-barang tersebut di atas akan dikembalikan dalam keadaan baik sesuai dengan jadwal pengembalian. Apabila terjadi kerusakan atau kehilangan, peminjam bertanggung jawab untuk mengganti sesuai dengan nilai barang.
+          Selanjutnya segala biaya pemeliharaan, perbaikan dan sebagainya ditanggung oleh <strong>PIHAK KEDUA</strong>, dan terhitung sejak Berita Acara Pinjam-Pakai ini ditanda tangani segala tugas/kewajiban serta tanggung jawab atas penggunaan barang tersebut beralih dari <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong>. Apabila terjadi kerusakan atau kehilangan, <strong>PIHAK KEDUA</strong> bertanggung jawab untuk mengganti sesuai dengan nilai barang.
+        </p>
+        <p style="text-align: justify; font-size: 11pt; line-height: 1.6; margin-top: 8px;">
+          Demikian Berita Acara Pinjam-Pakai ini dibuat dan ditanda tangani untuk dipergunakan sebagaimana mestinya.
         </p>
         ${signatureHtml}
       `
 
-      await printWithKop('BERITA ACARA PEMINJAMAN BARANG', contentHtml, orientation)
+      await printWithKop('BERITA ACARA PINJAM-PAKAI', contentHtml, orientation)
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak BA Peminjaman', variant: 'destructive' })
     }
@@ -841,6 +859,7 @@ export function BeritaAcaraPage() {
 
       const receiverNameDisplay = detail.receiverName || settings.principalName || '________________________'
       const receiverNipDisplay = detail.receiverNip || settings.principalNip || ''
+      const receiverJabatan = settings.principalName ? 'Kepala Sekolah' : 'Penerima Pengembalian'
 
       // Build items table rows: pair original item with return condition
       const itemsHtml = borrowItems.map((item, idx) => {
@@ -860,33 +879,34 @@ export function BeritaAcaraPage() {
         `
       }).join('')
 
+      // Signature block: PIHAK PERTAMA (Penerima = sekolah), PIHAK KEDUA (Peminjam)
       const signatureHtml = `
-        <div class="signature-block">
-          <div style="display: flex; justify-content: space-between; margin-top: 24px;">
-            <div style="text-align: center; width: 45%;">
-              <div>Penerima,</div>
-              <div style="margin-top: 4px;">PIC Sekolah</div>
-              <div style="height: 60px;"></div>
-              <div style="text-decoration: underline; font-weight: bold;">${receiverNameDisplay}</div>
-              <div>NIP. ${receiverNipDisplay || '________________________'}</div>
-            </div>
-            <div style="text-align: center; width: 45%;">
-              <div>Peminjam,</div>
-              <div style="margin-top: 4px;">${borrower?.organization || '&nbsp;'}</div>
-              <div style="height: 60px;"></div>
-              <div style="text-decoration: underline; font-weight: bold;">${borrower?.name || '________________________'}</div>
-              <div>${borrower?.phone || '&nbsp;'}</div>
-            </div>
+        <div style="text-align: right; margin-top: 20px; font-size: 11pt;">
+          ${settings.address ? (settings.address.split(',').pop()?.trim() || '___________') : '___________'}, ${formatDatePrint(detail.returnDate)}
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 11pt;">
+          <div style="text-align: center; width: 45%;">
+            <div><strong>PIHAK PERTAMA,</strong></div>
+            <div style="height: 60px;"></div>
+            <div style="text-decoration: underline; font-weight: bold;">${receiverNameDisplay}</div>
+            <div style="font-weight: bold; text-decoration: underline;">NIP. ${receiverNipDisplay || '________________________'}</div>
+          </div>
+          <div style="text-align: center; width: 45%;">
+            <div><strong>PIHAK KEDUA,</strong></div>
+            <div style="height: 60px;"></div>
+            <div style="text-decoration: underline; font-weight: bold;">${borrower?.name || '________________________'}</div>
+            <div>${borrower?.organization || '&nbsp;'}</div>
           </div>
         </div>
       `
 
       const contentHtml = `
-        <div style="text-align: center; font-size: 11pt; margin-top: 8px; margin-bottom: 12px;">
-          Nomor: ${detail.baNumber}
+        <div style="text-align: center; margin-top: 8px; margin-bottom: 12px;">
+          <div style="font-size: 13pt; font-weight: bold; text-decoration: underline; text-transform: uppercase;">BERITA ACARA PENGEMBALIAN BARANG</div>
+          <div style="font-size: 11pt; margin-top: 6px;">Nomor: ${detail.baNumber}</div>
         </div>
         <p style="text-align: justify; font-size: 11pt; line-height: 1.6;">
-          Pada hari ini, <strong>${day}</strong>, tanggal <strong>${dateNum}</strong> bulan <strong>${month}</strong> tahun <strong>${year}</strong>, yang bertanda tangan di bawah ini:
+          Pada hari ini, <strong>${day}</strong>, tanggal <strong>${dateNum}</strong> bulan <strong>${month}</strong> tahun <strong>${year}</strong>, kami yang bertanda tangan di bawah ini masing-masing:
         </p>
         <table class="meta-table" style="margin-top: 6px;">
           <tr>
@@ -905,9 +925,15 @@ export function BeritaAcaraPage() {
             <td></td>
             <td>Jabatan</td>
             <td>:</td>
-            <td>Penerima Pengembalian (PIC Sekolah)</td>
+            <td>${receiverJabatan}</td>
           </tr>
-          <tr><td style="height: 6px;"></td></tr>
+          <tr>
+            <td></td>
+            <td style="vertical-align: top;">Instansi</td>
+            <td>:</td>
+            <td>${settings.schoolName || '-'}</td>
+          </tr>
+          <tr><td style="height: 8px;"></td></tr>
           <tr>
             <td>2.</td>
             <td>Nama</td>
@@ -926,9 +952,15 @@ export function BeritaAcaraPage() {
             <td>:</td>
             <td>${borrower?.address || '-'}</td>
           </tr>
+          <tr>
+            <td></td>
+            <td>No. HP/Telp</td>
+            <td>:</td>
+            <td>${borrower?.phone || '-'}</td>
+          </tr>
         </table>
         <p style="text-align: justify; font-size: 11pt; line-height: 1.6; margin-top: 10px;">
-          Telah menerima kembali barang-barang inventaris yang sebelumnya dipinjam (No. BA Peminjaman: <strong>${borrowing?.baNumber || '-'}</strong>) dengan rincian sebagai berikut:
+          Telah menerima kembali barang-barang inventaris yang sebelumnya dipinjamkan (No. BA Pinjam-Pakai: <strong>${borrowing?.baNumber || '-'}</strong>) oleh <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong>, dengan rincian sebagai berikut:
         </p>
         <table style="margin-top: 8px;">
           <thead>
@@ -948,7 +980,10 @@ export function BeritaAcaraPage() {
         </table>
         ${detail.notes ? `<p style="text-align: justify; font-size: 11pt; line-height: 1.6; margin-top: 10px;"><strong>Catatan:</strong> ${detail.notes}</p>` : ''}
         <p style="text-align: justify; font-size: 11pt; line-height: 1.6; margin-top: 12px;">
-          Demikian berita acara pengembalian barang ini dibuat dengan sebenar-benarnya. Barang-barang tersebut telah diterima kembali dalam keadaan baik.
+          Barang-barang tersebut telah diterima kembali oleh <strong>PIHAK PERTAMA</strong> dari <strong>PIHAK KEDUA</strong> dalam keadaan baik. Segala tugas/kewajiban serta tanggung jawab atas penggunaan barang tersebut beralih kembali dari <strong>PIHAK KEDUA</strong> kepada <strong>PIHAK PERTAMA</strong>.
+        </p>
+        <p style="text-align: justify; font-size: 11pt; line-height: 1.6; margin-top: 8px;">
+          Demikian Berita Acara Pengembalian barang ini dibuat dan ditanda tangani untuk dipergunakan sebagaimana mestinya.
         </p>
         ${signatureHtml}
       `
