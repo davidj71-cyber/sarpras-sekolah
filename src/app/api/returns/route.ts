@@ -39,6 +39,14 @@ export async function POST(request: NextRequest) {
       returnItems = JSON.stringify(body.returnItems);
     }
 
+    // Parse proofPhotos — JSON array of base64 data URLs
+    let proofPhotos = "[]";
+    if (Array.isArray(body.proofPhotos)) {
+      proofPhotos = JSON.stringify(
+        body.proofPhotos.filter((p: unknown) => typeof p === "string" && (p as string).startsWith("data:image/"))
+      );
+    }
+
     const returnEntry = await db.returnEntry.create({
       data: {
         baNumber,
@@ -48,6 +56,7 @@ export async function POST(request: NextRequest) {
         receiverName: String(body.receiverName ?? "").trim(),
         receiverNip: String(body.receiverNip ?? "").trim(),
         returnItems,
+        proofPhotos,
       },
       include: {
         borrowing: {

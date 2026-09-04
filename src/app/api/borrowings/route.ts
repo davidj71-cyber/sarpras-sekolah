@@ -33,6 +33,14 @@ export async function POST(request: NextRequest) {
       baNumber = `${String(count + 1).padStart(3, "0")}/BA-PIN/${new Date().getFullYear()}`;
     }
 
+    // Parse proofPhotos — JSON array of base64 data URLs
+    let proofPhotos = "[]";
+    if (Array.isArray(body.proofPhotos)) {
+      proofPhotos = JSON.stringify(
+        body.proofPhotos.filter((p: unknown) => typeof p === "string" && (p as string).startsWith("data:image/"))
+      );
+    }
+
     const borrowing = await db.borrowingEntry.create({
       data: {
         baNumber,
@@ -44,6 +52,7 @@ export async function POST(request: NextRequest) {
         status: "Dipinjam",
         lenderName: String(body.lenderName ?? "").trim(),
         lenderNip: String(body.lenderNip ?? "").trim(),
+        proofPhotos,
         items: body.items
           ? {
               create: (body.items as Array<{

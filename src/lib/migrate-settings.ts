@@ -827,5 +827,25 @@ async function doEnsureBorrowingSchema(): Promise<string[]> {
     console.warn("igrate] CREATE TABLE ReturnEntry skipped:", e);
   }
 
+  // ─── BorrowingEntry: ADD COLUMN proofPhotos ─────────────────────────────
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "BorrowingEntry" ADD COLUMN IF NOT EXISTS "proofPhotos" TEXT NOT NULL DEFAULT '[]'`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "BorrowingEntry.proofPhotos"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN BorrowingEntry.proofPhotos skipped:", e);
+  }
+
+  // ─── ReturnEntry: ADD COLUMN proofPhotos ───────────────────────────────
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "ReturnEntry" ADD COLUMN IF NOT EXISTS "proofPhotos" TEXT NOT NULL DEFAULT '[]'`
+    );
+    executed.push(`ADD COLUMN IF NOT EXISTS "ReturnEntry.proofPhotos"`);
+  } catch (e) {
+    console.warn("igrate] ADD COLUMN ReturnEntry.proofPhotos skipped:", e);
+  }
+
   return executed;
 }

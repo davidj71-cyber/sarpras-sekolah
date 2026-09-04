@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useToast } from '@/hooks/use-toast'
 
 import { Button } from '@/components/ui/button'
@@ -62,6 +62,8 @@ import {
   Loader2,
   Printer,
   X,
+  Camera,
+  Upload,
   FileText,
   ArrowLeftRight,
   UserPlus,
@@ -73,6 +75,7 @@ import {
   fetchPrintSettings,
 } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
+import { resizeImageFile } from '@/lib/resize-image'
 import { PrintDialog } from '@/components/print-dialog'
 import { MasterCombobox } from '@/components/ui/master-combobox'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
@@ -117,6 +120,8 @@ interface BorrowingData {
   lenderNip: string
   items: BorrowingItemData[]
   returnEntry: ReturnData | null
+  // Foto bukti peminjaman — JSON array of base64 data URLs
+  proofPhotos?: string
 }
 
 interface ReturnItemParsed {
@@ -135,6 +140,8 @@ interface ReturnData {
   receiverName: string
   receiverNip: string
   returnItems: string
+  // Foto bukti pengembalian — JSON array of base64 data URLs
+  proofPhotos?: string
 }
 
 interface BorrowingItemForm {
@@ -157,6 +164,10 @@ interface ReturnItemForm {
 }
 
 const conditionOptions = ['Baik', 'Rusak Ringan', 'Rusak Berat']
+
+// Photo upload config: maks 5 foto, 10MB per foto, auto-resize ke 1024px JPEG 0.85.
+const MAX_PROOF_PHOTOS = 5
+const MAX_PROOF_SIZE = 10 * 1024 * 1024 // 10 MB input file limit
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -188,6 +199,20 @@ function parseReturnItems(raw: string): ReturnItemParsed[] {
       return parsed.filter((x): x is ReturnItemParsed =>
         typeof x === 'object' && x !== null && typeof x.itemName === 'string'
       )
+    }
+  } catch {
+    /* ignore */
+  }
+  return []
+}
+
+// Parse kolom proofPhotos (JSON array of base64 data URLs) menjadi string[].
+function parsePhotosArray(raw: string | undefined | null): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      return parsed.filter((p: unknown) => typeof p === 'string')
     }
   } catch {
     /* ignore */
@@ -274,6 +299,23 @@ export function BeritaAcaraPage() {
   const [printReturnDetailOpen, setPrintReturnDetailOpen] = useState(false)
   const [printReturnDetailRecord, setPrintReturnDetailRecord] = useState<ReturnData | null>(null)
 
+  // ── Foto bukti (base64 data URLs) ──
+  // Foto barang saat dipinjam/dikembalikan sebagai pelengkap BA.
+  // Maks 5 foto, 10MB per foto. Auto-resize ke 1024px JPEG 0.85.
+  // Mendukung kamera Android via capture="environment".
+  const [borrowPhotos, setBorrowPhotos] = useState<string[]>([])
+  const [borrowPhotoUploading, setBorrowPhotoUploading] = useState(false)
+  const [returnPhotos, setReturnPhotos] = useState<string[]>([])
+  const [returnPhotoUploading, setReturnPhotoUploading] = useState(false)
+  const borrowFileInputRef = useRef<HTMLInputElement | null>(null)
+  const borrowCameraInputRef = useRef<HTMLInputElement | null>(null)
+  const returnFileInputRef = useRef<HTMLInputElement | null>(null)
+  const returnCameraInputRef = useRef<HTMLInputElement | null>(null)
+  // Shared photo viewer dialog (dipakai untuk thumbnail borrow & return)
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
+  const [photoViewerImages, setPhotoViewerImages] = useState<string[]>([])
+  const [photoViewerIndex, setPhotoViewerIndex] = useState(0)
+
   // ─── Fetch ────────────────────────────────────────────────────────────────
 
   const fetchBorrowings = useCallback(async () => {
@@ -334,6 +376,7 @@ export function BeritaAcaraPage() {
     setBorrowItems([
       { itemName: '', registrationNumber: '', quantity: 1, unit: 'Unit', condition: 'Baik', notes: '' },
     ])
+    setBorrowPhotos([])
     setDialogBorrowOpen(true)
     fetchPrintSettings().then((s) => {
       setLenderName(s.principalName || '')
@@ -353,6 +396,7 @@ export function BeritaAcaraPage() {
     setBorrowNotes(record.notes || '')
     setLenderName(record.lenderName || '')
     setLenderNip(record.lenderNip || '')
+    setBorrowPhotos(parsePhotosArray(record.proofPhotos))
     setBorrowItems(
       record.items?.length
         ? record.items.map((i) => ({
@@ -384,6 +428,65 @@ export function BeritaAcaraPage() {
     const updated = [...borrowItems]
     updated[index] = { ...updated[index], [field]: value }
     setBorrowItems(updated)
+  }
+
+  // ── Photo upload handlers (bukti peminjaman) ──────────────────────────────
+  // Maks 5 foto, 10MB per foto. Auto-resize ke 1024px JPEG 0.85.
+  // Mendukung kamera Android via capture="environment".
+  async function handleBorrowPhotoUpload(files: FileList, source: 'file' | 'camera') {
+    if (borrowPhotos.length + files.length > MAX_PROOF_PHOTOS) {
+      toast({
+        title: 'Batas Foto Tercapai',
+        description: `Maksimal ${MAX_PROOF_PHOTOS} foto. Saat ini sudah ada ${borrowPhotos.length} foto.`,
+        variant: 'destructive',
+      })
+      if (source === 'file' && borrowFileInputRef.current) borrowFileInputRef.current.value = ''
+      if (source === 'camera' && borrowCameraInputRef.current) borrowCameraInputRef.current.value = ''
+      return
+    }
+
+    setBorrowPhotoUploading(true)
+    const newPhotos: string[] = []
+    const errors: string[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (!file.type.startsWith('image/')) {
+        errors.push(`${file.name}: bukan gambar`)
+        continue
+      }
+      if (file.size > MAX_PROOF_SIZE) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+        errors.push(`${file.name}: ${sizeMB}MB (maks 10MB)`)
+        continue
+      }
+      if (file.size === 0) {
+        errors.push(`${file.name}: file kosong`)
+        continue
+      }
+      try {
+        const { dataUrl } = await resizeImageFile(file, 1024, 0.85)
+        newPhotos.push(dataUrl)
+      } catch {
+        errors.push(`${file.name}: gagal diproses`)
+      }
+    }
+
+    if (newPhotos.length > 0) {
+      setBorrowPhotos((prev) => [...prev, ...newPhotos])
+      toast({ title: 'Foto ditambahkan', description: `${newPhotos.length} foto bukti peminjaman` })
+    }
+    if (errors.length > 0) {
+      toast({ title: 'Beberapa foto gagal', description: errors.join('; '), variant: 'destructive' })
+    }
+
+    if (source === 'file' && borrowFileInputRef.current) borrowFileInputRef.current.value = ''
+    if (source === 'camera' && borrowCameraInputRef.current) borrowCameraInputRef.current.value = ''
+    setBorrowPhotoUploading(false)
+  }
+
+  function removeBorrowPhoto(idx: number) {
+    setBorrowPhotos((prev) => prev.filter((_, i) => i !== idx))
   }
 
   async function handleAddBorrower() {
@@ -443,6 +546,7 @@ export function BeritaAcaraPage() {
         notes: borrowNotes,
         lenderName,
         lenderNip,
+        proofPhotos: borrowPhotos,
         items: borrowItems.map((i) => ({
           itemName: i.itemName,
           registrationNumber: i.registrationNumber,
@@ -498,6 +602,7 @@ export function BeritaAcaraPage() {
     setReturnBorrowingId('')
     setReturnNotes('')
     setReturnItems([])
+    setReturnPhotos([])
     setDialogReturnOpen(true)
     fetchPrintSettings().then((s) => {
       setReceiverName(s.principalName || '')
@@ -536,6 +641,64 @@ export function BeritaAcaraPage() {
     setReturnItems(updated)
   }
 
+  // ── Photo upload handlers (bukti pengembalian) ────────────────────────────
+  // Maks 5 foto, 10MB per foto. Auto-resize ke 1024px JPEG 0.85.
+  async function handleReturnPhotoUpload(files: FileList, source: 'file' | 'camera') {
+    if (returnPhotos.length + files.length > MAX_PROOF_PHOTOS) {
+      toast({
+        title: 'Batas Foto Tercapai',
+        description: `Maksimal ${MAX_PROOF_PHOTOS} foto. Saat ini sudah ada ${returnPhotos.length} foto.`,
+        variant: 'destructive',
+      })
+      if (source === 'file' && returnFileInputRef.current) returnFileInputRef.current.value = ''
+      if (source === 'camera' && returnCameraInputRef.current) returnCameraInputRef.current.value = ''
+      return
+    }
+
+    setReturnPhotoUploading(true)
+    const newPhotos: string[] = []
+    const errors: string[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (!file.type.startsWith('image/')) {
+        errors.push(`${file.name}: bukan gambar`)
+        continue
+      }
+      if (file.size > MAX_PROOF_SIZE) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+        errors.push(`${file.name}: ${sizeMB}MB (maks 10MB)`)
+        continue
+      }
+      if (file.size === 0) {
+        errors.push(`${file.name}: file kosong`)
+        continue
+      }
+      try {
+        const { dataUrl } = await resizeImageFile(file, 1024, 0.85)
+        newPhotos.push(dataUrl)
+      } catch {
+        errors.push(`${file.name}: gagal diproses`)
+      }
+    }
+
+    if (newPhotos.length > 0) {
+      setReturnPhotos((prev) => [...prev, ...newPhotos])
+      toast({ title: 'Foto ditambahkan', description: `${newPhotos.length} foto bukti pengembalian` })
+    }
+    if (errors.length > 0) {
+      toast({ title: 'Beberapa foto gagal', description: errors.join('; '), variant: 'destructive' })
+    }
+
+    if (source === 'file' && returnFileInputRef.current) returnFileInputRef.current.value = ''
+    if (source === 'camera' && returnCameraInputRef.current) returnCameraInputRef.current.value = ''
+    setReturnPhotoUploading(false)
+  }
+
+  function removeReturnPhoto(idx: number) {
+    setReturnPhotos((prev) => prev.filter((_, i) => i !== idx))
+  }
+
   async function handleSaveReturn() {
     if (!returnBorrowingId) {
       toast({ title: 'Validasi', description: 'BA Peminjaman wajib dipilih', variant: 'destructive' })
@@ -551,6 +714,7 @@ export function BeritaAcaraPage() {
         notes: returnNotes,
         receiverName,
         receiverNip,
+        proofPhotos: returnPhotos,
         returnItems: returnItems.map((i) => ({
           itemName: i.itemName,
           condition: i.returnCondition,
@@ -694,6 +858,19 @@ export function BeritaAcaraPage() {
         </div>
       `
 
+      // Foto bukti peminjaman (jika ada) — render grid di bawah signature
+      const borrowPhotosParsed = parsePhotosArray(detail.proofPhotos)
+      const borrowPhotosHtml = borrowPhotosParsed.length > 0
+        ? `
+            <div style="margin-top: 16px;">
+              <div style="font-weight: bold; font-size: 11pt; margin-bottom: 8px;">Foto Bukti Peminjaman:</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                ${borrowPhotosParsed.map((p) => `<img src="${p}" style="width: 150px; height: 150px; object-fit: cover; border: 1px solid #333;" />`).join('')}
+              </div>
+            </div>
+          `
+        : ''
+
       const contentHtml = `
         <div style="text-align: center; margin-top: 8px; margin-bottom: 12px;">
           <div style="font-size: 13pt; font-weight: bold; text-decoration: underline; text-transform: uppercase;">BERITA ACARA PINJAM-PAKAI</div>
@@ -780,6 +957,7 @@ export function BeritaAcaraPage() {
           Demikian Berita Acara Pinjam-Pakai ini dibuat dan ditanda tangani untuk dipergunakan sebagaimana mestinya.
         </p>
         ${signatureHtml}
+        ${borrowPhotosHtml}
       `
 
       await printWithKop('', contentHtml, orientation, { showPrintDate: false })
@@ -902,6 +1080,19 @@ export function BeritaAcaraPage() {
         </div>
       `
 
+      // Foto bukti pengembalian (jika ada) — render grid di bawah signature
+      const returnPhotosParsed = parsePhotosArray(detail.proofPhotos)
+      const returnPhotosHtml = returnPhotosParsed.length > 0
+        ? `
+            <div style="margin-top: 16px;">
+              <div style="font-weight: bold; font-size: 11pt; margin-bottom: 8px;">Foto Bukti Pengembalian:</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                ${returnPhotosParsed.map((p) => `<img src="${p}" style="width: 150px; height: 150px; object-fit: cover; border: 1px solid #333;" />`).join('')}
+              </div>
+            </div>
+          `
+        : ''
+
       const contentHtml = `
         <div style="text-align: center; margin-top: 8px; margin-bottom: 12px;">
           <div style="font-size: 13pt; font-weight: bold; text-decoration: underline; text-transform: uppercase;">BERITA ACARA PENGEMBALIAN BARANG</div>
@@ -988,6 +1179,7 @@ export function BeritaAcaraPage() {
           Demikian Berita Acara Pengembalian barang ini dibuat dan ditanda tangani untuk dipergunakan sebagaimana mestinya.
         </p>
         ${signatureHtml}
+        ${returnPhotosHtml}
       `
 
       await printWithKop('', contentHtml, orientation, { showPrintDate: false })
@@ -1510,6 +1702,97 @@ export function BeritaAcaraPage() {
                 </div>
               </div>
 
+              {/* Section: Foto Bukti Peminjaman */}
+              <div className="rounded-md border p-3 bg-muted/20">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Foto Bukti Peminjaman (opsional)</div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Foto barang saat dipinjam. Maks {MAX_PROOF_PHOTOS} foto, 10MB per foto.
+                </p>
+                {/* Hidden file inputs */}
+                <input
+                  ref={borrowFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleBorrowPhotoUpload(e.target.files, 'file')
+                    }
+                  }}
+                  className="hidden"
+                />
+                <input
+                  ref={borrowCameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleBorrowPhotoUpload(e.target.files, 'camera')
+                    }
+                  }}
+                  className="hidden"
+                />
+                {/* Action buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => borrowFileInputRef.current?.click()}
+                    disabled={borrowPhotoUploading || borrowPhotos.length >= MAX_PROOF_PHOTOS}
+                  >
+                    {borrowPhotoUploading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Upload className="size-4 mr-2" />}
+                    Pilih File
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => borrowCameraInputRef.current?.click()}
+                    disabled={borrowPhotoUploading || borrowPhotos.length >= MAX_PROOF_PHOTOS}
+                  >
+                    <Camera className="size-4 mr-2" />
+                    Ambil Foto
+                  </Button>
+                  {borrowPhotos.length > 0 && (
+                    <span className="text-xs text-muted-foreground ml-1">
+                      {borrowPhotos.length} / {MAX_PROOF_PHOTOS} foto
+                    </span>
+                  )}
+                </div>
+                {/* Photo thumbnails */}
+                {borrowPhotos.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
+                    {borrowPhotos.map((photo, idx) => (
+                      <div
+                        key={idx}
+                        className="relative group aspect-square rounded-md border overflow-hidden bg-muted"
+                      >
+                        <img
+                          src={photo}
+                          alt={`Bukti ${idx + 1}`}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => {
+                            setPhotoViewerImages(borrowPhotos)
+                            setPhotoViewerIndex(idx)
+                            setPhotoViewerOpen(true)
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeBorrowPhoto(idx)}
+                          className="absolute top-1 right-1 size-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Hapus foto"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Section: Penandatangan */}
               <div className="rounded-md border p-3 bg-muted/20">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
@@ -1825,6 +2108,97 @@ export function BeritaAcaraPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Section: Foto Bukti Pengembalian */}
+              <div className="rounded-md border p-3 bg-muted/20">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Foto Bukti Pengembalian (opsional)</div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Foto barang saat dikembalikan. Maks {MAX_PROOF_PHOTOS} foto, 10MB per foto.
+                </p>
+                {/* Hidden file inputs */}
+                <input
+                  ref={returnFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleReturnPhotoUpload(e.target.files, 'file')
+                    }
+                  }}
+                  className="hidden"
+                />
+                <input
+                  ref={returnCameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleReturnPhotoUpload(e.target.files, 'camera')
+                    }
+                  }}
+                  className="hidden"
+                />
+                {/* Action buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => returnFileInputRef.current?.click()}
+                    disabled={returnPhotoUploading || returnPhotos.length >= MAX_PROOF_PHOTOS}
+                  >
+                    {returnPhotoUploading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Upload className="size-4 mr-2" />}
+                    Pilih File
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => returnCameraInputRef.current?.click()}
+                    disabled={returnPhotoUploading || returnPhotos.length >= MAX_PROOF_PHOTOS}
+                  >
+                    <Camera className="size-4 mr-2" />
+                    Ambil Foto
+                  </Button>
+                  {returnPhotos.length > 0 && (
+                    <span className="text-xs text-muted-foreground ml-1">
+                      {returnPhotos.length} / {MAX_PROOF_PHOTOS} foto
+                    </span>
+                  )}
+                </div>
+                {/* Photo thumbnails */}
+                {returnPhotos.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
+                    {returnPhotos.map((photo, idx) => (
+                      <div
+                        key={idx}
+                        className="relative group aspect-square rounded-md border overflow-hidden bg-muted"
+                      >
+                        <img
+                          src={photo}
+                          alt={`Bukti ${idx + 1}`}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => {
+                            setPhotoViewerImages(returnPhotos)
+                            setPhotoViewerIndex(idx)
+                            setPhotoViewerOpen(true)
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeReturnPhoto(idx)}
+                          className="absolute top-1 right-1 size-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Hapus foto"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1933,6 +2307,49 @@ export function BeritaAcaraPage() {
         title="Cetak BA Pengembalian"
         description="Pilih orientasi halaman sebelum mencetak BA Pengembalian"
       />
+
+      {/* ─── Photo Viewer Dialog ─────────────────────────────────────────────── */}
+      <Dialog
+        open={photoViewerOpen}
+        onOpenChange={(open) => {
+          setPhotoViewerOpen(open)
+          if (!open) setPhotoViewerIndex(0)
+        }}
+      >
+        <DialogContent className="sm:max-w-[640px] p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Pratinjau Foto Bukti</DialogTitle>
+          {photoViewerImages.length > 0 && (
+            <div className="relative">
+              <img
+                src={photoViewerImages[photoViewerIndex]}
+                alt={`Bukti ${photoViewerIndex + 1}`}
+                className="w-full max-h-[70vh] object-contain bg-black"
+              />
+              {photoViewerImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoViewerIndex((i) => (i - 1 + photoViewerImages.length) % photoViewerImages.length)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoViewerIndex((i) => (i + 1) % photoViewerImages.length)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-xs">
+                {photoViewerIndex + 1} / {photoViewerImages.length}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   )
 }

@@ -598,6 +598,9 @@ model BorrowingEntry {
   // Penandatangan BA Peminjaman
   lenderName      String   @default("") // Nama pemberi pinjaman (PIC dari sekolah)
   lenderNip       String   @default("")
+  // ── Foto bukti peminjaman (base64 data URLs, JSON array) ──
+  // Foto barang saat dipinjam sebagai pelengkap laporan. Maks 5 foto, 10MB per foto.
+  proofPhotos     String   @default("[]") // JSON array of base64 data URLs
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   items           BorrowingItem[]
@@ -632,6 +635,9 @@ model ReturnEntry {
   receiverNip     String   @default("")
   // kondisi saat dikembalikan per item — disimpan sebagai JSON array
   returnItems     String   @default("[]") // JSON array: [{itemName, condition, notes}]
+  // ── Foto bukti pengembalian (base64 data URLs, JSON array) ──
+  // Foto barang saat dikembalikan sebagai pelengkap laporan. Maks 5 foto, 10MB per foto.
+  proofPhotos     String   @default("[]") // JSON array of base64 data URLs
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
