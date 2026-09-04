@@ -51,6 +51,7 @@ import {
   Users,
   Printer,
   FileSpreadsheet,
+  PackageCheck,
 } from 'lucide-react'
 import { printWithKop } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
@@ -59,6 +60,7 @@ import { PrintDialog } from '@/components/print-dialog'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageLoading } from '@/components/ui/loading-skeleton'
+import { Badge } from '@/components/ui/badge'
 
 interface EmployeeData {
   id: string
@@ -96,6 +98,13 @@ export function EmployeesPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
+  // ── Borrowed count map ──
+  // Map employeeId → { count, items } dari /api/employees/borrowed-count.
+  // count = jumlah BA Peminjaman aktif (status "Dipinjam").
+  // items = total kuantitas barang yang sedang dipinjam.
+  // Dipakai untuk menampilkan badge "X barang (Y jenis)" di kolom "Barang Dipinjam".
+  const [borrowedCountMap, setBorrowedCountMap] = useState<Record<string, { count: number; items: number }>>({})
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState<EmployeeData | null>(null)
   const [formData, setFormData] = useState<FormData>({ ...emptyForm })
@@ -121,7 +130,26 @@ export function EmployeesPage() {
     }
   }, [toast])
 
-  useEffect(() => { fetchEmployees() }, [fetchEmployees])
+  // Fetch borrowed count per employee — dipakai untuk kolom "Barang Dipinjam".
+  // Di-fetch paralel dengan fetchEmployees supaya loading cepat. Silent (no toast on error)
+  // karena ini hanya data pelengkap — kalau gagal, kolom tetap tampil "-" (count = 0).
+  const fetchBorrowedCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/employees/borrowed-count')
+      if (!res.ok) throw new Error('Gagal')
+      const data = await res.json()
+      if (data && typeof data === 'object') {
+        setBorrowedCountMap(data as Record<string, { count: number; items: number }>)
+      }
+    } catch {
+      /* silent — data pelengkap, bukan fatal */
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchEmployees()
+    fetchBorrowedCount()
+  }, [fetchEmployees, fetchBorrowedCount])
 
   function openAddDialog() {
     setEditingEmployee(null)
@@ -323,32 +351,51 @@ export function EmployeesPage() {
                     <TableHead className="whitespace-nowrap tabular-nums">NIP</TableHead>
                     <TableHead>Jabatan</TableHead>
                     <TableHead>Unit Kerja</TableHead>
+                    <TableHead className="whitespace-nowrap">Barang Dipinjam</TableHead>
                     <TableHead className="whitespace-nowrap tabular-nums">No HP</TableHead>
                     <TableHead>Alamat</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredEmployees.map((emp, idx) => (
-                    <TableRow key={emp.id} className="h-14">
-                      <TableCell>
-                        <div className="flex items-center justify-start gap-1">
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(emp)}>
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => { setDeleteId(emp.id); setDeleteName(emp.name) }}>
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
-                      <TableCell className="font-medium">{emp.name}</TableCell>
-                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{emp.nip || '-'}</TableCell>
-                      <TableCell>{emp.position || '-'}</TableCell>
-                      <TableCell>{emp.department || '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{emp.phone || '-'}</TableCell>
-                      <TableCell className="max-w-[200px] truncate text-muted-foreground">{emp.address || '-'}</TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredEmployees.map((emp, idx) => {
+                    const borrowed = borrowedCountMap[emp.id]
+                    const hasBorrowed = borrowed && borrowed.count > 0
+                    return (
+                      <TableRow key={emp.id} className="h-14">
+                        <TableCell>
+                          <div className="flex items-center justify-start gap-1">
+                            <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(emp)}>
+                              <Pencil className="size-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => { setDeleteId(emp.id); setDeleteName(emp.name) }}>
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
+                        <TableCell className="font-medium">{emp.name}</TableCell>
+                        <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{emp.nip || '-'}</TableCell>
+                        <TableCell>{emp.position || '-'}</TableCell>
+                        <TableCell>{emp.department || '-'}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {hasBorrowed ? (
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-50 font-normal whitespace-nowrap"
+                              title={`${borrowed.items} unit barang dari ${borrowed.count} BA Peminjaman aktif`}
+                            >
+                              <PackageCheck className="size-3 mr-1" />
+                              {borrowed.items} barang ({borrowed.count} jenis)
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{emp.phone || '-'}</TableCell>
+                        <TableCell className="max-w-[200px] truncate text-muted-foreground">{emp.address || '-'}</TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>

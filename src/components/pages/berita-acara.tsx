@@ -102,6 +102,24 @@ interface Borrower {
   _count?: { borrowings: number }
 }
 
+// ── BorrowerData: merged peminjam (pegawai + eksternal) ──
+// Dipakai untuk dropdown peminjam di form BA Peminjaman.
+// `source` menandakan asal data: "pegawai" (dari tabel Employee) atau
+// "eksternal" (dari tabel Borrower). Field `nip` & `jabatan` konsisten
+// untuk kedua source — di-mapped dari Employee.position/department saat
+// di-serve oleh /api/borrowers/all.
+interface BorrowerData {
+  id: string
+  source: 'pegawai' | 'eksternal'
+  name: string
+  nip?: string
+  jabatan?: string
+  organization?: string
+  phone?: string
+  address?: string
+  role?: string
+}
+
 interface BorrowingItemData {
   id: string
   borrowingId: string
@@ -386,7 +404,9 @@ export function BeritaAcaraPage() {
   const [activeTab, setActiveTab] = useState<string>('borrow')
 
   // ── Shared state ──
-  const [borrowers, setBorrowers] = useState<Borrower[]>([])
+  // borrowers: merged list (pegawai + eksternal) dari /api/borrowers/all.
+  // Dipakai untuk dropdown peminjam di form BA Peminjaman.
+  const [borrowers, setBorrowers] = useState<BorrowerData[]>([])
 
   // ── Peminjaman state ──
   const [borrowings, setBorrowings] = useState<BorrowingData[]>([])
@@ -492,6 +512,39 @@ export function BeritaAcaraPage() {
   const [photoViewerImages, setPhotoViewerImages] = useState<string[]>([])
   const [photoViewerIndex, setPhotoViewerIndex] = useState(0)
 
+  // ── Peminjam (master peminjam eksternal) state ──
+  // Tab "Peminjam" menampilkan daftar peminjam eksternal dari tabel Borrower
+  // (role = "Eksternal"). Pegawai tidak ditampilkan di sini karena sudah ada
+  // di menu Pegawai. User bisa tambah/edit/hapus peminjam eksternal.
+  const [extBorrowers, setExtBorrowers] = useState<Borrower[]>([])
+  const [loadingExtBorrowers, setLoadingExtBorrowers] = useState(true)
+  const [searchExtBorrowers, setSearchExtBorrowers] = useState('')
+
+  // Dialog tambah/edit peminjam eksternal
+  const [dialogExtBorrowerOpen, setDialogExtBorrowerOpen] = useState(false)
+  const [editingExtBorrower, setEditingExtBorrower] = useState<Borrower | null>(null)
+  const [savingExtBorrower, setSavingExtBorrower] = useState(false)
+  const [extBorrowerForm, setExtBorrowerForm] = useState<{
+    name: string
+    nip: string
+    jabatan: string
+    organization: string
+    phone: string
+    address: string
+  }>({
+    name: '',
+    nip: '',
+    jabatan: '',
+    organization: '',
+    phone: '',
+    address: '',
+  })
+
+  // Delete confirmation peminjam eksternal
+  const [deleteExtBorrowerId, setDeleteExtBorrowerId] = useState<string | null>(null)
+  const [deleteExtBorrowerName, setDeleteExtBorrowerName] = useState('')
+  const [deletingExtBorrower, setDeletingExtBorrower] = useState(false)
+
   // ─── Fetch ────────────────────────────────────────────────────────────────
 
   const fetchBorrowings = useCallback(async () => {
@@ -510,7 +563,9 @@ export function BeritaAcaraPage() {
 
   const fetchBorrowers = useCallback(async () => {
     try {
-      const res = await fetch('/api/borrowers')
+      // Pakai /api/borrowers/all yang return merged list (pegawai + eksternal).
+      // Dipakai untuk dropdown peminjam di form BA Peminjaman.
+      const res = await fetch('/api/borrowers/all')
       if (!res.ok) throw new Error('Gagal')
       const data = await res.json()
       setBorrowers(Array.isArray(data) ? data : [])
@@ -518,6 +573,24 @@ export function BeritaAcaraPage() {
       /* silent */
     }
   }, [])
+
+  // Fetch daftar peminjam eksternal (master peminjam) untuk tab "Peminjam".
+  // Hanya menampilkan peminjam dengan role = "Eksternal" (bukan pegawai).
+  const fetchExtBorrowers = useCallback(async () => {
+    setLoadingExtBorrowers(true)
+    try {
+      const res = await fetch('/api/borrowers')
+      if (!res.ok) throw new Error('Gagal')
+      const data = await res.json()
+      const list: Borrower[] = Array.isArray(data) ? data : []
+      // Filter hanya peminjam eksternal — pegawai ada di menu Pegawai
+      setExtBorrowers(list.filter((b) => (b.role || 'Eksternal') === 'Eksternal'))
+    } catch {
+      toast({ title: 'Error', description: 'Gagal mengambil data peminjam', variant: 'destructive' })
+    } finally {
+      setLoadingExtBorrowers(false)
+    }
+  }, [toast])
 
   const fetchReturns = useCallback(async () => {
     setLoadingReturns(true)
@@ -537,7 +610,8 @@ export function BeritaAcaraPage() {
     fetchBorrowings()
     fetchBorrowers()
     fetchReturns()
-  }, [fetchBorrowings, fetchBorrowers, fetchReturns])
+    fetchExtBorrowers()
+  }, [fetchBorrowings, fetchBorrowers, fetchReturns, fetchExtBorrowers])
 
   // ─── Peminjaman handlers ───────────────────────────────────────────────────
 
@@ -672,7 +746,10 @@ export function BeritaAcaraPage() {
     }
     setSavingBorrower(true)
     try {
-      const res = await fetch('/api/borrowers', {
+      // POST ke /api/borrowers/all — backend akan auto-detect source:
+      // kalau organization match school name → buat Employee (source: "pegawai")
+      // kalau tidak → buat Borrower eksternal (source: "eksternal")
+      const res = await fetch('/api/borrowers/all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -682,13 +759,21 @@ export function BeritaAcaraPage() {
           organization: newBorrowerOrg,
           address: newBorrowerAddress,
           phone: newBorrowerPhone,
-          role: newBorrowerRole || 'Eksternal',
         }),
       })
       if (!res.ok) throw new Error('Gagal')
-      const created: Borrower = await res.json()
-      toast({ title: 'Berhasil', description: `Peminjam "${created.name}" ditambahkan` })
-      setBorrowers((prev) => [created, ...prev])
+      const created = await res.json()
+      // Response punya field `message` (mis. "Peminjam ditambahkan ke data Pegawai (internal)"
+      // atau "Peminjam eksternal ditambahkan") — tampilkan di toast.
+      toast({
+        title: 'Berhasil',
+        description: created.message || `Peminjam "${created.name}" ditambahkan`,
+      })
+      // Re-fetch merged list dari /api/borrowers/all supaya dropdown update
+      fetchBorrowers()
+      // Re-fetch external borrowers juga (kalau yang dibuat adalah eksternal)
+      fetchExtBorrowers()
+      // Pilih peminjam yang baru dibuat sebagai borrowerId aktif
       setBorrowerId(created.id)
       setAddBorrowerOpen(false)
       setNewBorrowerName('')
@@ -932,6 +1017,124 @@ export function BeritaAcaraPage() {
     } finally {
       setDeletingReturn(false)
       setDeleteReturnId(null)
+    }
+  }
+
+  // ─── Peminjam (master peminjam eksternal) handlers ────────────────────────
+
+  function openAddExtBorrowerDialog() {
+    setEditingExtBorrower(null)
+    setExtBorrowerForm({
+      name: '',
+      nip: '',
+      jabatan: '',
+      organization: '',
+      phone: '',
+      address: '',
+    })
+    setDialogExtBorrowerOpen(true)
+  }
+
+  function openEditExtBorrowerDialog(b: Borrower) {
+    setEditingExtBorrower(b)
+    setExtBorrowerForm({
+      name: b.name || '',
+      nip: b.nip || '',
+      jabatan: b.jabatan || '',
+      organization: b.organization || '',
+      phone: b.phone || '',
+      address: b.address || '',
+    })
+    setDialogExtBorrowerOpen(true)
+  }
+
+  async function handleSaveExtBorrower() {
+    if (!extBorrowerForm.name.trim()) {
+      toast({ title: 'Validasi', description: 'Nama peminjam wajib diisi', variant: 'destructive' })
+      return
+    }
+    setSavingExtBorrower(true)
+    try {
+      if (editingExtBorrower) {
+        // Edit existing external borrower via PUT /api/borrowers/[id]
+        const res = await fetch(`/api/borrowers/${editingExtBorrower.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: extBorrowerForm.name,
+            nip: extBorrowerForm.nip,
+            jabatan: extBorrowerForm.jabatan,
+            organization: extBorrowerForm.organization,
+            phone: extBorrowerForm.phone,
+            address: extBorrowerForm.address,
+            role: 'Eksternal',
+          }),
+        })
+        if (!res.ok) {
+          // Coba extract pesan error dari backend untuk ditampilkan ke user
+          let msg = 'Gagal memperbarui peminjam'
+          try {
+            const errBody = await res.json()
+            if (errBody?.error) msg = errBody.error
+          } catch { /* ignore */ }
+          throw new Error(msg)
+        }
+        toast({ title: 'Berhasil', description: 'Data peminjam diperbarui' })
+      } else {
+        // Tambah peminjam eksternal baru via POST /api/borrowers
+        // (bukan /api/borrowers/all — kita pastikan sebagai Eksternal, bukan auto-sync ke Pegawai)
+        const res = await fetch('/api/borrowers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: extBorrowerForm.name,
+            nip: extBorrowerForm.nip,
+            jabatan: extBorrowerForm.jabatan,
+            organization: extBorrowerForm.organization,
+            phone: extBorrowerForm.phone,
+            address: extBorrowerForm.address,
+            role: 'Eksternal',
+          }),
+        })
+        if (!res.ok) throw new Error('Gagal')
+        toast({ title: 'Berhasil', description: 'Peminjam eksternal ditambahkan' })
+      }
+      setDialogExtBorrowerOpen(false)
+      // Re-fetch daftar peminjam eksternal & merged list
+      fetchExtBorrowers()
+      fetchBorrowers()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal menyimpan data peminjam'
+      toast({ title: 'Error', description: msg, variant: 'destructive' })
+    } finally {
+      setSavingExtBorrower(false)
+    }
+  }
+
+  async function handleDeleteExtBorrower() {
+    if (!deleteExtBorrowerId) return
+    setDeletingExtBorrower(true)
+    try {
+      const res = await fetch(`/api/borrowers/${deleteExtBorrowerId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        // Coba extract pesan error (mis. "Tidak dapat menghapus karena masih terkait BA")
+        let msg = 'Gagal menghapus peminjam'
+        try {
+          const errBody = await res.json()
+          if (errBody?.error) msg = errBody.error
+        } catch { /* ignore */ }
+        throw new Error(msg)
+      }
+      toast({ title: 'Berhasil', description: 'Peminjam dihapus' })
+      fetchExtBorrowers()
+      fetchBorrowers()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal menghapus peminjam'
+      toast({ title: 'Error', description: msg, variant: 'destructive' })
+    } finally {
+      setDeletingExtBorrower(false)
+      setDeleteExtBorrowerId(null)
+      setDeleteExtBorrowerName('')
     }
   }
 
@@ -1417,6 +1620,19 @@ export function BeritaAcaraPage() {
   // Borrowings yang masih berstatus "Dipinjam" (untuk dropdown di form Pengembalian)
   const availableBorrowingsForReturn = borrowings.filter((b) => b.status === 'Dipinjam')
 
+  // Filter daftar peminjam eksternal berdasarkan search query
+  const filteredExtBorrowers = extBorrowers.filter((b) => {
+    if (!searchExtBorrowers.trim()) return true
+    const q = searchExtBorrowers.toLowerCase()
+    return (
+      (b.name || '').toLowerCase().includes(q) ||
+      (b.nip || '').toLowerCase().includes(q) ||
+      (b.jabatan || '').toLowerCase().includes(q) ||
+      (b.organization || '').toLowerCase().includes(q) ||
+      (b.phone || '').toLowerCase().includes(q)
+    )
+  })
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -1436,6 +1652,10 @@ export function BeritaAcaraPage() {
           <TabsTrigger value="return">
             <ArrowLeftRight className="size-4" />
             Pengembalian
+          </TabsTrigger>
+          <TabsTrigger value="borrower">
+            <UserPlus className="size-4" />
+            Peminjam
           </TabsTrigger>
         </TabsList>
 
@@ -1730,6 +1950,112 @@ export function BeritaAcaraPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ─── TAB 3: PEMINJAM (master peminjam eksternal) ─────────────────────── */}
+        <TabsContent value="borrower" className="space-y-4">
+          <Card className="card-pro">
+            <CardHeader>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="size-5" />
+                  <div>
+                    <CardTitle>Daftar Peminjam Eksternal</CardTitle>
+                    <CardDescription>
+                      Master data peminjam eksternal (bukan pegawai). Pegawai dikelola di menu Pegawai.
+                    </CardDescription>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Cari nama / NIP / institusi..."
+                      value={searchExtBorrowers}
+                      onChange={(e) => setSearchExtBorrowers(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Button onClick={openAddExtBorrowerDialog}>
+                    <Plus className="size-4 mr-2" />
+                    Tambah Peminjam
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingExtBorrowers ? (
+                <PageLoading label="Memuat data peminjam..." />
+              ) : filteredExtBorrowers.length === 0 ? (
+                <EmptyState
+                  icon={UserPlus}
+                  title="Belum ada data"
+                  description={
+                    searchExtBorrowers
+                      ? 'Tidak ditemukan peminjam yang sesuai'
+                      : 'Klik "Tambah Peminjam" untuk menambahkan peminjam eksternal baru'
+                  }
+                />
+              ) : (
+                <div className="max-h-[520px] overflow-y-auto rounded-md border">
+                  <Table className="table-pro">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[100px] text-left">Aksi</TableHead>
+                        <TableHead className="w-[50px]">No</TableHead>
+                        <TableHead>Nama</TableHead>
+                        <TableHead className="whitespace-nowrap tabular-nums">NIP</TableHead>
+                        <TableHead>Jabatan</TableHead>
+                        <TableHead>Institusi</TableHead>
+                        <TableHead className="whitespace-nowrap tabular-nums">No. HP</TableHead>
+                        <TableHead>Alamat</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredExtBorrowers.map((b, idx) => (
+                        <TableRow key={b.id} className="h-14">
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                onClick={() => openEditExtBorrowerDialog(b)}
+                                title="Edit"
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  setDeleteExtBorrowerId(b.id)
+                                  setDeleteExtBorrowerName(b.name)
+                                }}
+                                title="Hapus"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="tabular-nums text-muted-foreground">{idx + 1}</TableCell>
+                          <TableCell className="font-medium">{b.name}</TableCell>
+                          <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{b.nip || '-'}</TableCell>
+                          <TableCell>{b.jabatan || '-'}</TableCell>
+                          <TableCell>{b.organization || '-'}</TableCell>
+                          <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{b.phone || '-'}</TableCell>
+                          <TableCell className="max-w-[200px] truncate text-muted-foreground" title={b.address || ''}>
+                            {b.address || '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* ─── Dialog: Add/Edit BA Peminjaman ────────────────────────────────── */}
@@ -1796,8 +2122,22 @@ export function BeritaAcaraPage() {
                         <SelectContent>
                           {borrowers.map((b) => (
                             <SelectItem key={b.id} value={b.id}>
-                              {b.name}
-                              {b.organization ? ` · ${b.organization}` : ''}
+                              <div className="flex items-center gap-2 flex-1">
+                                <span className="truncate">{b.name}</span>
+                                {b.jabatan && (
+                                  <span className="text-xs text-muted-foreground">({b.jabatan})</span>
+                                )}
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    b.source === 'pegawai'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-1.5 py-0 h-4'
+                                      : 'bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0 h-4'
+                                  }
+                                >
+                                  {b.source === 'pegawai' ? 'Pegawai' : 'Eksternal'}
+                                </Badge>
+                              </div>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -2509,6 +2849,124 @@ export function BeritaAcaraPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletingReturn && <Loader2 className="size-4 mr-2 animate-spin" />}
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Dialog: Add/Edit Peminjam Eksternal (tab Peminjam) ────────────── */}
+      <Dialog open={dialogExtBorrowerOpen} onOpenChange={setDialogExtBorrowerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="size-5" />
+              {editingExtBorrower ? 'Edit Peminjam' : 'Tambah Peminjam Eksternal'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingExtBorrower
+                ? 'Perbarui data peminjam eksternal'
+                : 'Data peminjam eksternal akan disimpan ke master peminjam.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nama Peminjam *</Label>
+              <Input
+                value={extBorrowerForm.name}
+                onChange={(e) => setExtBorrowerForm({ ...extBorrowerForm, name: e.target.value })}
+                placeholder="Nama lengkap peminjam"
+                className="h-9"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">NIP (opsional)</Label>
+                <Input
+                  value={extBorrowerForm.nip}
+                  onChange={(e) => setExtBorrowerForm({ ...extBorrowerForm, nip: e.target.value })}
+                  placeholder="mis. 198512152010011001"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Jabatan</Label>
+                <MasterCombobox
+                  category="jabatanPeminjam"
+                  value={extBorrowerForm.jabatan}
+                  onChange={(val) => setExtBorrowerForm({ ...extBorrowerForm, jabatan: val })}
+                  placeholder="mis. Guru, TU, Kepala Sekolah"
+                  className="h-9"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Institusi / Organisasi</Label>
+                <Input
+                  value={extBorrowerForm.organization}
+                  onChange={(e) => setExtBorrowerForm({ ...extBorrowerForm, organization: e.target.value })}
+                  placeholder="mis. SMA Negeri 1"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">No. HP / Telp</Label>
+                <Input
+                  value={extBorrowerForm.phone}
+                  onChange={(e) => setExtBorrowerForm({ ...extBorrowerForm, phone: e.target.value })}
+                  placeholder="08xxxxxxxxxx"
+                  className="h-9"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Alamat</Label>
+              <Textarea
+                value={extBorrowerForm.address}
+                onChange={(e) => setExtBorrowerForm({ ...extBorrowerForm, address: e.target.value })}
+                placeholder="Alamat peminjam"
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogExtBorrowerOpen(false)} disabled={savingExtBorrower}>
+              Batal
+            </Button>
+            <Button onClick={handleSaveExtBorrower} disabled={savingExtBorrower}>
+              {savingExtBorrower && <Loader2 className="size-4 mr-2 animate-spin" />}
+              {editingExtBorrower ? 'Simpan Perubahan' : 'Simpan Peminjam'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Delete Confirmation: Peminjam Eksternal ───────────────────────── */}
+      <AlertDialog
+        open={!!deleteExtBorrowerId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteExtBorrowerId(null)
+            setDeleteExtBorrowerName('')
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus peminjam <span className="font-semibold">{deleteExtBorrowerName}</span>? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingExtBorrower}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteExtBorrower}
+              disabled={deletingExtBorrower}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingExtBorrower && <Loader2 className="size-4 mr-2 animate-spin" />}
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>

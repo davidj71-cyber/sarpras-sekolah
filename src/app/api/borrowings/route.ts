@@ -41,12 +41,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Handle borrowerId: bisa dari Employee (source=pegawai) atau Borrower (source=eksternal) ──
+    // Jika source=pegawai, borrowerId = Employee.id → perlu cari/create Borrower record
+    // yang match dengan Employee tersebut (by name).
+    let borrowerId = String(body.borrowerId);
+    if (body.borrowerSource === "pegawai") {
+      // Cari Borrower yang match dengan Employee by name
+      const employee = await db.employee.findUnique({ where: { id: borrowerId } });
+      if (employee) {
+        const existingBorrower = await db.borrower.findFirst({
+          where: { name: { equals: employee.name, mode: "insensitive" } },
+        });
+        if (existingBorrower) {
+          borrowerId = existingBorrower.id;
+        } else {
+          // Create Borrower record untuk Employee ini
+          const newBorrower = await db.borrower.create({
+            data: {
+              name: employee.name,
+              nip: employee.nip || "",
+              jabatan: employee.position || "",
+              organization: employee.department || "",
+              phone: employee.phone || "",
+              address: employee.address || "",
+              role: "Pegawai",
+            },
+          });
+          borrowerId = newBorrower.id;
+        }
+      }
+    }
+
     const borrowing = await db.borrowingEntry.create({
       data: {
         baNumber,
         borrowDate: body.borrowDate ? new Date(body.borrowDate) : new Date(),
         expectedReturnDate: body.expectedReturnDate ? new Date(body.expectedReturnDate) : null,
-        borrowerId: String(body.borrowerId),
+        borrowerId,
         purpose: String(body.purpose ?? "").trim(),
         notes: String(body.notes ?? "").trim(),
         status: "Dipinjam",
