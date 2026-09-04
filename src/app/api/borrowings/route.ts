@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       const employee = await db.employee.findUnique({ where: { id: borrowerId } });
       if (employee) {
         const existingBorrower = await db.borrower.findFirst({
-          where: { name: { equals: employee.name, mode: "insensitive" } },
+          where: { name: { equals: employee.name } },
         });
         if (existingBorrower) {
           borrowerId = existingBorrower.id;
@@ -68,6 +68,35 @@ export async function POST(request: NextRequest) {
             },
           });
           borrowerId = newBorrower.id;
+        }
+      }
+    } else {
+      // Fallback: kalau borrowerId tidak ditemukan di Borrower table,
+      // coba cari by name di borrowers list (mungkin dari merged list yang ID-nya Employee.id)
+      const borrowerExists = await db.borrower.findUnique({ where: { id: borrowerId } });
+      if (!borrowerExists) {
+        // Mungkin borrowerId = Employee.id — coba cari employee & auto-create Borrower
+        const employee = await db.employee.findUnique({ where: { id: borrowerId } });
+        if (employee) {
+          const existingBorrower = await db.borrower.findFirst({
+            where: { name: { equals: employee.name } },
+          });
+          if (existingBorrower) {
+            borrowerId = existingBorrower.id;
+          } else {
+            const newBorrower = await db.borrower.create({
+              data: {
+                name: employee.name,
+                nip: employee.nip || "",
+                jabatan: employee.position || "",
+                organization: employee.department || "",
+                phone: employee.phone || "",
+                address: employee.address || "",
+                role: "Pegawai",
+              },
+            });
+            borrowerId = newBorrower.id;
+          }
         }
       }
     }

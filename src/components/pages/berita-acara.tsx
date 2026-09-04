@@ -443,6 +443,10 @@ export function BeritaAcaraPage() {
   const [borrowDate, setBorrowDate] = useState('')
   const [expectedReturnDate, setExpectedReturnDate] = useState('')
   const [borrowerId, setBorrowerId] = useState('')
+  // Track source peminjam: 'pegawai' (dari Employee) atau 'eksternal' (dari Borrower)
+  // Penting: kalau source='pegawai', API perlu cari/create Borrower record
+  // yang match dengan Employee (foreign key constraint).
+  const [borrowerSource, setBorrowerSource] = useState<'pegawai' | 'eksternal'>('eksternal')
   const [purpose, setPurpose] = useState('')
   const [borrowNotes, setBorrowNotes] = useState('')
   const [lenderName, setLenderName] = useState('')
@@ -643,6 +647,7 @@ export function BeritaAcaraPage() {
     setBorrowDate(new Date().toISOString().split('T')[0])
     setExpectedReturnDate('')
     setBorrowerId('')
+    setBorrowerSource('eksternal')
     setPurpose('')
     setBorrowNotes('')
     setBorrowItems([
@@ -664,6 +669,7 @@ export function BeritaAcaraPage() {
       record.expectedReturnDate ? new Date(record.expectedReturnDate).toISOString().split('T')[0] : ''
     )
     setBorrowerId(record.borrowerId)
+    setBorrowerSource('eksternal') // Saat edit, borrowerId sudah = Borrower.id (bukan Employee.id)
     setPurpose(record.purpose || '')
     setBorrowNotes(record.notes || '')
     setLenderName(record.lenderName || '')
@@ -829,6 +835,7 @@ export function BeritaAcaraPage() {
         borrowDate: borrowDate || new Date().toISOString(),
         expectedReturnDate: expectedReturnDate || null,
         borrowerId,
+        borrowerSource, // 'pegawai' atau 'eksternal' — API handle auto-create Borrower
         purpose,
         notes: borrowNotes,
         lenderName,
@@ -2137,7 +2144,12 @@ export function BeritaAcaraPage() {
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label className="text-xs">Peminjam *</Label>
                     <div className="flex gap-2">
-                      <Select value={borrowerId} onValueChange={setBorrowerId}>
+                      <Select value={borrowerId} onValueChange={(v) => {
+                        setBorrowerId(v)
+                        // Cari source dari borrowers list
+                        const selected = borrowers.find((b) => b.id === v)
+                        setBorrowerSource(selected?.source || 'eksternal')
+                      }}>
                         <SelectTrigger className="h-9 flex-1">
                           <SelectValue placeholder="Pilih peminjam" />
                         </SelectTrigger>
