@@ -108,6 +108,90 @@ export async function GET() {
       },
     })
 
+    // ── Berita Acara Peminjaman stats ────────────────────────────────────────
+    let activeBorrowings = 0
+    let totalBorrowings = 0
+    let overdueBorrowings = 0
+    let recentBorrowings: Array<{
+      id: string; baNumber: string; borrowDate: string; status: string;
+      borrower: { name: string } | null;
+      items: { id: string }[];
+    }> = []
+    try {
+      activeBorrowings = await db.borrowingEntry.count({ where: { status: 'Dipinjam' } })
+      totalBorrowings = await db.borrowingEntry.count()
+      overdueBorrowings = await db.borrowingEntry.count({
+        where: {
+          status: 'Dipinjam',
+          expectedReturnDate: { lt: new Date() },
+        },
+      })
+      recentBorrowings = await db.borrowingEntry.findMany({
+        take: 3,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          borrower: { select: { name: true } },
+          items: { select: { id: true } },
+        },
+      })
+    } catch { /* tables might not exist yet */ }
+
+    // ── Galon stats ─────────────────────────────────────────────────────────
+    let totalGalonEntries = 0
+    let galonBonUnpaid = 0
+    let recentGalon: Array<{
+      id: string; recipient: string; receivedDate: string;
+      paymentMethod: string; paymentStatus: string;
+      emptyCount: number; filledCount: number;
+    }> = []
+    try {
+      totalGalonEntries = await db.galonEntry.count()
+      galonBonUnpaid = await db.galonEntry.count({ where: { paymentStatus: 'BELUM_BAYAR' } })
+      recentGalon = await db.galonEntry.findMany({
+        take: 3,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, recipient: true, receivedDate: true, paymentMethod: true, paymentStatus: true, emptyCount: true, filledCount: true },
+      })
+    } catch { /* tables might not exist yet */ }
+
+    // ── Gaji stats ──────────────────────────────────────────────────────────
+    let totalSalaryEntries = 0
+    let totalSalaryThisYear = 0
+    try {
+      totalSalaryEntries = await db.salaryEntry.count()
+      const yearStart = new Date(new Date().getFullYear(), 0, 1)
+      const yearEnd = new Date(new Date().getFullYear() + 1, 0, 1)
+      const salaryPayments = await db.salaryPayment.findMany({
+        where: { paidAt: { gte: yearStart, lt: yearEnd } },
+        select: { amount: true },
+      })
+      totalSalaryThisYear = salaryPayments.reduce((s, p) => s + p.amount, 0)
+    } catch { /* tables might not exist yet */ }
+
+    // ── Media stats ─────────────────────────────────────────────────────────
+    let totalMediaEntries = 0
+    let mediaActiveCount = 0
+    try {
+      totalMediaEntries = await db.mediaEntry.count()
+      // Media dengan payment terbaru tahun ini = aktif
+      const yearStart = new Date(new Date().getFullYear(), 0, 1)
+      mediaActiveCount = await db.mediaPayment.count({
+        where: { paidAt: { gte: yearStart } },
+      })
+    } catch { /* tables might not exist yet */ }
+
+    // ── BON unpaid orders ───────────────────────────────────────────────────
+    let bonUnpaidCount = 0
+    let bonUnpaidAmount = 0
+    try {
+      const bonOrders = await db.order.findMany({
+        where: { paymentMethod: 'BON', paymentStatus: 'BELUM_BAYAR' },
+        select: { totalAmount: true },
+      })
+      bonUnpaidCount = bonOrders.length
+      bonUnpaidAmount = bonOrders.reduce((s, o) => s + o.totalAmount, 0)
+    } catch { /* ignore */ }
+
     return NextResponse.json({
       // Basic counts
       totalStores,
@@ -150,6 +234,24 @@ export async function GET() {
       // Chart data
       roomsWithItems,
       damagedItems,
+      // Berita Acara
+      activeBorrowings,
+      totalBorrowings,
+      overdueBorrowings,
+      recentBorrowings,
+      // Galon
+      totalGalonEntries,
+      galonBonUnpaid,
+      recentGalon,
+      // Gaji
+      totalSalaryEntries,
+      totalSalaryThisYear,
+      // Media
+      totalMediaEntries,
+      mediaActiveCount,
+      // BON
+      bonUnpaidCount,
+      bonUnpaidAmount,
     })
   } catch (error) {
     console.error('Dashboard API error:', error)
@@ -166,6 +268,12 @@ export async function GET() {
         itemsWithoutRoom: 0,
         recentOrders: [], recentBarangMasuk: [],
         roomsWithItems: [], damagedItems: [],
+        activeBorrowings: 0, totalBorrowings: 0, overdueBorrowings: 0,
+        recentBorrowings: [],
+        totalGalonEntries: 0, galonBonUnpaid: 0, recentGalon: [],
+        totalSalaryEntries: 0, totalSalaryThisYear: 0,
+        totalMediaEntries: 0, mediaActiveCount: 0,
+        bonUnpaidCount: 0, bonUnpaidAmount: 0,
       },
       { status: 200 }
     )

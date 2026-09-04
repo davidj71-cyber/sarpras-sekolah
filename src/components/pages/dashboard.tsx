@@ -35,6 +35,12 @@ import {
   Printer,
   CalendarDays,
   FileSpreadsheet,
+  FileCheck,
+  Droplet,
+  Wallet,
+  Newspaper,
+  CreditCard,
+  Plus,
 } from 'lucide-react'
 import { printWithKop, formatRupiahPrint, formatNumberPrint } from '@/lib/print-utils'
 import type { PrintOrientation } from '@/lib/print-utils'
@@ -100,6 +106,39 @@ interface DashboardData {
     registrationNumber: string
     room: { name: string } | null
   }[]
+  // Berita Acara
+  activeBorrowings: number
+  totalBorrowings: number
+  overdueBorrowings: number
+  recentBorrowings: {
+    id: string
+    baNumber: string
+    borrowDate: string
+    status: string
+    borrower: { name: string } | null
+    items: { id: string }[]
+  }[]
+  // Galon
+  totalGalonEntries: number
+  galonBonUnpaid: number
+  recentGalon: {
+    id: string
+    recipient: string
+    receivedDate: string
+    paymentMethod: string
+    paymentStatus: string
+    emptyCount: number
+    filledCount: number
+  }[]
+  // Gaji
+  totalSalaryEntries: number
+  totalSalaryThisYear: number
+  // Media
+  totalMediaEntries: number
+  mediaActiveCount: number
+  // BON
+  bonUnpaidCount: number
+  bonUnpaidAmount: number
 }
 
 // ─── Chart configs ───────────────────────────────────────────────────────────
@@ -174,6 +213,7 @@ function StatCardLocal({
   icon: Icon,
   tone = 'primary',
   delay = 0,
+  onClick,
 }: {
   title: string
   value: string | number
@@ -181,16 +221,19 @@ function StatCardLocal({
   icon: React.ElementType
   tone?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'neutral'
   delay?: number
+  onClick?: () => void
 }) {
   return (
-    <StatCard
-      title={title}
-      value={value}
-      subtitle={subtitle}
-      icon={Icon}
-      tone={tone}
-      delay={delay}
-    />
+    <div className={onClick ? 'cursor-pointer' : ''} onClick={onClick}>
+      <StatCard
+        title={title}
+        value={value}
+        subtitle={subtitle}
+        icon={Icon}
+        tone={tone}
+        delay={delay}
+      />
+    </div>
   )
 }
 
@@ -475,6 +518,142 @@ export function DashboardPage() {
           tone="warning"
           delay={4}
         />
+      </div>
+
+      {/* ─── Stat Cards Row 2 (Fitur Baru) ───────────────────────────────────── */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <StatCardLocal
+          title="BA Peminjaman"
+          value={data.activeBorrowings}
+          subtitle={`${data.totalBorrowings} total · ${data.overdueBorrowings} lewat tenggat`}
+          icon={FileCheck}
+          tone={data.overdueBorrowings > 0 ? 'warning' : 'info'}
+          delay={5}
+          onClick={() => setPage('beritaAcara')}
+        />
+        <StatCardLocal
+          title="Galon"
+          value={data.totalGalonEntries}
+          subtitle={data.galonBonUnpaid > 0 ? `${data.galonBonUnpaid} Bon belum lunas` : 'Semua lunas'}
+          icon={Droplet}
+          tone={data.galonBonUnpaid > 0 ? 'warning' : 'success'}
+          delay={6}
+          onClick={() => { setPage('stores'); setStoreSubPage('galon') }}
+        />
+        <StatCardLocal
+          title="Gaji (Tahun ini)"
+          value={data.totalSalaryThisYear > 0 ? formatRupiah(data.totalSalaryThisYear) : data.totalSalaryEntries}
+          subtitle={`${data.totalSalaryEntries} guru terdaftar`}
+          icon={Wallet}
+          tone="primary"
+          delay={7}
+          onClick={() => setPage('salary')}
+        />
+        <StatCardLocal
+          title="Media"
+          value={data.totalMediaEntries}
+          subtitle={data.mediaActiveCount > 0 ? `${data.mediaActiveCount} pembayaran tahun ini` : 'Belum ada pembayaran'}
+          icon={Newspaper}
+          tone="info"
+          delay={8}
+          onClick={() => setPage('media')}
+        />
+      </div>
+
+      {/* ─── Alert Section ──────────────────────────────────────────────────── */}
+      {(data.overdueBorrowings > 0 || data.bonUnpaidCount > 0 || data.itemsRusakBerat > 0 || data.galonBonUnpaid > 0) && (
+        <Card className="card-pro border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="size-4" />
+              Perlu Perhatian
+            </CardTitle>
+            <CardDescription>Item yang memerlukan tindakan segera</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {data.overdueBorrowings > 0 && (
+                <div
+                  className="flex items-center gap-3 rounded-xl border border-amber-200 bg-white dark:bg-card p-3 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                  onClick={() => setPage('beritaAcara')}
+                >
+                  <div className="rounded-lg bg-amber-100 dark:bg-amber-950/50 p-2">
+                    <FileCheck className="size-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">{data.overdueBorrowings} BA Lewat Tenggat</p>
+                    <p className="text-xs text-muted-foreground">Peminjaman belum dikembalikan</p>
+                  </div>
+                </div>
+              )}
+              {data.bonUnpaidCount > 0 && (
+                <div
+                  className="flex items-center gap-3 rounded-xl border border-amber-200 bg-white dark:bg-card p-3 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                  onClick={() => { setPage('stores'); setStoreSubPage('orders') }}
+                >
+                  <div className="rounded-lg bg-amber-100 dark:bg-amber-950/50 p-2">
+                    <CreditCard className="size-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">{data.bonUnpaidCount} BON Belum Bayar</p>
+                    <p className="text-xs text-muted-foreground">{formatRupiah(data.bonUnpaidAmount)}</p>
+                  </div>
+                </div>
+              )}
+              {data.galonBonUnpaid > 0 && (
+                <div
+                  className="flex items-center gap-3 rounded-xl border border-amber-200 bg-white dark:bg-card p-3 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                  onClick={() => { setPage('stores'); setStoreSubPage('galon') }}
+                >
+                  <div className="rounded-lg bg-amber-100 dark:bg-amber-950/50 p-2">
+                    <Droplet className="size-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">{data.galonBonUnpaid} Galon Bon</p>
+                    <p className="text-xs text-muted-foreground">Belum dilunasi</p>
+                  </div>
+                </div>
+              )}
+              {data.itemsRusakBerat > 0 && (
+                <div
+                  className="flex items-center gap-3 rounded-xl border border-red-200 bg-white dark:bg-card p-3 cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                  onClick={() => setPage('kib')}
+                >
+                  <div className="rounded-lg bg-red-100 dark:bg-red-950/50 p-2">
+                    <XCircle className="size-4 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-400">{data.itemsRusakBerat} Barang Rusak Berat</p>
+                    <p className="text-xs text-muted-foreground">Perlu penggantian</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ─── Quick Actions ──────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label: 'Tambah Pesanan', icon: FileText, action: () => { setPage('stores'); setStoreSubPage('orders') } },
+          { label: 'Tambah Barang Masuk', icon: PackagePlus, action: () => { setPage('stores'); setStoreSubPage('barangMasuk') } },
+          { label: 'Tambah BA Peminjaman', icon: FileCheck, action: () => setPage('beritaAcara') },
+          { label: 'Tambah Galon', icon: Droplet, action: () => { setPage('stores'); setStoreSubPage('galon') } },
+          { label: 'Input Gaji', icon: Wallet, action: () => setPage('salary') },
+          { label: 'Tambah Media', icon: Newspaper, action: () => setPage('media') },
+        ].map((item) => (
+          <Button
+            key={item.label}
+            variant="outline"
+            size="sm"
+            className="transition-all hover:scale-105"
+            onClick={item.action}
+          >
+            <item.icon className="size-4 mr-1.5" />
+            {item.label}
+          </Button>
+        ))}
       </div>
 
       {/* ─── Condition & KIB Charts Row ───────────────────────────────────────── */}
@@ -785,6 +964,100 @@ export function DashboardPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ─── Aktivitas BA & Galon Terkini ────────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* BA Peminjaman Terbaru */}
+        <Card className="card-pro animate-fade-in-up stagger-5">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileCheck className="size-4 text-blue-500" />
+                  BA Peminjaman Terbaru
+                </CardTitle>
+                <CardDescription>3 berita acara terakhir</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" className="transition-all" onClick={() => setPage('beritaAcara')}>
+                Semua <ArrowRight className="size-3.5 ml-1" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {data.recentBorrowings && data.recentBorrowings.length > 0 ? (
+              <div className="space-y-2.5">
+                {data.recentBorrowings.map((ba) => (
+                  <div key={ba.id} className="flex items-center justify-between p-3 rounded-xl border hover:bg-muted/30 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">{ba.baNumber}</p>
+                        <Badge className={`text-[11px] font-medium ${ba.status === 'Dipinjam' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'}`}>
+                          {ba.status}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                        <span>{ba.borrower?.name || '-'}</span>
+                        <span>· {ba.items?.length || 0} item</span>
+                        <span className="flex items-center gap-0.5"><Clock className="size-3" />{formatDate(ba.borrowDate)}</span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                <FileCheck className="size-8 mx-auto mb-2 opacity-20" />
+                Belum ada BA Peminjaman
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Galon Terbaru */}
+        <Card className="card-pro animate-fade-in-up stagger-5">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Droplet className="size-4 text-cyan-500" />
+                  Galon Terbaru
+                </CardTitle>
+                <CardDescription>3 transaksi galon terakhir</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" className="transition-all" onClick={() => { setPage('stores'); setStoreSubPage('galon') }}>
+                Semua <ArrowRight className="size-3.5 ml-1" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {data.recentGalon && data.recentGalon.length > 0 ? (
+              <div className="space-y-2.5">
+                {data.recentGalon.map((g) => (
+                  <div key={g.id} className="flex items-center justify-between p-3 rounded-xl border hover:bg-muted/30 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">{g.recipient || '-'}</p>
+                        <Badge className={`text-[11px] font-medium ${g.paymentStatus === 'LUNAS' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {g.paymentMethod} · {g.paymentStatus === 'LUNAS' ? 'Lunas' : 'Belum'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                        <span>{g.emptyCount} kosong · {g.filledCount} isi</span>
+                        <span className="flex items-center gap-0.5"><Clock className="size-3" />{formatDate(g.receivedDate)}</span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                <Droplet className="size-8 mx-auto mb-2 opacity-20" />
+                Belum ada transaksi galon
               </div>
             )}
           </CardContent>
