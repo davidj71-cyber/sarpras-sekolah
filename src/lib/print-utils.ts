@@ -69,12 +69,25 @@ export function parseKopLines(raw: unknown): KopLine[] {
 
 // ─── Fetch settings for print ─────────────────────────────────────────────────
 
+// ─── Module-level cache untuk fetchPrintSettings ────────────────────────────
+// Settings sekolah hampir tidak berubah. Cache di level modul supaya
+// cetak ke-2+ → instant (tidak perlu fetch API lagi).
+// Cache diinvalidasi setelah 5 menit atau saat user ganti halaman.
+let printSettingsCache: PrintSettings | null = null
+let printSettingsTimestamp = 0
+const PRINT_SETTINGS_TTL = 5 * 60 * 1000 // 5 menit
+
 export async function fetchPrintSettings(): Promise<PrintSettings> {
+  // 1. Cek cache (masih fresh < 5 menit)
+  if (printSettingsCache && Date.now() - printSettingsTimestamp < PRINT_SETTINGS_TTL) {
+    return printSettingsCache
+  }
+
   try {
     const res = await fetch('/api/settings')
     if (!res.ok) throw new Error('Gagal')
     const data = await res.json()
-    return {
+    const settings: PrintSettings = {
       schoolName: data.schoolName ?? '',
       logo: data.logo ?? null,
       logoWidth: data.logoWidth ?? 3,
@@ -97,6 +110,10 @@ export async function fetchPrintSettings(): Promise<PrintSettings> {
       goodsManagerName: data.goodsManagerName ?? '',
       goodsManagerNip: data.goodsManagerNip ?? '',
     }
+    // Update cache
+    printSettingsCache = settings
+    printSettingsTimestamp = Date.now()
+    return settings
   } catch {
     return {
       schoolName: '',

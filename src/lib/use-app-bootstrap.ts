@@ -87,6 +87,7 @@ async function prefetchCriticalChunks() {
       import('@/components/pages/buildings').catch(() => null),
       import('@/components/pages/settings').catch(() => null),
       import('@/components/pages/accounts').catch(() => null),
+      import('@/components/pages/berita-acara').catch(() => null),
     ]).then(() => {
       // Semua chunks sudah di-cache — navigasi antar menu jadi instant
     })

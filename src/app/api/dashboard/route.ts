@@ -24,18 +24,23 @@ export async function GET() {
       db.barangMasuk.count(),
     ])
 
-    // Item conditions
-    const itemsBaik = await db.item.count({ where: { condition: 'Baik' } })
-    const itemsRusakRingan = await db.item.count({ where: { condition: 'Rusak Ringan' } })
-    const itemsRusakBerat = await db.item.count({ where: { condition: 'Rusak Berat' } })
-
-    // Items by KIB type
-    const kibA = await db.item.count({ where: { kibType: 'A' } })
-    const kibB = await db.item.count({ where: { kibType: 'B' } })
-    const kibC = await db.item.count({ where: { kibType: 'C' } })
-    const kibD = await db.item.count({ where: { kibType: 'D' } })
-    const kibE = await db.item.count({ where: { kibType: 'E' } })
-    const kibF = await db.item.count({ where: { kibType: 'F' } })
+    // Item conditions + KIB breakdown — semua parallel
+    const [
+      itemsBaik,
+      itemsRusakRingan,
+      itemsRusakBerat,
+      kibA, kibB, kibC, kibD, kibE, kibF,
+    ] = await Promise.all([
+      db.item.count({ where: { condition: 'Baik' } }),
+      db.item.count({ where: { condition: 'Rusak Ringan' } }),
+      db.item.count({ where: { condition: 'Rusak Berat' } }),
+      db.item.count({ where: { kibType: 'A' } }),
+      db.item.count({ where: { kibType: 'B' } }),
+      db.item.count({ where: { kibType: 'C' } }),
+      db.item.count({ where: { kibType: 'D' } }),
+      db.item.count({ where: { kibType: 'E' } }),
+      db.item.count({ where: { kibType: 'F' } }),
+    ])
 
     // Total asset value
     const itemsWithValue = await db.item.findMany({
@@ -252,6 +257,10 @@ export async function GET() {
       // BON
       bonUnpaidCount,
       bonUnpaidAmount,
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+      },
     })
   } catch (error) {
     console.error('Dashboard API error:', error)

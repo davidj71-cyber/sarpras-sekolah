@@ -1259,13 +1259,13 @@ export function BeritaAcaraPage() {
             <div><strong>PIHAK PERTAMA,</strong></div>
             <div style="height: 60px;"></div>
             <div style="text-decoration: underline; font-weight: bold;">${lenderNameDisplay}</div>
-            <div style="font-weight: bold; text-decoration: underline;">NIP. ${lenderNipDisplay || '________________________'}</div>
+            <div style="text-decoration: underline;">NIP. ${lenderNipDisplay || '________________________'}</div>
           </div>
           <div style="text-align: center; width: 45%;">
             <div><strong>PIHAK KEDUA,</strong></div>
             <div style="height: 60px;"></div>
             <div style="text-decoration: underline; font-weight: bold;">${borrower?.name || '________________________'}</div>
-            <div>${borrower?.organization || '&nbsp;'}</div>
+            <div style="text-decoration: underline;">NIP. ${borrower?.nip || '________________________'}</div>
           </div>
         </div>
       `
@@ -1493,13 +1493,13 @@ export function BeritaAcaraPage() {
             <div><strong>PIHAK PERTAMA,</strong></div>
             <div style="height: 60px;"></div>
             <div style="text-decoration: underline; font-weight: bold;">${receiverNameDisplay}</div>
-            <div style="font-weight: bold; text-decoration: underline;">NIP. ${receiverNipDisplay || '________________________'}</div>
+            <div style="text-decoration: underline;">NIP. ${receiverNipDisplay || '________________________'}</div>
           </div>
           <div style="text-align: center; width: 45%;">
             <div><strong>PIHAK KEDUA,</strong></div>
             <div style="height: 60px;"></div>
             <div style="text-decoration: underline; font-weight: bold;">${borrower?.name || '________________________'}</div>
-            <div>${borrower?.organization || '&nbsp;'}</div>
+            <div style="text-decoration: underline;">NIP. ${borrower?.nip || '________________________'}</div>
           </div>
         </div>
       `
