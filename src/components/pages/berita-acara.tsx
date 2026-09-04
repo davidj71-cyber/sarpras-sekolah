@@ -638,6 +638,7 @@ export function BeritaAcaraPage() {
     await printWithKop('DAFTAR BERITA ACARA PEMINJAMAN', contentHtml, orientation, {
       appendSignature: true,
       signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
+      showPrintDate: false,
     })
   }
 
@@ -659,11 +660,11 @@ export function BeritaAcaraPage() {
         <tr>
           <td class="text-center">${idx + 1}</td>
           <td>${item.itemName}</td>
-          <td class="text-center">${item.registrationNumber || '-'}</td>
+          <td class="text-center">${item.registrationNumber || ''}</td>
           <td class="text-center">${item.quantity}</td>
-          <td class="text-center">${item.unit || '-'}</td>
-          <td class="text-center">${item.condition || '-'}</td>
-          <td>${item.notes || '-'}</td>
+          <td class="text-center">${item.unit || ''}</td>
+          <td class="text-center">${item.condition || ''}</td>
+          <td>${item.notes || ''}</td>
         </tr>
       `).join('')
 
@@ -763,9 +764,9 @@ export function BeritaAcaraPage() {
               <th>Nama Barang</th>
               <th style="width: 100px;">No. Register</th>
               <th style="width: 60px;">Jumlah</th>
-              <th style="width: 70px;">Satuan</th>
-              <th style="width: 100px;">Kondisi</th>
-              <th style="width: 150px;">Catatan</th>
+              <th style="width: 60px;">Satuan</th>
+              <th style="width: 80px;">Kondisi</th>
+              <th>Catatan</th>
             </tr>
           </thead>
           <tbody>
@@ -781,7 +782,7 @@ export function BeritaAcaraPage() {
         ${signatureHtml}
       `
 
-      await printWithKop('BERITA ACARA PINJAM-PAKAI', contentHtml, orientation)
+      await printWithKop('', contentHtml, orientation, { showPrintDate: false })
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak BA Peminjaman', variant: 'destructive' })
     }
@@ -838,6 +839,7 @@ export function BeritaAcaraPage() {
     await printWithKop('DAFTAR BERITA ACARA PENGEMBALIAN', contentHtml, orientation, {
       appendSignature: true,
       signatureOptions: { rightTitle: 'Pengurus Barang', rightSigner: 'goodsManager' },
+      showPrintDate: false,
     })
   }
 
@@ -864,8 +866,8 @@ export function BeritaAcaraPage() {
       // Build items table rows: pair original item with return condition
       const itemsHtml = borrowItems.map((item, idx) => {
         const matched = returnItemsParsed.find((r) => r.itemName === item.itemName) || returnItemsParsed[idx]
-        const returnCond = matched?.condition || item.condition || '-'
-        const noteText = matched?.notes || '-'
+        const returnCond = matched?.condition || item.condition || ''
+        const noteText = matched?.notes || ''
         return `
           <tr>
             <td class="text-center">${idx + 1}</td>
@@ -971,7 +973,7 @@ export function BeritaAcaraPage() {
               <th style="width: 60px;">Jumlah</th>
               <th style="width: 110px;">Kondisi Saat Dipinjam</th>
               <th style="width: 120px;">Kondisi Saat Dikembalikan</th>
-              <th style="width: 130px;">Catatan</th>
+              <th>Catatan</th>
             </tr>
           </thead>
           <tbody>
@@ -988,7 +990,7 @@ export function BeritaAcaraPage() {
         ${signatureHtml}
       `
 
-      await printWithKop('BERITA ACARA PENGEMBALIAN BARANG', contentHtml, orientation)
+      await printWithKop('', contentHtml, orientation, { showPrintDate: false })
     } catch {
       toast({ title: 'Error', description: 'Gagal mencetak BA Pengembalian', variant: 'destructive' })
     }

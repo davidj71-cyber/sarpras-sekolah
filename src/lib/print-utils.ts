@@ -535,6 +535,8 @@ export interface PrintWithKopOptions {
   appendSignature?: boolean
   /** Options forwarded to buildSyncedSignatureBlock when appendSignature is true */
   signatureOptions?: SignatureBlockOptions
+  /** Show "Dicetak pada: [date]" footer (default: true) */
+  showPrintDate?: boolean
 }
 
 export async function printWithKop(
@@ -543,19 +545,28 @@ export async function printWithKop(
   orientation: PrintOrientation = 'portrait',
   options: PrintWithKopOptions = {}
 ): Promise<void> {
-  const { appendSignature = false, signatureOptions } = options
+  const { appendSignature = false, signatureOptions, showPrintDate = true } = options
   const settings = await fetchPrintSettings()
   const kopHtml = buildKopHtml(settings)
   const signatureHtml = appendSignature ? buildSyncedSignatureBlock(settings, signatureOptions) : ''
 
+  const footerHtml = showPrintDate
+    ? `<div class="footer-info">
+      Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+    </div>`
+    : ''
+
+  // Title hanya dirender kalau contentHtml tidak sudah punya judul sendiri.
+  // Untuk BA & surat yang sudah include judul di contentHtml, pass title=''
+  // supaya tidak dobel.
+  const titleHtml = title ? `<div class="title">${title}</div>` : ''
+
   const bodyHtml = `
     ${kopHtml}
-    <div class="title">${title}</div>
+    ${titleHtml}
     ${contentHtml}
     ${signatureHtml}
-    <div class="footer-info">
-      Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-    </div>
+    ${footerHtml}
   `
 
   openPrintWindow(title, bodyHtml, orientation)
