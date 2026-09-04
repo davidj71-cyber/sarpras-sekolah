@@ -16,11 +16,37 @@ const geistMono = Geist_Mono({
 });
 
 // ─── PWA / Mobile meta tags ──────────────────────────────────────────────────
-// manifest: link ke /manifest.webmanifest (static file di public/manifest.webmanifest)
-// apple-touch-icon: ikon saat diinstall di iOS home screen — pakai logo user
-//   (raster PNG 180 dari /api/pwa-icon/180, lebih reliable di iOS daripada SVG).
+// Manifest di-inline sebagai data URI supaya browser tidak perlu fetch
+// /manifest.webmanifest (yang kena Vercel SSO Protection → CORS error).
+// Dengan data URI, manifest langsung embedded di HTML head → no fetch → no CORS.
+// apple-touch-icon: ikon saat diinstall di iOS home screen — pakai logo user.
 // appleWebApp: mode standalone di iOS (tanpa Safari chrome).
 // themeColor (di Viewport): warna address bar Android Chrome.
+
+// Inline manifest sebagai data URI — eliminasi fetch /manifest.webmanifest
+const inlineManifest = {
+  name: "SIMAPRAS",
+  short_name: "SIMAPRAS",
+  description: "Sistem Informasi Manajemen Sarana Prasarana Sekolah",
+  start_url: "/",
+  scope: "/",
+  display: "standalone",
+  orientation: "portrait",
+  background_color: "#ffffff",
+  theme_color: "#16a34a",
+  categories: ["education", "productivity", "business"],
+  lang: "id",
+  dir: "ltr",
+  icons: [
+    { src: "/api/pwa-icon/192", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/api/pwa-icon/512", sizes: "512x512", type: "image/png", purpose: "any" },
+    { src: "/api/pwa-icon/192?maskable=1", sizes: "192x192", type: "image/png", purpose: "maskable" },
+    { src: "/api/pwa-icon/512?maskable=1", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    { src: "/api/favicon", sizes: "any", type: "image/svg+xml", purpose: "any" },
+  ],
+};
+const manifestDataUri = `data:application/manifest+json,${encodeURIComponent(JSON.stringify(inlineManifest))}`;
+
 export const metadata: Metadata = {
   title: {
     default: "SIMAPRAS",
@@ -30,7 +56,7 @@ export const metadata: Metadata = {
   description: "Sistem Informasi Manajemen Sarana Prasarana Sekolah",
   keywords: ["SIMAPRAS", "Sarpras", "Inventaris", "Sekolah", "KIB", "Manajemen"],
   authors: [{ name: "SIMAPRAS" }],
-  manifest: "/manifest.webmanifest",
+  manifest: manifestDataUri,
   icons: {
     icon: [{ url: "/api/favicon" }],
     shortcut: [{ url: "/api/favicon" }],
