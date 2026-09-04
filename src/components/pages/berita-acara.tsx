@@ -357,14 +357,25 @@ function ItemNamePicker({
             </div>
           )}
           {filtered.map((s, i) => (
-            <button
+            <div
               key={i}
-              type="button"
-              onClick={() => {
+              role="option" aria-selected="false"
+              tabIndex={0}
+              onMouseDown={(e) => {
+                e.preventDefault()
                 onSelectItem(s)
-                close()
+                setOpen(false)
+                setQuery('')
               }}
-              className="w-full text-left px-3 py-2 hover:bg-accent text-sm border-b last:border-0"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelectItem(s)
+                  setOpen(false)
+                  setQuery('')
+                }
+              }}
+              className="w-full text-left px-3 py-2 hover:bg-accent text-sm border-b last:border-0 cursor-pointer focus:bg-accent outline-none"
             >
               <div className="font-medium truncate">{s.name}</div>
               <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-1.5 mt-0.5">
@@ -376,22 +387,33 @@ function ItemNamePicker({
                   <span>— Sisa: {s.quantity} {s.unit || 'unit'}</span>
                 )}
               </div>
-            </button>
+            </div>
           ))}
           {q && !isExactMatch && (
-            <button
-              type="button"
-              onClick={() => {
+            <div
+              role="option" aria-selected="false"
+              tabIndex={0}
+              onMouseDown={(e) => {
+                e.preventDefault()
                 onChange(query.trim())
-                close()
+                setOpen(false)
+                setQuery('')
               }}
-              className="w-full text-left px-3 py-2 hover:bg-accent text-sm bg-muted/40 border-t flex items-center"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onChange(query.trim())
+                  setOpen(false)
+                  setQuery('')
+                }
+              }}
+              className="w-full text-left px-3 py-2 hover:bg-accent text-sm bg-muted/40 border-t flex items-center cursor-pointer focus:bg-accent outline-none"
             >
               <Plus className="size-3 mr-1.5 shrink-0" />
               <span className="truncate">
                 Gunakan: <strong>&ldquo;{query.trim()}&rdquo;</strong>
               </span>
-            </button>
+            </div>
           )}
         </div>
       </PopoverContent>
@@ -2180,11 +2202,18 @@ export function BeritaAcaraPage() {
                             suggestions={itemSuggestions}
                             onChange={(val) => updateBorrowItem(idx, 'itemName', val)}
                             onSelectItem={(s) => {
-                              // Auto-fill No. Register, Satuan, Kondisi dari inventaris
-                              updateBorrowItem(idx, 'itemName', s.name)
-                              if (s.registrationNumber) updateBorrowItem(idx, 'registrationNumber', s.registrationNumber)
-                              if (s.unit) updateBorrowItem(idx, 'unit', s.unit)
-                              if (s.condition) updateBorrowItem(idx, 'condition', s.condition)
+                              // Auto-fill semua field sekaligus (hindari multiple stale state updates)
+                              setBorrowItems((prev) => {
+                                const updated = [...prev]
+                                updated[idx] = {
+                                  ...updated[idx],
+                                  itemName: s.name,
+                                  registrationNumber: s.registrationNumber || updated[idx].registrationNumber,
+                                  unit: s.unit || updated[idx].unit,
+                                  condition: s.condition || updated[idx].condition,
+                                }
+                                return updated
+                              })
                             }}
                           />
                         </div>
