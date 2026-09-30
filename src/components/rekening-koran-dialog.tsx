@@ -245,28 +245,29 @@ function buildRekeningKoranHtml(
 
   // ── Layout info surat (mengikuti format baku) ────────────────────────────
   //   Baris 1 (rata KANAN):  "Telukdalam, 24 Agustus 2026"
-  //   Baris 2-4 (rata KIRI): "Nomor    : 400.3.8/..."
-  //                          "Lampiran : -"
-  //                          "Perihal  : Permohonan Cetak Rekening Koran Bank"
+  //   Baris 2-4 (rata KIRI): "Nomor     : 400.3.8/..."
+  //                          "Lampiran  : -"
+  //                          "Perihal   : Permohonan Cetak Rekening Koran Bank"
+  // Label diberi width tetap (90px) supaya ":" (colon) di semua baris selaras.
   const letterInfoHtml = `
-    <div style="margin-top: 12px; font-size: 11pt; line-height: 1.5; position: relative; min-height: 24px;">
-      <div style="text-align: right; margin-bottom: 6px;">${dateCity}, ${dateStr}</div>
-      <table style="width:auto; border:none; font-size: 11pt; line-height: 1.5;">
+    <div style="margin-top: 14px; font-size: 12pt; line-height: 1.5; position: relative; min-height: 24px;">
+      <div style="text-align: right; margin-bottom: 8px;">${dateCity}, ${dateStr}</div>
+      <table style="width:auto; border:none; font-size: 12pt; line-height: 1.5;">
         <tbody>
           <tr>
-            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap;">Nomor</td>
+            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap; width:90px;">Nomor</td>
             <td style="border:none; padding:1px 4px; text-align:left;">:</td>
             <td style="border:none; padding:1px 0; text-align:left; white-space:nowrap;">${letterNumber || '____________________'}</td>
           </tr>
           <tr>
-            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap;">Lampiran</td>
+            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap; width:90px;">Lampiran</td>
             <td style="border:none; padding:1px 4px; text-align:left;">:</td>
             <td style="border:none; padding:1px 0; text-align:left; white-space:nowrap;">${lampiran || '-'}</td>
           </tr>
           <tr>
-            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap;">Perihal</td>
+            <td style="border:none; padding:1px 8px 1px 0; text-align:left; white-space:nowrap; width:90px;">Perihal</td>
             <td style="border:none; padding:1px 4px; text-align:left;">:</td>
-            <td style="border:none; padding:1px 0; text-align:left; white-space:nowrap;">Permohonan Cetak Rekening Koran Bank</td>
+            <td style="border:none; padding:1px 0; text-align:left; white-space:nowrap;"><strong>Permohonan Cetak Rekening Koran Bank</strong></td>
           </tr>
         </tbody>
       </table>
@@ -279,7 +280,7 @@ function buildRekeningKoranHtml(
   //   di
   //   Telukdalam
   const tujuanHtml = `
-    <div style="margin-top: 18px; font-size: 11pt; line-height: 1.5;">
+    <div style="margin-top: 22px; font-size: 12pt; line-height: 1.5;">
       Kepada Yth,<br>
       Pimpinan ${bankName || 'PT. Bank __________'}<br>
       di<br>
@@ -288,15 +289,16 @@ function buildRekeningKoranHtml(
   `
 
   // Pembuka + identitas
+  // Label diberi width tetap (130px) supaya ":" (colon) selaras di semua baris.
   const pembukaHtml = `
-    <div style="margin-top: 18px; font-size: 11pt; line-height: 1.5;">
+    <div style="margin-top: 22px; font-size: 12pt; line-height: 1.5;">
       Dengan hormat,<br>
       Saya yang bertanda tangan dibawah ini:
     </div>
-    <table style="width:100%; border:none; margin-top: 6px; font-size: 11pt; line-height: 1.7;">
+    <table style="width:100%; border:none; margin-top: 8px; font-size: 12pt; line-height: 1.7;">
       <tbody>
         <tr>
-          <td style="border:none; padding:1px 8px 1px 0; width:140px; vertical-align:top;">Nama</td>
+          <td style="border:none; padding:1px 8px 1px 0; width:130px; vertical-align:top;">Nama</td>
           <td style="border:none; padding:1px 4px; width:8px; vertical-align:top;">:</td>
           <td style="border:none; padding:1px 0; vertical-align:top;">${principalName}</td>
         </tr>
@@ -325,34 +327,33 @@ function buildRekeningKoranHtml(
     : `Bulan ${MONTHS_ID[startMonth]} Sampai dengan Bulan ${MONTHS_ID[endMonth]} ${year}`
 
   const maksudHtml = `
-    <div style="margin-top: 14px; font-size: 11pt; line-height: 1.5; text-align: justify;">
+    <div style="margin-top: 18px; font-size: 12pt; line-height: 1.5; text-align: justify; text-indent: 36px;">
       Bermaksud mengajukan permohonan Cetak Rekening Koran Bank dari ${monthRange} (Tahun Anggaran ${budgetYear}) sebagai berikut :
     </div>
   `
 
   // Daftar rekening (numbered list, each item has its own sub-table)
-  // Layout mengikuti format baku — angka "1" di kolom kiri (lebar 48px),
-  // sub-items (Nomor rekening/a/n/Rek. Koran Bank) di kolom kanan yang
-  // lebih menjorok ke dalam. Pakai table-based layout karena lebih reliable
-  // di print window dibanding flexbox.
+  // Layout mengikuti format baku — angka "1" di kolom kiri dengan indentasi
+  // (~36px dari margin kiri), sub-items (Nomor rekening/a/n/Rek. Koran Bank)
+  // di kolom kanan. Sub-label diberi width tetap (170px) supaya ":" selaras.
   //   1     Nomor rekening   : 271.01.02.000940-0
   //         a/n rekening     : SMAN 1 TELUKDALAM
   //         Rek. Koran Bank  : BOS Reguler
   const accountItemsHtml = accounts.length === 0
-    ? '<div style="margin-top:8px; font-size:11pt;">(Belum ada rekening ditambahkan)</div>'
+    ? '<div style="margin-top:8px; font-size:12pt;">(Belum ada rekening ditambahkan)</div>'
     : accounts.map((acc, idx) => {
       const num = acc.accountNumber || '_____________________'
       const an = acc.accountName || '_____________________'
       const desc = acc.description || '_____________________'
       return `
-        <table style="width: 100%; border: none; margin-top: 10px; font-size: 11pt; line-height: 1.7;">
+        <table style="width: 100%; border: none; margin-top: 12px; font-size: 12pt; line-height: 1.7;">
           <tr>
-            <td style="border: none; width: 48px; vertical-align: top; padding: 1px 12px 1px 0;">${idx + 1}</td>
+            <td style="border: none; width: 56px; vertical-align: top; padding: 1px 16px 1px 36px;">${idx + 1}</td>
             <td style="border: none; vertical-align: top; padding: 0;">
-              <table style="border: none; font-size: 11pt;">
+              <table style="border: none; font-size: 12pt;">
                 <tbody>
                   <tr>
-                    <td style="border:none; padding:1px 16px 1px 0; width:150px; vertical-align:top;">Nomor rekening</td>
+                    <td style="border:none; padding:1px 16px 1px 0; width:170px; vertical-align:top;">Nomor rekening</td>
                     <td style="border:none; padding:1px 4px; vertical-align:top;">:</td>
                     <td style="border:none; padding:1px 0; vertical-align:top;">${num}</td>
                   </tr>
@@ -375,16 +376,16 @@ function buildRekeningKoranHtml(
     }).join('')
 
   // Tujuan & alamat — pakai alamat singkat (bukan alamat KOP lengkap)
-  // Semua baris sejajar di kiri (text-align: justify, tanpa text-indent)
+  // Paragraf rata justify (kedua margin rata) dengan indentasi awal 36px.
   const tujuanAkhirHtml = `
-    <div style="margin-top: 14px; font-size: 11pt; line-height: 1.5; text-align: justify;">
+    <div style="margin-top: 18px; font-size: 12pt; line-height: 1.5; text-align: justify; text-indent: 36px;">
       yang beralamat ${addressLine} (sesuai rekening) guna kepentingan ${purpose || '_______________________'}.
     </div>
   `
 
   // Penutup
   const penutupHtml = `
-    <div style="margin-top: 18px; font-size: 11pt; line-height: 1.5; text-align: justify;">
+    <div style="margin-top: 22px; font-size: 12pt; line-height: 1.5; text-align: justify; text-indent: 36px;">
       Demikian surat permohonan ini saya buat dengan sebenar-benarnya. Atas perhatian dan bantuannya saya ucapkan terima kasih.
     </div>
   `
@@ -392,18 +393,18 @@ function buildRekeningKoranHtml(
   // Tanda tangan — rata kanan, "Kepala [Sekolah]" + nama + jabatan struktural + NIP
   // Format baku:
   //   Kepala SMA Negeri 1 Telukdalam
-  //   [ruang ttd]
+  //   [ruang ttd ~ 2 cm]
   //   Nursari Rindu Simanullang, S.Pd., M.M.   (nama, underline + bold)
   //   Pembina Tk. I                              (jabatan struktural tambahan, opsional)
   //   NIP. 19691208 200502 2 001
   const signatureHtml = `
-    <div style="margin-top: 28px; display:flex; justify-content:flex-end;">
-      <div style="text-align: left; font-size: 11pt; line-height: 1.5; min-width: 240px;">
+    <div style="margin-top: 36px; display:flex; justify-content:flex-end;">
+      <div style="text-align: left; font-size: 12pt; line-height: 1.5; min-width: 260px;">
         <div>Kepala ${schoolName || 'Sekolah'}</div>
         <div style="height: 72px;"></div>
         <div style="text-decoration: underline; font-weight: bold;">${principalName}</div>
         ${principalTitle.trim() ? `<div>${principalTitle.trim()}</div>` : ''}
-        <div>${principalNip ? 'NIP. ' + principalNip : '&nbsp;'}</div>
+        <div>NIP. ${principalNip || '________________________'}</div>
       </div>
     </div>
   `
