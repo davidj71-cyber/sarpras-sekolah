@@ -533,7 +533,7 @@ export function MediaPage() {
 
     const signatureHtml = `
       <div style="display: flex; justify-content: space-between; margin-top: 24px; font-size: 10pt; position: relative; z-index: 1;">
-        <div style="width: 40%; text-align: left;">
+        <div style="width: 40%; text-align: left; padding-left: 8%;">
           <div>Mengetahui/</div>
           <div>Setuju Bayar:</div>
           <div>Kepala ${schoolName || 'Sekolah'},</div>
@@ -541,7 +541,7 @@ export function MediaPage() {
           <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
           <div>${principalNip ? `NIP. ${principalNip}` : '&nbsp;'}</div>
         </div>
-        <div style="text-align: left; flex: 0 0 auto;">
+        <div style="text-align: left; flex: 0 0 auto; padding-right: 8%;">
           <div>${placeDate}</div>
           <div>&nbsp;</div>
           <div>Bayar lunas :</div>

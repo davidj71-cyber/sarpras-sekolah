@@ -551,7 +551,7 @@ export function SalaryPage() {
 
     const signatureHtml = `
       <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 11pt; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
-        <div style="width: 40%; text-align: left;">
+        <div style="width: 40%; text-align: left; padding-left: 8%;">
           <div>Mengetahui/</div>
           <div>Setuju Bayar:</div>
           <div>Kepala ${schoolName || 'Sekolah'},</div>
@@ -559,7 +559,7 @@ export function SalaryPage() {
           <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
           <div style="text-decoration: underline;">NIP. ${principalNip || '________________________'}</div>
         </div>
-        <div style="text-align: left; flex: 0 0 auto;">
+        <div style="text-align: left; flex: 0 0 auto; padding-right: 8%;">
           <div>${placeDate}</div>
           <div>&nbsp;</div>
           <div>Bayar lunas :</div>
