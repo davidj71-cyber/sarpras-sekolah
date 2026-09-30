@@ -5,11 +5,20 @@ import { ensureSchoolSettingsSchema, withSchemaHeal } from "@/lib/migrate-settin
 // On cold start, ensure the table exists with every expected column.
 // This is a no-op when the DB is already in sync. Running it eagerly
 // here means the very first request after a deploy won't 500.
+// In production, ensureSchoolSettingsSchema returns [] immediately (skip).
 const schemaReady = ensureSchoolSettingsSchema().catch((e) => {
   console.error("[settings] schema warm-up failed:", e);
 });
 
-// No-cache headers untuk mencegah browser/gateway cache response error lama
+// Cache headers untuk GET settings — settings jarang berubah, cache 60 detik
+// supaya tidak fetch ulang terus (mengurangi beban DB).
+// POST (save) tetap no-cache supaya perubahan langsung terlihat.
+const GET_CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+};
+
 const NO_CACHE_HEADERS = {
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
   'Pragma': 'no-cache',
@@ -51,15 +60,16 @@ const defaultSettings = {
 
 export async function GET() {
   // Wait for the eager schema warm-up to finish before touching the table.
+  // In production, this resolves immediately (schema-heal skipped).
   await schemaReady;
   try {
     const settings = await withSchemaHeal(() => db.schoolSettings.findFirst());
 
     if (!settings) {
-      return NextResponse.json(defaultSettings, { headers: NO_CACHE_HEADERS });
+      return NextResponse.json(defaultSettings, { headers: GET_CACHE_HEADERS });
     }
 
-    return NextResponse.json(settings, { headers: NO_CACHE_HEADERS });
+    return NextResponse.json(settings, { headers: GET_CACHE_HEADERS });
   } catch (error) {
     console.error("Error fetching settings:", error);
     return NextResponse.json(
