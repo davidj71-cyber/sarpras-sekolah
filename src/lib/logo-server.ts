@@ -26,6 +26,12 @@ export function logoToResponse(
 ): NextResponse | null {
   if (!logo) return null;
 
+  // maxAge=0 → no-cache (supaya perubahan logo/favicon langsung terlihat).
+  // maxAge>0 → public cache (untuk performa, dipakai di app-logo & KOP).
+  const cacheControl = maxAge === 0
+    ? 'no-store, no-cache, must-revalidate'
+    : `public, max-age=${maxAge}, must-revalidate`;
+
   // Data URL form: data:<mime>;base64,<payload>
   const match = logo.match(/^data:([^;]+);base64,(.*)$/s);
   if (match) {
@@ -34,7 +40,7 @@ export function logoToResponse(
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": mime,
-        "Cache-Control": `public, max-age=${maxAge}, must-revalidate`,
+        "Cache-Control": cacheControl,
       },
     });
   }
@@ -45,7 +51,7 @@ export function logoToResponse(
     return new NextResponse(logo, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
-        "Cache-Control": `public, max-age=${maxAge}, must-revalidate`,
+        "Cache-Control": cacheControl,
       },
     });
   }
@@ -54,10 +60,13 @@ export function logoToResponse(
 }
 
 export function fallbackResponse(maxAge = 300): NextResponse {
+  const cacheControl = maxAge === 0
+    ? 'no-store, no-cache, must-revalidate'
+    : `public, max-age=${maxAge}, must-revalidate`;
   return new NextResponse(FALLBACK_SVG, {
     headers: {
       "Content-Type": "image/svg+xml; charset=utf-8",
-      "Cache-Control": `public, max-age=${maxAge}, must-revalidate`,
+      "Cache-Control": cacheControl,
     },
   });
 }
