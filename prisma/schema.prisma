@@ -678,3 +678,21 @@ model PrintLog {
   orientation  String   @default("portrait")
   createdAt    DateTime @default(now())
 }
+
+// ─── Rekening Koran: Daftar Rekening Sekolah ─────────────────────────────────
+// Daftar rekening bank SEKOLAH (bukan rekening pegawai) untuk Surat Permohonan
+// Rekening Koran. Disimpan di database supaya sinkron antar perangkat/session
+// (sebelumnya pakai localStorage yang hanya per-browser).
+model BankAccount {
+  id            String   @id @default(cuid())
+  // Nomor rekening tabungan sekolah, mis. "271.01.02.000940-0"
+  accountNumber String
+  // Atas nama rekening (a/n), mis. "SMAN 1 TELUKDALAM"
+  accountName   String   @default("")
+  // Deskripsi / Rek. Koran Bank, mis. "BOS Reguler", "Gaji PNS", "GTT Provinsi"
+  description   String   @default("")
+  // Urutan tampil di daftar (user bisa atur prioritas)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

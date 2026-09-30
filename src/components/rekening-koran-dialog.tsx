@@ -15,8 +15,8 @@
 //   8. Penutup
 //   9. Tanda tangan Kepala Sekolah
 //
-// Daftar rekening persisten di localStorage (key: simapras:bank-accounts) supaya
-// user tidak perlu input ulang setiap kali cetak.
+// Daftar rekening persisten di DATABASE (tabel BankAccount) supaya sinkron
+// antar perangkat/session. Sebelumnya pakai localStorage (per-browser only).
 //
 // ⚠️ PENTING: Rekening Koran ini KHUSUS untuk rekening SEKOLAH (mis. BOS Reguler,
 // Gaji PNS, GTT Provinsi), BUKAN rekening pribadi pegawai. Jangan masukkan
@@ -78,7 +78,8 @@ const MONTHS_ID = [
 ]
 
 const STORAGE_KEY = 'simapras:rekening-koran-defaults'
-const ACCOUNTS_KEY = 'simapras:bank-accounts'
+// Daftar rekening sekarang disimpan di database (tabel BankAccount),
+// bukan localStorage. Lihat API /api/bank-accounts.
 
 interface BankAccountRow {
   id: string
@@ -141,10 +142,6 @@ function composeLetterNumber(seq: string, letterDate: Date): string {
   return `${LETTER_PREFIX}/${nomor}/${LETTER_UNIT_CODE}/${roman}/${year}`
 }
 
-function makeId(): string {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
-}
-
 function readDefaults(): FormDefaults {
   const now = new Date()
   // Default: periode Januari s/d bulan sekarang, tahun berjalan.
@@ -173,32 +170,29 @@ function readDefaults(): FormDefaults {
   }
 }
 
-function readSavedAccounts(): BankAccountRow[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = localStorage.getItem(ACCOUNTS_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) {
-      return parsed.filter((r) => r && typeof r === 'object').map((r) => ({
-        id: typeof r.id === 'string' ? r.id : makeId(),
-        accountNumber: String(r.accountNumber ?? ''),
-        accountName: String(r.accountName ?? ''),
-        description: String(r.description ?? ''),
-      }))
-    }
-  } catch {
-    // ignore
-  }
-  return []
-}
-
 function persistDefaults(d: FormDefaults) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)) } catch { /* ignore */ }
 }
 
-function persistAccounts(rows: BankAccountRow[]) {
-  try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(rows)) } catch { /* ignore */ }
+// ─── API helpers untuk BankAccount (database-backed) ─────────────────────────
+// Semua operasi CRUD lewat API supaya data tersimpan di database dan sinkron
+// antar perangkat. Sebelumnya pakai localStorage (per-browser only).
+
+async function fetchAccountsApi(): Promise<BankAccountRow[]> {
+  try {
+    const res = await fetch('/api/bank-accounts')
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!Array.isArray(data)) return []
+    return data.map((r: Record<string, unknown>) => ({
+      id: String(r.id ?? ''),
+      accountNumber: String(r.accountNumber ?? ''),
+      accountName: String(r.accountName ?? ''),
+      description: String(r.description ?? ''),
+    }))
+  } catch {
+    return []
+  }
 }
 
 // ─── Print HTML builder ─────────────────────────────────────────────────────
@@ -443,57 +437,144 @@ export function RekeningKoranDialog({
   // Form state
   const [defaults, setDefaults] = useState<FormDefaults>(() => readDefaults())
   const [accounts, setAccounts] = useState<BankAccountRow[]>([])
+  const [accountsLoading, setAccountsLoading] = useState(false)
+  const [accountsSaving, setAccountsSaving] = useState<Record<string, boolean>>({})
   const [letterDateStr, setLetterDateStr] = useState<string>('')
 
-  // Load settings + saved accounts saat dialog dibuka
+  // Load settings + saved accounts dari database saat dialog dibuka
   useEffect(() => {
     if (!open) return
     setDefaults(readDefaults())
-    setAccounts(readSavedAccounts())
     setLetterDateStr(new Date().toISOString().slice(0, 10))
     setSettingsLoading(true)
     fetchPrintSettings()
       .then((s) => setSettings(s))
       .catch(() => setSettings(null))
       .finally(() => setSettingsLoading(false))
+    // Load daftar rekening dari database (bukan localStorage)
+    setAccountsLoading(true)
+    fetchAccountsApi()
+      .then((rows) => setAccounts(rows))
+      .finally(() => setAccountsLoading(false))
   }, [open])
 
-  // Persist on change
+  // Persist defaults (form fields, BUKAN accounts) ke localStorage.
+  // Accounts sekarang disimpan di database via API.
   useEffect(() => {
     if (!open) return
     persistDefaults(defaults)
   }, [defaults, open])
-  useEffect(() => {
-    if (!open) return
-    persistAccounts(accounts)
-  }, [accounts, open])
 
-  // ── Account row operations ──────────────────────────────────────────────
-  // Saat menambah rekening baru, pre-fill dengan nomor rekening sekolah terakhir
-  // yang pernah diinput user (dari daftar yang sudah ada), BUKAN dari rekening
-  // pegawai. Default a/n: nama sekolah dari settings (huruf kapital).
-  const addAccount = useCallback(() => {
-    setAccounts((prev) => {
-      const lastAccountNumber = prev.length > 0 ? prev[prev.length - 1].accountNumber : ''
-      return [
+  // ── Account row operations (database-backed via API) ────────────────────
+  // Saat menambah rekening baru, default a/n: nama sekolah dari settings
+  // (huruf kapital). User bisa edit setelah ditambahkan.
+  // Saat rekening baru ditambahkan, langsung POST ke API supaya tersimpan di
+  // database dan sinkron. Jika gagal, tampilkan toast error.
+  const addAccount = useCallback(async () => {
+    // Default a/n: nama sekolah dari settings (huruf kapital)
+    const accountName = (settings?.schoolName || '').toUpperCase()
+    try {
+      const res = await fetch('/api/bank-accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountNumber: '', // user isi setelah tambah
+          accountName,
+          description: '',
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast({
+          title: 'Gagal menambah rekening',
+          description: err.error || 'Terjadi kesalahan',
+          variant: 'destructive',
+        })
+        return
+      }
+      const created = await res.json()
+      setAccounts((prev) => [
         ...prev,
         {
-          id: makeId(),
-          accountNumber: lastAccountNumber,
-          accountName: (settings?.schoolName || '').toUpperCase(),
-          description: '',
+          id: created.id,
+          accountNumber: created.accountNumber || '',
+          accountName: created.accountName || accountName,
+          description: created.description || '',
         },
-      ]
-    })
-  }, [settings])
+      ])
+    } catch {
+      toast({
+        title: 'Gagal menambah rekening',
+        description: 'Tidak dapat terhubung ke server',
+        variant: 'destructive',
+      })
+    }
+  }, [settings, toast])
 
-  const updateAccount = useCallback((id: string, field: keyof BankAccountRow, value: string) => {
+  // Update field rekening: update state lokal dulu (responsive), lalu PUT ke API.
+  // Pakai debounce sederhana: update API setiap perubahan field.
+  const updateAccount = useCallback(async (id: string, field: keyof BankAccountRow, value: string) => {
+    // Update state lokal dulu supaya UI responsive
     setAccounts((prev) => prev.map((r) => r.id === id ? { ...r, [field]: value } : r))
-  }, [])
+    // PUT ke API untuk persist ke database
+    const row = accounts.find((r) => r.id === id)
+    if (!row) return
+    // Tandai sedang menyimpan untuk row ini
+    setAccountsSaving((prev) => ({ ...prev, [id]: true }))
+    try {
+      const res = await fetch(`/api/bank-accounts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountNumber: field === 'accountNumber' ? value : row.accountNumber,
+          accountName: field === 'accountName' ? value : row.accountName,
+          description: field === 'description' ? value : row.description,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast({
+          title: 'Gagal menyimpan rekening',
+          description: err.error || 'Terjadi kesalahan',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      // Silent fail — jangan ganggu user saat mengetik
+    } finally {
+      setAccountsSaving((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+    }
+  }, [accounts, toast])
 
-  const removeAccount = useCallback((id: string) => {
+  const removeAccount = useCallback(async (id: string) => {
+    // Optimistic delete: hapus dari state lokal dulu
     setAccounts((prev) => prev.filter((r) => r.id !== id))
-  }, [])
+    try {
+      const res = await fetch(`/api/bank-accounts/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        toast({
+          title: 'Gagal menghapus rekening',
+          description: 'Terjadi kesalahan saat menghapus',
+          variant: 'destructive',
+        })
+        // Reload daftar dari database untuk restore state konsisten
+        const rows = await fetchAccountsApi()
+        setAccounts(rows)
+      }
+    } catch {
+      toast({
+        title: 'Gagal menghapus rekening',
+        description: 'Tidak dapat terhubung ke server',
+        variant: 'destructive',
+      })
+      const rows = await fetchAccountsApi()
+      setAccounts(rows)
+    }
+  }, [toast])
 
   // ── Upload logo KOP ────────────────────────────────────────────────────────
   // Maks 10MB. Gambar di-resize ke max 512px untuk menjaga ukuran payload tetap
@@ -952,12 +1033,20 @@ export function RekeningKoranDialog({
           {/* ── Daftar rekening ─────────────────────────────────────────────── */}
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Daftar Rekening Bank</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addAccount}>
+              <Label className="text-sm font-medium">
+                Daftar Rekening Bank
+                {accountsLoading && <Loader2 className="size-3.5 inline-block ml-2 animate-spin" />}
+              </Label>
+              <Button type="button" variant="outline" size="sm" onClick={addAccount} disabled={accountsLoading}>
                 <Plus className="size-4 mr-1" /> Tambah Rekening
               </Button>
             </div>
-            {accounts.length === 0 ? (
+            {accountsLoading ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground rounded-md border border-dashed p-6">
+                <Loader2 className="size-4 animate-spin" />
+                Memuat daftar rekening...
+              </div>
+            ) : accounts.length === 0 ? (
               <div className="text-sm text-muted-foreground rounded-md border border-dashed p-4 text-center">
                 Belum ada rekening. Klik &quot;Tambah Rekening&quot; untuk menambah.
               </div>
@@ -1009,8 +1098,11 @@ export function RekeningKoranDialog({
                             className="text-destructive hover:text-destructive"
                             onClick={() => removeAccount(acc.id)}
                             title="Hapus rekening"
+                            disabled={accountsSaving[acc.id]}
                           >
-                            <Trash2 className="size-4" />
+                            {accountsSaving[acc.id]
+                              ? <Loader2 className="size-4 animate-spin" />
+                              : <Trash2 className="size-4" />}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -1019,6 +1111,10 @@ export function RekeningKoranDialog({
                 </Table>
               </div>
             )}
+            <p className="text-xs text-muted-foreground">
+              Daftar rekening tersimpan otomatis di database — sinkron di semua perangkat.
+              Nama sekolah terisi otomatis di kolom &quot;a/n Rekening&quot; saat tambah rekening baru.
+            </p>
           </div>
 
           {/* ── Tujuan / alamat ─────────────────────────────────────────────── */}
