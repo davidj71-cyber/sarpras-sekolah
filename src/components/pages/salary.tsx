@@ -542,6 +542,17 @@ export function SalaryPage() {
       : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
     const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
 
+    // ── 8. Blok tanda tangan (2 kolom sejajar: kiri & kanan) ─────────────────
+    // Format baku (sesuai permintaan user):
+    //   Kolom KIRI (Mengetahui):           Kolom KANAN (Bayar lunas):
+    //     Mengetahui/                        Teluk Dalam, 30 September 2026
+    //     Setuju Bayar:                      (blank)
+    //     Kepala SMA Negeri 1 Telukdalam,   Bayar lunas :
+    //     (ruang ttd)                        Bendahara SMA Negeri 1 Telukdalam
+    //     Nursari R. Simanullang (underline) (ruang ttd)
+    //     NIP. 19691208 200502 2 001        (nama bendahara, underline)
+    //                                       NIP. ________________________
+    // HANYA nama yang bergaris bawah. NIP TIDAK bergaris bawah.
     const signatureHtml = `
       <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 11pt; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
         <div style="width: 40%; text-align: left; padding-left: 8%;">
@@ -550,7 +561,7 @@ export function SalaryPage() {
           <div>Kepala ${schoolName || 'Sekolah'},</div>
           <div style="height: 40px;"></div>
           <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
-          <div style="text-decoration: underline;">NIP. ${principalNip || '________________________'}</div>
+          <div>NIP. ${principalNip || '________________________'}</div>
         </div>
         <div style="text-align: left; flex: 0 0 auto; padding-right: 8%;">
           <div>${placeDate}</div>
@@ -559,7 +570,7 @@ export function SalaryPage() {
           <div>Bendahara ${schoolName || 'Sekolah'}</div>
           <div style="height: 40px;"></div>
           <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
-          <div style="text-decoration: underline;">NIP. ${treasurerNip || '________________________'}</div>
+          <div>NIP. ${treasurerNip || '________________________'}</div>
         </div>
       </div>
     `
