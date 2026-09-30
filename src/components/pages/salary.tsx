@@ -543,32 +543,28 @@ export function SalaryPage() {
     const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
 
     // ── 8. Blok tanda tangan (2 kolom sejajar: kiri & kanan) ─────────────────
-    // Format baku (sesuai permintaan user):
-    //   Kolom KIRI (Mengetahui):           Kolom KANAN (Bayar lunas):
-    //     Mengetahui/                        Teluk Dalam, 30 September 2026
-    //     Setuju Bayar:                      (blank)
-    //     Kepala SMA Negeri 1 Telukdalam,   Bayar lunas :
-    //     (ruang ttd)                        Bendahara SMA Negeri 1 Telukdalam
-    //     Nursari R. Simanullang (underline) (ruang ttd)
-    //     NIP. 19691208 200502 2 001        (nama bendahara, underline)
-    //                                       NIP. ________________________
-    // HANYA nama yang bergaris bawah. NIP TIDAK bergaris bawah.
+    // Format baku (sesuai referensi PDF Gaji.pdf):
+    //   Kolom KIRI (Mengetahui):           Kolom KANAN:
+    //     Mengetahui/ Setuju Bayar:          Teluk Dalam, 30 September 2026
+    //     Kepala SMA Negeri 1 Telukdalam,    Bendahara SMA Negeri 1 Telukdalam,
+    //     (ruang ttd)                        (ruang ttd)
+    //     Nursari R. Simanullang (bold+ul)   Riama T. Siahaan, S.Pd (bold+ul)
+    //     NIP. 19691208 200502 2 001         NIP. 19800301 201001 2 016
+    // HANYA nama yang bergaris bawah + bold. NIP TIDAK bergaris bawah.
+    // Kedua kolom vertikal sejajar (mulai dari ketinggian yang sama).
     const signatureHtml = `
-      <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 11pt; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-top: 12px; font-size: 11pt; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
         <div style="width: 40%; text-align: left; padding-left: 8%;">
-          <div>Mengetahui/</div>
-          <div>Setuju Bayar:</div>
+          <div>Mengetahui/ Setuju Bayar:</div>
           <div>Kepala ${schoolName || 'Sekolah'},</div>
-          <div style="height: 40px;"></div>
+          <div style="height: 48px;"></div>
           <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
           <div>NIP. ${principalNip || '________________________'}</div>
         </div>
         <div style="text-align: left; flex: 0 0 auto; padding-right: 8%;">
           <div>${placeDate}</div>
-          <div>&nbsp;</div>
-          <div>Bayar lunas :</div>
-          <div>Bendahara ${schoolName || 'Sekolah'}</div>
-          <div style="height: 40px;"></div>
+          <div>Bendahara ${schoolName || 'Sekolah'},</div>
+          <div style="height: 48px;"></div>
           <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
           <div>NIP. ${treasurerNip || '________________________'}</div>
         </div>
