@@ -444,6 +444,31 @@ export function sanitizeFilename(name: string): string {
 export function openPrintWindow(title: string, bodyHtml: string, orientation: PrintOrientation = 'portrait'): void {
   const isLandscape = orientation === 'landscape'
 
+  // Close button — fixed at top-right corner, visible on screen, hidden during print.
+  // Lets the user close the print preview window/tab without using browser controls.
+  const closeButtonHtml = `
+    <button id="close-preview-btn" onclick="try { window.close(); } catch(e) {} if (!window.closed) { window.location.href = 'about:blank'; }" style="
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 10000;
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    " onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">✕ Tutup</button>
+  `
+
   // Instruction banner for landscape mode — guides user to select landscape in browser print dialog
   const bannerHtml = isLandscape ? `
     <div id="print-banner" style="
@@ -462,6 +487,7 @@ export function openPrintWindow(title: string, bodyHtml: string, orientation: Pr
       font-size: 14px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       gap: 16px;
+      padding-right: 100px;
     ">
       <div style="display:flex;align-items:center;gap:10px;flex:1;">
         <span style="font-size:24px;">⚠️</span>
@@ -485,7 +511,31 @@ export function openPrintWindow(title: string, bodyHtml: string, orientation: Pr
       " onmouseover="this.style.background='#92400e'" onmouseout="this.style.background='#78350f'">🖨️ Cetak Sekarang</button>
     </div>
     <div id="print-spacer" style="height: 80px;"></div>
-  ` : ''
+  ` : `
+    <div id="portrait-toolbar" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      background: #f3f4f6;
+      border-bottom: 1px solid #d1d5db;
+      padding: 8px 100px 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      color: #374151;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      gap: 8px;
+    ">
+      <span style="font-size:16px;">🖨️</span>
+      <span style="font-weight: 600;">Pratinjau Cetak</span>
+      <span style="color: #6b7280; margin-left: 8px;">— klik tombol di kanan untuk menutup, atau gunakan dialog cetak browser.</span>
+    </div>
+    <div style="height: 48px;"></div>
+  `
 
   // Print script: landscape uses manual trigger, portrait auto-prints
   const printScript = isLandscape ? `
@@ -493,27 +543,51 @@ export function openPrintWindow(title: string, bodyHtml: string, orientation: Pr
       function doPrint() {
         var banner = document.getElementById('print-banner');
         var spacer = document.getElementById('print-spacer');
+        var closeBtn = document.getElementById('close-preview-btn');
         if (banner) banner.style.display = 'none';
         if (spacer) spacer.style.display = 'none';
+        if (closeBtn) closeBtn.style.display = 'none';
         window.print();
         // Restore banner after print dialog closes
         setTimeout(function() {
           if (banner) banner.style.display = 'flex';
           if (spacer) spacer.style.display = 'block';
+          if (closeBtn) closeBtn.style.display = 'flex';
         }, 500);
       }
     </script>
-  ` : ''
+  ` : `
+    <script>
+      // Auto-print for portrait mode after short delay
+      setTimeout(function() {
+        var closeBtn = document.getElementById('close-preview-btn');
+        var toolbar = document.getElementById('portrait-toolbar');
+        if (closeBtn) closeBtn.style.display = 'none';
+        if (toolbar) toolbar.style.display = 'none';
+        window.print();
+        // Restore close button after print dialog closes so user can close the window
+        setTimeout(function() {
+          if (closeBtn) closeBtn.style.display = 'flex';
+          if (toolbar) toolbar.style.display = 'flex';
+        }, 500);
+      }, 500);
+    </script>
+  `
 
-  // Extra print styles for landscape banner
-  const bannerPrintStyles = isLandscape ? `
+  // Extra print styles — hide UI elements (close button, banner, toolbar) during print
+  const bannerPrintStyles = `
     <style>
       @media print {
         #print-banner { display: none !important; }
         #print-spacer { display: none !important; }
+        #portrait-toolbar { display: none !important; }
+        #close-preview-btn { display: none !important; }
+      }
+      @media screen {
+        body { padding-top: 0 !important; }
       }
     </style>
-  ` : ''
+  `
 
   const html = `
     <!DOCTYPE html>
@@ -524,6 +598,7 @@ export function openPrintWindow(title: string, bodyHtml: string, orientation: Pr
       ${bannerPrintStyles}
     </head>
     <body>
+      ${closeButtonHtml}
       ${bannerHtml}
       ${bodyHtml}
       ${printScript}
@@ -537,11 +612,8 @@ export function openPrintWindow(title: string, bodyHtml: string, orientation: Pr
     printWindow.document.close()
     printWindow.focus()
 
-    if (!isLandscape) {
-      // Auto-print for portrait mode after short delay
-      setTimeout(() => { printWindow.print() }, 500)
-    }
-    // For landscape: user clicks "Cetak Sekarang" button in the preview
+    // Note: auto-print is now handled by the inline script in printScript
+    // for both portrait and landscape modes (after hiding UI elements).
   }
 }
 
