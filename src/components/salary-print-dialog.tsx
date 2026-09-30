@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Printer, Loader2, Search, CheckCircle2, CalendarDays } from 'lucide-react'
+import { Printer, Loader2, Search, CheckCircle2, CalendarDays, Plus, Trash2 } from 'lucide-react'
 
 type Orientation = 'portrait' | 'landscape'
 
@@ -121,6 +121,42 @@ function statusToHonorLabel(status: string): string {
   return status.trim()
 }
 
+// ── Daftar opsi judul honor DEFAULT (tidak bisa dihapus) ──────────────────
+// Opsi-opsi ini selalu tersedia di dropdown. Opsi custom (user-added) disimpan
+// terpisah di localStorage dan bisa ditambah/dihapus user.
+const DEFAULT_HONOR_TYPES: string[] = [
+  'HONOR',
+  'GURU TIDAK TETAP SEKOLAH (GTTS)',
+  'PEGAWAI TIDAK TETAP SEKOLAH (PTTS)',
+  'PEGAWAI SEKOLAH',
+  'PETUGAS KEBERSIHAN SEKOLAH',
+  'PENJAGA SEKOLAH',
+]
+
+const CUSTOM_HONOR_TYPES_KEY = 'simapras:custom-honor-types'
+
+function loadCustomHonorTypes(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(CUSTOM_HONOR_TYPES_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+  } catch {
+    return []
+  }
+}
+
+function saveCustomHonorTypes(list: string[]): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(CUSTOM_HONOR_TYPES_KEY, JSON.stringify(list))
+  } catch {
+    /* ignore */
+  }
+}
+
 export function SalaryPrintDialog({
   open,
   onOpenChange,
@@ -135,6 +171,8 @@ export function SalaryPrintDialog({
   // Default landscape karena tabel gaji punya banyak kolom (6-7) — portrait akan terpotong.
   const [orientation, setOrientation] = useState<Orientation>('landscape')
   const [honorType, setHonorType] = useState('HONOR')
+  // Opsi judul honor custom yang ditambahkan user (tersimpan di localStorage)
+  const [customHonorTypes, setCustomHonorTypes] = useState<string[]>([])
   const [printDate, setPrintDate] = useState('')
   const [printMode, setPrintMode] = useState<'signature' | 'bank'>('signature')
   const [search, setSearch] = useState('')
@@ -144,11 +182,18 @@ export function SalaryPrintDialog({
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [fetchingPayments, setFetchingPayments] = useState(false)
 
+  // Gabungan opsi default + custom (untuk dropdown & datalist)
+  const allHonorTypes = useMemo(() => {
+    const merged = [...DEFAULT_HONOR_TYPES, ...customHonorTypes]
+    return Array.from(new Set(merged)) // dedupe
+  }, [customHonorTypes])
+
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       setPlace(defaultPlace)
       setHonorType('HONOR')
+      setCustomHonorTypes(loadCustomHonorTypes())
       setPrintDate('')
       setSelectedSalaryIds(new Set())
       setSelectedMonths(new Set())
@@ -157,6 +202,33 @@ export function SalaryPrintDialog({
       setPrintMode('signature')
     }
   }, [open, defaultPlace])
+
+  // Tambah honor type baru ke daftar custom (persist ke localStorage)
+  const addCustomHonorType = useCallback((value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) return
+    setCustomHonorTypes((prev) => {
+      // Cek duplikat (case-insensitive) terhadap default + custom yang sudah ada
+      const exists = [...DEFAULT_HONOR_TYPES, ...prev].some(
+        (v) => v.toUpperCase() === trimmed.toUpperCase()
+      )
+      if (exists) return prev
+      const next = [...prev, trimmed]
+      saveCustomHonorTypes(next)
+      return next
+    })
+  }, [])
+
+  // Hapus honor type custom dari daftar
+  const removeCustomHonorType = useCallback((value: string) => {
+    setCustomHonorTypes((prev) => {
+      const next = prev.filter((v) => v !== value)
+      saveCustomHonorTypes(next)
+      return next
+    })
+    // Kalau honorType yang aktif = yang dihapus, reset ke 'HONOR'
+    setHonorType((cur) => (cur === value ? 'HONOR' : cur))
+  }, [])
 
   // Fetch all salary payments for the selected year
   const fetchPayments = useCallback(async () => {
@@ -474,24 +546,91 @@ export function SalaryPrintDialog({
             </div>
           </div>
 
-          {/* Preview Judul Cetak (auto-update dari status, full-width) */}
-          <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+          {/* ── Judul Cetak: input editable + dropdown + add/delete ─────────── */}
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                Preview Judul Cetak
+                Judul Cetak Honor
               </Label>
               {statusFilter ? (
                 <Badge variant="secondary" className="text-[10px]">{statusFilter}</Badge>
               ) : (
-                <span className="text-[10px] text-muted-foreground italic">pilih status dulu</span>
+                <span className="text-[10px] text-muted-foreground italic">pilih status dulu atau ketik manual</span>
               )}
             </div>
-            <p className="text-sm font-semibold leading-snug">
-              TANDA TERIMA PEMBAYARAN HONOR {honorType || 'HONOR'} {buildMonthRangeLabel(Array.from(selectedMonths).sort((a, b) => a - b))}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Baris ke-2: <span className="font-medium">[NAMA SEKOLAH] TAHUN {year}</span> (otomatis)
-            </p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="mis. PEGAWAI SEKOLAH"
+                value={honorType}
+                onChange={(e) => setHonorType(e.target.value)}
+                className="flex-1"
+                list="honor-type-list"
+              />
+              {/* Datalist untuk autocomplete suggestions */}
+              <datalist id="honor-type-list">
+                {allHonorTypes.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
+              <Select
+                value={allHonorTypes.includes(honorType) ? honorType : '__custom__'}
+                onValueChange={(v) => {
+                  if (v !== '__custom__') setHonorType(v)
+                }}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Pilih dari daftar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allHonorTypes.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => addCustomHonorType(honorType)}
+                title="Tambah ke daftar opsi"
+                disabled={!honorType.trim() || allHonorTypes.includes(honorType)}
+              >
+                <Plus className="size-4" />
+              </Button>
+            </div>
+
+            {/* Daftar opsi custom (bisa dihapus), default tidak bisa dihapus */}
+            {customHonorTypes.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {customHonorTypes.map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-xs"
+                  >
+                    {t}
+                    <button
+                      type="button"
+                      onClick={() => removeCustomHonorType(t)}
+                      className="text-muted-foreground hover:text-destructive"
+                      title="Hapus opsi ini"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Preview judul lengkap */}
+            <div className="pt-1 border-t mt-2">
+              <p className="text-xs text-muted-foreground mb-0.5">Preview:</p>
+              <p className="text-sm font-semibold leading-snug">
+                TANDA TERIMA PEMBAYARAN HONOR {honorType || 'HONOR'} {buildMonthRangeLabel(Array.from(selectedMonths).sort((a, b) => a - b))}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Baris ke-2: <span className="font-medium">[NAMA SEKOLAH] TAHUN {year}</span> (otomatis)
+              </p>
+            </div>
           </div>
 
           {/* Month selector */}
