@@ -23,6 +23,14 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loadingState, setLoadingState] = useState(false)
   const [error, setError] = useState('')
+  // ── Anti-auto-fill trick ──────────────────────────────────────────────
+  // Field dimulai dalam keadaan readOnly supaya browser TIDAK bisa
+  // auto-fill username/password saat halaman dimuat (field tetap kosong).
+  // Saat user klik field (focus), readOnly dihapus → browser munculkan
+  // dropdown saran username/password yang pernah disimpan. User bisa pilih
+  // dari dropdown untuk login cepat.
+  const [usernameLocked, setUsernameLocked] = useState(true)
+  const [passwordLocked, setPasswordLocked] = useState(true)
 
   // SIMAPRAS is always the app brand (matches the favicon/tab name).
   // The configured school name, if any, is shown as a subtitle.
@@ -117,6 +125,10 @@ export function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loadingState}
                 autoComplete="username"
+                // readOnly mencegah browser auto-fill saat halaman dimuat.
+                // Saat field di-focus (klik), readOnly dihapus → autocomplete dropdown muncul.
+                readOnly={usernameLocked}
+                onFocus={() => setUsernameLocked(false)}
                 className="h-11"
               />
             </div>
@@ -132,6 +144,10 @@ export function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loadingState}
                   autoComplete="current-password"
+                  // readOnly mencegah browser auto-fill saat halaman dimuat.
+                  // Saat field di-focus (klik), readOnly dihapus → autocomplete dropdown muncul.
+                  readOnly={passwordLocked}
+                  onFocus={() => setPasswordLocked(false)}
                   className="h-11 pr-10"
                 />
                 <button
