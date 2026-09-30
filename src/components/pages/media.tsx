@@ -525,13 +525,11 @@ export function MediaPage() {
 
     // ── 8. Blok tanda tangan ────────────────────────────────────────────────
     // Struktur (sama dengan Gaji — sesuai permintaan user):
-    //   Baris 1 (rata KANAN, full width):  Teluk Dalam, 30 September 2026
-    //   Baris 2: (baris kosong)
-    //   Lalu 2 kolom sejajar:
+    //   2 kolom sejajar (flex), tanggal di kolom kanan sejajar dengan Bendahara:
     //     Kolom KIRI:                         Kolom KANAN:
-    //       Mengetahui/ Setuju Bayar:           Bendahara [school],
-    //       Kepala [school],                    (baris kedua = penandatangan)
-    //       (ruang ttd)                         (ruang ttd)
+    //       Mengetahui/ Setuju Bayar:           Teluk Dalam, 30 September 2026
+    //       Kepala [school],                    Bendahara [school],
+    //       (ruang ttd — jarak lega)           (ruang ttd — jarak lega)
     //       Nama (bold+underline)               Nama (bold+underline)
     //       NIP. ...                            NIP. ...
     // HANYA nama yang bergaris bawah + bold. NIP TIDAK bergaris bawah.
@@ -541,24 +539,20 @@ export function MediaPage() {
     const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
 
     const signatureHtml = `
-      <div style="margin-top: 12px; font-size: 10pt; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
-        <div style="text-align: right; padding-right: 8%;">${placeDate}</div>
-        <div style="height: 18px;"></div>
-        <div style="display: flex; align-items: flex-start; justify-content: space-between;">
-          <div style="width: 40%; text-align: left; padding-left: 8%;">
-            <div>Mengetahui/ Setuju Bayar:</div>
-            <div>Kepala ${schoolName || 'Sekolah'},</div>
-            <div style="height: 48px;"></div>
-            <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
-            <div>${principalNip ? `NIP. ${principalNip}` : 'NIP. ________________________'}</div>
-          </div>
-          <div style="text-align: left; flex: 0 0 auto; padding-right: 8%;">
-            <div>Bendahara ${schoolName || 'Sekolah'},</div>
-            <div>&nbsp;</div>
-            <div style="height: 48px;"></div>
-            <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
-            <div>${treasurerNip ? `NIP. ${treasurerNip}` : 'NIP. ________________________'}</div>
-          </div>
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-top: 12px; font-size: 10pt; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
+        <div style="width: 40%; text-align: left; padding-left: 8%;">
+          <div>Mengetahui/ Setuju Bayar:</div>
+          <div>Kepala ${schoolName || 'Sekolah'},</div>
+          <div style="height: 60px;"></div>
+          <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
+          <div>${principalNip ? `NIP. ${principalNip}` : 'NIP. ________________________'}</div>
+        </div>
+        <div style="text-align: left; flex: 0 0 auto; padding-right: 8%;">
+          <div>${placeDate}</div>
+          <div>Bendahara ${schoolName || 'Sekolah'},</div>
+          <div style="height: 60px;"></div>
+          <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
+          <div>${treasurerNip ? `NIP. ${treasurerNip}` : 'NIP. ________________________'}</div>
         </div>
       </div>
     `
