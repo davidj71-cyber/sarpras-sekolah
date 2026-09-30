@@ -486,8 +486,8 @@ export function SalaryPage() {
           <td style="background: transparent; vertical-align: middle; white-space: nowrap; text-transform: uppercase;">${it.name || '-'}</td>
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${it.bankAccount || '-'}</td>
           <td style="background: transparent; text-align: center; vertical-align: middle; white-space: nowrap;">${formatNumberPrint(jumlah)}&nbsp;&nbsp;&nbsp;&nbsp;${satuan}</td>
-          <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(it.pricePerLesson)}</td>
-          <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(penerimaan)}</td>
+          <td style="background: transparent; vertical-align: middle; white-space: nowrap; text-align: right;"><span style="float: left;">Rp</span>&nbsp;${formatNumberPrint(it.pricePerLesson)}</td>
+          <td style="background: transparent; vertical-align: middle; white-space: nowrap; text-align: right;"><span style="float: left;">Rp</span>&nbsp;${formatNumberPrint(penerimaan)}</td>
           ${signatureCellHtml}
         </tr>
       `
@@ -503,7 +503,7 @@ export function SalaryPage() {
       <tr>
         <td colspan="2" style="background: transparent; text-align: center; font-weight: bold; vertical-align: middle;">TERBILANG</td>
         <td colspan="3" style="background: transparent; text-align: left; vertical-align: middle;">${terbilangRupiah(grandTotalPrint)}</td>
-        <td style="background: transparent; text-align: left; vertical-align: middle; white-space: nowrap; font-weight: bold;">Rp&nbsp;&nbsp;&nbsp;${formatNumberPrint(grandTotalPrint)},-</td>
+        <td style="background: transparent; vertical-align: middle; white-space: nowrap; font-weight: bold; text-align: right;"><span style="float: left;">Rp</span>&nbsp;${formatNumberPrint(grandTotalPrint)},-</td>
         ${signatureCellHtml}
       </tr>
     `

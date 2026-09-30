@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { MasterCombobox } from '@/components/ui/master-combobox'
 import {
   Select,
   SelectContent,
@@ -304,11 +305,11 @@ export function MediaPrintDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="med-place">Tempat</Label>
-              <Input
-                id="med-place"
-                placeholder="Mis. Telukdalam"
+              <MasterCombobox
+                category="tempatCetak"
                 value={place}
-                onChange={(e) => setPlace(e.target.value)}
+                onChange={setPlace}
+                placeholder="Mis. Telukdalam"
               />
             </div>
             <div className="space-y-2">
