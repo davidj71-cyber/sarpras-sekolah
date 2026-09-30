@@ -643,3 +643,38 @@ model ReturnEntry {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+// ── Rekap Pencetakan ──
+// Menyimpan riwayat setiap cetak yang dilakukan user untuk:
+//   1. Rekening Koran (category = 'rekening-koran')
+//   2. Cetak Gaji — mode Bank / Tanda Tangan (category = 'salary')
+//   3. Media / Koran & Majalah (category = 'media')
+// Full HTML disimpan supaya user bisa "Cetak Ulang" dengan hasil identik
+// kapan saja, meskipun settings sekolah (KOP, nama kepala, dll) sudah berubah.
+model PrintLog {
+  id           String   @id @default(cuid())
+  // Kategori cetak: 'rekening-koran' | 'salary' | 'media'
+  category     String
+  // Tanggal cetak dilakukan (waktu nyata saat user klik cetak)
+  printDate    DateTime @default(now())
+  // Label periode/bulan untuk tampilan tabel, mis.:
+  //   - Rekening Koran: "Januari-Agustus 2026"
+  //   - Salary: "BULAN AGUSTUS 2026"
+  //   - Media: "BULAN SEPTEMBER 2026"
+  periodLabel  String   @default("")
+  // ── Khusus Rekening Koran ──
+  // Nomor surat lengkap, mis. "400.3.8/573/ADM/VIII/2026"
+  letterNumber String   @default("")
+  // Nama bank tujuan, mis. "PT. Bank SUMUT Telukdalam"
+  bankName     String   @default("")
+  // ── Khusus Salary ──
+  // Mode cetak: 'signature' (dgn kolom tanda tangan) | 'bank' (dgn kolom rekening)
+  printMode    String   @default("")
+  // ── Judul tampilan di tabel rekap ──
+  title        String   @default("")
+  // ── Full HTML body (termasuk KOP) untuk re-print identik ──
+  contentHtml  String
+  // ── Orientasi cetak: 'portrait' | 'landscape' ──
+  orientation  String   @default("portrait")
+  createdAt    DateTime @default(now())
+}
