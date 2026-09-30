@@ -419,7 +419,7 @@ export function SalaryPage() {
     // ── 5. Blok metadata (rata KANAN, di atas judul) ─────────────────────────
     const metaBlock = `
       <div style="display: flex; justify-content: flex-end; margin-bottom: 2px;">
-        <table style="border: none; font-size: 10pt; line-height: 1.3; width: auto;">
+        <table style="border: none; font-size: 11pt; line-height: 1.3; width: auto; font-family: 'Times New Roman', serif;">
           <tbody>
             <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${salaryKode}</td></tr>
             <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode Program</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${salaryKodeProgram}</td></tr>
@@ -455,7 +455,7 @@ export function SalaryPage() {
     const maxWidthMm = orientation === 'landscape' ? 275 : 188
     const titleFontSize = computeTitleFontSize(titleLine1, maxWidthMm, 20, 8)
     const titleHtml = `
-      <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: ${titleFontSize}pt; line-height: 1.2; margin: 2px 0 6px; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
+      <div style="text-align: center; font-weight: bold; text-transform: uppercase; line-height: 1.2; margin: 2px 0 6px; position: relative; z-index: 1; font-family: 'Times New Roman', serif; font-size: 14pt;">
         <div id="print-title-line1" style="white-space: nowrap;">${titleLine1}</div>
         <div>${titleLine2}</div>
       </div>
@@ -550,14 +550,14 @@ export function SalaryPage() {
     const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
 
     const signatureHtml = `
-      <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 10pt; position: relative; z-index: 1;">
+      <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 11pt; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
         <div style="width: 40%; text-align: left;">
           <div>Mengetahui/</div>
           <div>Setuju Bayar:</div>
           <div>Kepala ${schoolName || 'Sekolah'},</div>
           <div style="height: 40px;"></div>
           <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
-          <div>${principalNip ? `NIP. ${principalNip}` : '&nbsp;'}</div>
+          <div style="text-decoration: underline;">NIP. ${principalNip || '________________________'}</div>
         </div>
         <div style="text-align: left; flex: 0 0 auto;">
           <div>${placeDate}</div>
@@ -566,7 +566,7 @@ export function SalaryPage() {
           <div>Bendahara ${schoolName || 'Sekolah'}</div>
           <div style="height: 40px;"></div>
           <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
-          <div>${treasurerNip ? `NIP. ${treasurerNip}` : '&nbsp;'}</div>
+          <div style="text-decoration: underline;">NIP. ${treasurerNip || '________________________'}</div>
         </div>
       </div>
     `

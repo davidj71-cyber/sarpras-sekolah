@@ -335,8 +335,8 @@ export function getPrintStyles(orientation: PrintOrientation = 'portrait'): stri
   // Reduced margins (10mm sides, 12mm left for hole-punch clearance) so KOP lines have more width
   // and won't wrap. A4 portrait = 210mm wide → usable ~186mm.
   const pageRule = orientation === 'landscape'
-    ? '@page { size: A4 landscape; margin: 10mm 10mm 10mm 12mm; }'
-    : '@page { size: A4 portrait; margin: 10mm 10mm 10mm 12mm; }'
+    ? '@page { size: A4 landscape; margin: 8mm 8mm 8mm 10mm; }'
+    : '@page { size: A4 portrait; margin: 8mm 8mm 8mm 10mm; }'
 
   return `
     ${pageRule}
