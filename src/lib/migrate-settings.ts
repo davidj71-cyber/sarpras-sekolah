@@ -71,6 +71,7 @@ async function doEnsureSchoolSettingsSchema(): Promise<string[]> {
     { name: "kopLines", ddl: `TEXT NOT NULL DEFAULT '[]'` },
     { name: "principalName", ddl: `TEXT NOT NULL DEFAULT ''` },
     { name: "principalNip", ddl: `TEXT NOT NULL DEFAULT ''` },
+    { name: "principalTitle", ddl: `TEXT NOT NULL DEFAULT ''` },
     { name: "treasurerName", ddl: `TEXT NOT NULL DEFAULT ''` },
     { name: "treasurerNip", ddl: `TEXT NOT NULL DEFAULT ''` },
     { name: "goodsManagerName", ddl: `TEXT NOT NULL DEFAULT ''` },
