@@ -30,6 +30,14 @@ export function ensureSchoolSettingsSchema(): Promise<string[]> {
   if (schoolSettingsSchemaPromise) return schoolSettingsSchemaPromise;
   schoolSettingsSchemaPromise = (async () => {
     try {
+      // ── PERFORMANCE: Skip schema-heal di production (Vercel) ─────────────
+      // Build script sudah run `prisma db push` yang create semua tables &
+      // columns. Schema-heal (82 ALTER TABLE) redundant di production dan
+      // bikin lambat (17+ detik di Neon free tier karena network latency).
+      // Hanya jalan di sandbox lokal (development) untuk backward-compat.
+      if (process.env.NODE_ENV === 'production') {
+        return [];
+      }
       return await doEnsureSchoolSettingsSchema();
     } catch (e) {
       // Reset on failure so the next request can retry.
@@ -155,6 +163,13 @@ async function columnExistsSqlite(table: string, column: string): Promise<boolea
  * after the first request following a deploy that adds new columns.
  */
 export async function withSchemaHeal<T>(op: () => Promise<T>): Promise<T> {
+  // ── PERFORMANCE: Di production, schema-heal skip total ──────────────────
+  // Build script sudah run `prisma db push` yang ensure tables & columns
+  // ada. Kalau ada schema error di production, lempar error aslinya —
+  // lebih baik user lihat error jelas daripada tunggu 17+ detik retry.
+  if (process.env.NODE_ENV === 'production') {
+    return op();
+  }
   try {
     return await op();
   } catch (err) {
@@ -196,6 +211,12 @@ export function ensureSalaryMediaSchema(): Promise<string[]> {
   if (salaryMediaSchemaPromise) return salaryMediaSchemaPromise;
   salaryMediaSchemaPromise = (async () => {
     try {
+      // ── PERFORMANCE: Skip schema-heal di production (Vercel) ─────────────
+      // Build script sudah run `prisma db push`. Schema-heal redundant di
+      // production dan bikin lambat. Hanya jalan di sandbox lokal.
+      if (process.env.NODE_ENV === 'production') {
+        return [];
+      }
       return await doEnsureSalaryMediaSchema();
     } catch (e) {
       // Reset on failure so the next request can retry.
