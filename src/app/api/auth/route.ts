@@ -11,6 +11,7 @@ const DEFAULT_ADMIN = {
 
 // Ensure admin user exists (auto-seed). Runs once per cold start.
 let adminSeeded = false
+let adminSeedError: string | null = null
 async function ensureAdminExists() {
   if (adminSeeded) return
   try {
@@ -20,9 +21,14 @@ async function ensureAdminExists() {
       console.log('[auth] Default admin user seeded: admin / admin123')
     }
     adminSeeded = true
+    adminSeedError = null
   } catch (error) {
-    // Jangan throw — biarkan login gagal dengan 401 jika seed gagal
-    console.error('[auth] Failed to seed admin:', error)
+    // Simpan pesan error supaya bisa dikembalikan ke user — jangan ditelan diam-diam.
+    // Tanpa ini, user melihat "Username atau password salah" padahal masalahnya
+    // database belum ter-setup / tabel belum ada / koneksi gagal.
+    const msg = error instanceof Error ? error.message : String(error)
+    adminSeedError = msg
+    console.error('[auth] Failed to seed admin:', msg)
   }
 }
 
@@ -107,10 +113,34 @@ export async function POST(request: Request) {
       await ensureAdminExists()
     }
 
+    // Kalau seeding admin gagal (DB belum ready, tabel belum ada, koneksi gagal),
+    // kembalikan error yang jelas supaya user tahu masalahnya — bukan "password salah".
+    if (cleanUsername === DEFAULT_ADMIN.username && adminSeedError) {
+      return NextResponse.json(
+        {
+          error: `Database belum siap. Pastikan DATABASE_URL sudah diset di Vercel Environment Variables (PostgreSQL). Detail: ${adminSeedError.slice(0, 200)}`,
+        },
+        { status: 500, headers: NO_CACHE_HEADERS }
+      )
+    }
+
     // Query user dengan retry untuk transient DB errors
-    const user = await withRetry(() =>
-      db.user.findUnique({ where: { username: cleanUsername } })
-    )
+    let user
+    try {
+      user = await withRetry(() =>
+        db.user.findUnique({ where: { username: cleanUsername } })
+      )
+    } catch (dbError) {
+      // DB query gagal — kemungkinan tabel belum ada atau koneksi gagal.
+      // Beri error yang jelas, bukan "password salah".
+      const msg = dbError instanceof Error ? dbError.message : String(dbError)
+      return NextResponse.json(
+        {
+          error: `Tidak dapat terhubung ke database. Pastikan DATABASE_URL sudah diset dengan PostgreSQL connection string yang valid. Detail: ${msg.slice(0, 200)}`,
+        },
+        { status: 500, headers: NO_CACHE_HEADERS }
+      )
+    }
 
     if (!user || user.password !== password.trim()) {
       return NextResponse.json(
