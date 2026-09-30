@@ -543,14 +543,14 @@ export function MediaPage() {
         <div style="width: 40%; text-align: left; padding-left: 8%;">
           <div>Mengetahui/ Setuju Bayar:</div>
           <div>Kepala ${schoolName || 'Sekolah'},</div>
-          <div style="height: 60px;"></div>
+          <div style="height: 80px;"></div>
           <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
           <div>${principalNip ? `NIP. ${principalNip}` : 'NIP. ________________________'}</div>
         </div>
         <div style="text-align: left; flex: 0 0 auto; padding-right: 8%;">
           <div>${placeDate}</div>
           <div>Bendahara ${schoolName || 'Sekolah'},</div>
-          <div style="height: 60px;"></div>
+          <div style="height: 80px;"></div>
           <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
           <div>${treasurerNip ? `NIP. ${treasurerNip}` : 'NIP. ________________________'}</div>
         </div>
