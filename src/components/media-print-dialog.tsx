@@ -92,7 +92,8 @@ export function MediaPrintDialog({
   const currentYear = new Date().getFullYear()
   const [year, setYear] = useState(String(currentYear))
   const [place, setPlace] = useState(defaultPlace)
-  const [orientation, setOrientation] = useState<Orientation>('portrait')
+  // Default landscape karena tabel media punya banyak kolom — portrait akan terpotong.
+  const [orientation, setOrientation] = useState<Orientation>('landscape')
   // Tanggal cetak custom (ISO yyyy-mm-dd). Empty = pakai tanggal hari ini.
   const [printDate, setPrintDate] = useState('')
   const [search, setSearch] = useState('')

@@ -132,7 +132,8 @@ export function SalaryPrintDialog({
   const currentYear = new Date().getFullYear()
   const [year, setYear] = useState(String(currentYear))
   const [place, setPlace] = useState(defaultPlace)
-  const [orientation, setOrientation] = useState<Orientation>('portrait')
+  // Default landscape karena tabel gaji punya banyak kolom (6-7) — portrait akan terpotong.
+  const [orientation, setOrientation] = useState<Orientation>('landscape')
   const [honorType, setHonorType] = useState('HONOR')
   const [printDate, setPrintDate] = useState('')
   const [printMode, setPrintMode] = useState<'signature' | 'bank'>('signature')
