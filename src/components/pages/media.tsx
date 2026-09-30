@@ -523,32 +523,42 @@ export function MediaPage() {
       </table>
     `
 
-    // ── 8. Blok tanda tangan (2 kolom paralel) ───────────────────────────────
-    // Tanggal cetak: pakai printDate user kalau diisi, fallback ke hari ini.
-    // printDate format ISO yyyy-mm-dd (dari <input type="date">), format ke "12 Agustus 2026".
+    // ── 8. Blok tanda tangan ────────────────────────────────────────────────
+    // Struktur (sama dengan Gaji — sesuai permintaan user):
+    //   Baris 1 (rata KANAN, full width):  Teluk Dalam, 30 September 2026
+    //   Baris 2: (baris kosong)
+    //   Lalu 2 kolom sejajar:
+    //     Kolom KIRI:                         Kolom KANAN:
+    //       Mengetahui/ Setuju Bayar:           Bendahara [school],
+    //       Kepala [school],                    (baris kedua = penandatangan)
+    //       (ruang ttd)                         (ruang ttd)
+    //       Nama (bold+underline)               Nama (bold+underline)
+    //       NIP. ...                            NIP. ...
+    // HANYA nama yang bergaris bawah + bold. NIP TIDAK bergaris bawah.
     const today = printDate
       ? new Date(printDate + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
       : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
     const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
 
     const signatureHtml = `
-      <div style="display: flex; justify-content: space-between; margin-top: 24px; font-size: 10pt; position: relative; z-index: 1;">
-        <div style="width: 40%; text-align: left; padding-left: 8%;">
-          <div>Mengetahui/</div>
-          <div>Setuju Bayar:</div>
-          <div>Kepala ${schoolName || 'Sekolah'},</div>
-          <div style="height: 60px;"></div>
-          <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
-          <div>${principalNip ? `NIP. ${principalNip}` : '&nbsp;'}</div>
-        </div>
-        <div style="text-align: left; flex: 0 0 auto; padding-right: 8%;">
-          <div>${placeDate}</div>
-          <div>&nbsp;</div>
-          <div>Bayar lunas :</div>
-          <div>Bendahara ${schoolName || 'Sekolah'}</div>
-          <div style="height: 60px;"></div>
-          <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
-          <div>${treasurerNip ? `NIP. ${treasurerNip}` : '&nbsp;'}</div>
+      <div style="margin-top: 12px; font-size: 10pt; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
+        <div style="text-align: right; padding-right: 8%;">${placeDate}</div>
+        <div style="height: 18px;"></div>
+        <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+          <div style="width: 40%; text-align: left; padding-left: 8%;">
+            <div>Mengetahui/ Setuju Bayar:</div>
+            <div>Kepala ${schoolName || 'Sekolah'},</div>
+            <div style="height: 48px;"></div>
+            <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
+            <div>${principalNip ? `NIP. ${principalNip}` : 'NIP. ________________________'}</div>
+          </div>
+          <div style="text-align: left; flex: 0 0 auto; padding-right: 8%;">
+            <div>Bendahara ${schoolName || 'Sekolah'},</div>
+            <div>&nbsp;</div>
+            <div style="height: 48px;"></div>
+            <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
+            <div>${treasurerNip ? `NIP. ${treasurerNip}` : 'NIP. ________________________'}</div>
+          </div>
         </div>
       </div>
     `
