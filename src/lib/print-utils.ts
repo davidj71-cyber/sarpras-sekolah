@@ -353,14 +353,14 @@ export function getPrintStyles(orientation: PrintOrientation = 'portrait'): stri
       background-color: #f0f0f0;
       font-weight: bold;
       border: 1px solid #333;
-      padding: 6px 8px;
+      padding: 4px 6px;
       text-align: center;
-      font-size: 10pt;
+      font-size: 11pt;
     }
     td {
       border: 1px solid #333;
-      padding: 4px 8px;
-      font-size: 10pt;
+      padding: 3px 6px;
+      font-size: 11pt;
     }
     .text-right { text-align: right; }
     .text-center { text-align: center; }

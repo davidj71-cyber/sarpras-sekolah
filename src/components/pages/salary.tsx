@@ -374,7 +374,7 @@ export function SalaryPage() {
     const raw = await fetchSettingsCached()
 
     const schoolName = (raw.schoolName as string) || ''
-    const appLogo = (raw.appLogo as string) || (raw.favicon as string) || null
+    const appLogo = (raw.appLogo as string) || (raw.favicon as string) || (raw.logo as string) || null
     const principalName = (raw.principalName as string) || ''
     const principalNip = (raw.principalNip as string) || ''
     const treasurerName = (raw.treasurerName as string) || ''
@@ -524,7 +524,7 @@ export function SalaryPage() {
     const penerimaanWidth = isBankMode ? '20%' : '15%'
 
     const tableHtml = `
-      <table style="width: 100%; border-collapse: collapse; position: relative; z-index: 1; background: transparent;">
+      <table style="width: 100%; border-collapse: collapse; position: relative; z-index: 1; background: transparent; font-family: 'Times New Roman', serif; font-size: 11pt;">
         <thead>
           <tr>
             <th style="background: transparent; width: 5%; padding: 2px 4px;">NO.</th>

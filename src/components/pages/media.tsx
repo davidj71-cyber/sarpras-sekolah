@@ -394,7 +394,7 @@ export function MediaPage() {
     const schoolName = (raw.schoolName as string) || ''
     const province = (raw.province as string) || 'SUMATERA UTARA'
     // Watermark memakai logo APLIKASI (bukan logo KOP surat), fallback ke favicon.
-    const appLogo = (raw.appLogo as string) || (raw.favicon as string) || null
+    const appLogo = (raw.appLogo as string) || (raw.favicon as string) || (raw.logo as string) || null
     const principalName = (raw.principalName as string) || ''
     const principalNip = (raw.principalNip as string) || ''
     const treasurerName = (raw.treasurerName as string) || ''
