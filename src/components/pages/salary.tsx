@@ -309,13 +309,6 @@ export function SalaryPage() {
     [entries]
   )
 
-  // Daftar nomor rekening unik dari salary entries — dipakai sebagai suggestions
-  // untuk kolom "Nomor Rekening" di dialog Cetak Rekening Koran (datalist HTML).
-  const memoSalaryBankAccounts = useMemo(
-    () => Array.from(new Set(entries.map((e) => e.bankAccount).filter((v) => v && v.trim()))),
-    [entries]
-  )
-
   const grandTotal = filteredEntries.reduce((s, e) => s + (e.totalReceived || 0), 0)
 
   // ─── Cetak — format TANDA TERIMA PEMBAYARAN HONOR (struktur = Media) ────────
@@ -1144,7 +1137,6 @@ export function SalaryPage() {
       <RekeningKoranDialog
         open={rekKoranDialogOpen}
         onOpenChange={setRekKoranDialogOpen}
-        salaryBankAccounts={memoSalaryBankAccounts}
       />
 
       {paymentEntry && (

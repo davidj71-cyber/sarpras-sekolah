@@ -17,6 +17,10 @@
 //
 // Daftar rekening persisten di localStorage (key: simapras:bank-accounts) supaya
 // user tidak perlu input ulang setiap kali cetak.
+//
+// ⚠️ PENTING: Rekening Koran ini KHUSUS untuk rekening SEKOLAH (mis. BOS Reguler,
+// Gaji PNS, GTT Provinsi), BUKAN rekening pribadi pegawai. Jangan masukkan
+// nomor rekening pegawai dari data gaji di sini.
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useToast } from '@/hooks/use-toast'
@@ -86,8 +90,6 @@ interface BankAccountRow {
 interface RekeningKoranDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Unique bank account numbers from SalaryEntry — dipakai sebagai suggestions datalist. */
-  salaryBankAccounts: string[]
 }
 
 interface FormDefaults {
@@ -430,7 +432,6 @@ function buildRekeningKoranHtml(
 export function RekeningKoranDialog({
   open,
   onOpenChange,
-  salaryBankAccounts,
 }: RekeningKoranDialogProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -468,17 +469,23 @@ export function RekeningKoranDialog({
   }, [accounts, open])
 
   // ── Account row operations ──────────────────────────────────────────────
+  // Saat menambah rekening baru, pre-fill dengan nomor rekening sekolah terakhir
+  // yang pernah diinput user (dari daftar yang sudah ada), BUKAN dari rekening
+  // pegawai. Default a/n: nama sekolah dari settings (huruf kapital).
   const addAccount = useCallback(() => {
-    setAccounts((prev) => [
-      ...prev,
-      {
-        id: makeId(),
-        accountNumber: salaryBankAccounts[0] || '',
-        accountName: (settings?.schoolName || '').toUpperCase(),
-        description: '',
-      },
-    ])
-  }, [salaryBankAccounts, settings])
+    setAccounts((prev) => {
+      const lastAccountNumber = prev.length > 0 ? prev[prev.length - 1].accountNumber : ''
+      return [
+        ...prev,
+        {
+          id: makeId(),
+          accountNumber: lastAccountNumber,
+          accountName: (settings?.schoolName || '').toUpperCase(),
+          description: '',
+        },
+      ]
+    })
+  }, [settings])
 
   const updateAccount = useCallback((id: string, field: keyof BankAccountRow, value: string) => {
     setAccounts((prev) => prev.map((r) => r.id === id ? { ...r, [field]: value } : r))
@@ -671,9 +678,6 @@ export function RekeningKoranDialog({
     }
   }
 
-  // ── Suggestion datalist id (unique) ──────────────────────────────────────
-  const datalistId = 'rk-suggested-accounts'
-
   // Cek apakah KOP surat sudah siap (schoolName + kopLines terisi).
   // Jika belum, tampilkan warning supaya user isi dulu di menu Pengaturan.
   const kopLinesCount = settings ? parseKopLines(settings.kopLines).filter((l) => l.text.trim()).length : 0
@@ -693,12 +697,18 @@ export function RekeningKoranDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Hidden datalist for account number suggestions */}
-        <datalist id={datalistId}>
-          {salaryBankAccounts.map((acc) => (
-            <option key={acc} value={acc} />
-          ))}
-        </datalist>
+        {/* Info banner: rekening koran khusus rekening sekolah */}
+        <div className="flex items-start gap-2 rounded-md border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-200">
+          <Landmark className="size-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Khusus Rekening Sekolah</p>
+            <p className="mt-0.5">
+              Surat ini khusus untuk mencetak rekening koran <strong>rekening SEKOLAH</strong>{' '}
+              (mis. BOS Reguler, Gaji PNS, GTT Provinsi). Jangan masukkan nomor rekening
+              pribadi pegawai — gunakan nomor rekening tabungan sekolah.
+            </p>
+          </div>
+        </div>
 
         <div className="grid gap-4 py-2">
           {/* ── Warning KOP belum diisi ─────────────────────────────────────── */}
@@ -947,7 +957,6 @@ export function RekeningKoranDialog({
                         <TableCell className="text-center align-middle">{idx + 1}</TableCell>
                         <TableCell className="align-middle">
                           <Input
-                            list={datalistId}
                             placeholder="mis. 271.01.02.000940-0"
                             value={acc.accountNumber}
                             onChange={(e) => updateAccount(acc.id, 'accountNumber', e.target.value)}
