@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Settings, Upload, Loader2, X, School, Plus, Trash2, ChevronUp, ChevronDown, UserCheck, Image as ImageIcon } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Settings, Upload, Loader2, X, School, Plus, Trash2, ChevronUp, ChevronDown, UserCheck, Image as ImageIcon, Save, FileText } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader, PageContainer } from '@/components/ui/page-header'
 import { PageLoading } from '@/components/ui/loading-skeleton'
@@ -436,6 +437,28 @@ export function SettingsPage() {
         icon={Settings}
       />
 
+      <Tabs defaultValue="identitas" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+          <TabsTrigger value="identitas">
+            <School className="size-4 mr-2" />
+            Identitas Sekolah
+          </TabsTrigger>
+          <TabsTrigger value="logo">
+            <ImageIcon className="size-4 mr-2" />
+            Logo &amp; Favicon
+          </TabsTrigger>
+          <TabsTrigger value="penandatangan">
+            <UserCheck className="size-4 mr-2" />
+            Penandatangan
+          </TabsTrigger>
+          <TabsTrigger value="kop">
+            <FileText className="size-4 mr-2" />
+            KOP Surat
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab 1: Identitas Sekolah */}
+        <TabsContent value="identitas" className="space-y-4">
       {/* Section 1: Informasi Sekolah */}
       <Card className="card-pro">
         <CardHeader>
@@ -636,6 +659,25 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+          <div className="flex justify-end pt-4">
+            <Button onClick={handleSave} disabled={isSaving} size="lg" className="min-w-[180px]">
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 size-4" />
+                  Simpan
+                </>
+              )}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* Tab 2: Logo & Favicon */}
+        <TabsContent value="logo" className="space-y-4">
       {/* Section 1.25: Logo Aplikasi & Favicon */}
       <Card className="card-pro">
         <CardHeader>
@@ -763,6 +805,25 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+          <div className="flex justify-end pt-4">
+            <Button onClick={handleSave} disabled={isSaving} size="lg" className="min-w-[180px]">
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 size-4" />
+                  Simpan
+                </>
+              )}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* Tab 3: Penandatangan */}
+        <TabsContent value="penandatangan" className="space-y-4">
       {/* Section 1.5: Penandatangan Laporan (Sinkronisasi) */}
       <Card className="card-pro">
         <CardHeader>
@@ -871,11 +932,30 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+          <div className="flex justify-end pt-4">
+            <Button onClick={handleSave} disabled={isSaving} size="lg" className="min-w-[180px]">
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 size-4" />
+                  Simpan
+                </>
+              )}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* Tab 4: KOP Surat (with inline pratinjau) */}
+        <TabsContent value="kop" className="space-y-4">
       {/* Section 2: Pengaturan KOP Sekolah */}
       <Card className="card-pro">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Settings className="size-5" />
+            <FileText className="size-5" />
             <CardTitle>Pengaturan KOP Sekolah</CardTitle>
           </div>
           <CardDescription>
@@ -1364,24 +1444,23 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button
-          onClick={handleSave}
-          disabled={isSaving}
-          size="lg"
-          className="min-w-[200px]"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="mr-2 size-4 animate-spin" />
-              Menyimpan...
-            </>
-          ) : (
-            'Simpan Pengaturan'
-          )}
-        </Button>
-      </div>
+          <div className="flex justify-end pt-4">
+            <Button onClick={handleSave} disabled={isSaving} size="lg" className="min-w-[180px]">
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 size-4" />
+                  Simpan
+                </>
+              )}
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
     </PageContainer>
   )
 }
