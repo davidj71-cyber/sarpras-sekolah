@@ -28,6 +28,7 @@ import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -108,8 +109,6 @@ interface FormDefaults {
   // Alamat singkat di bagian "yang beralamat ..." — berbeda dari address KOP.
   // Default diambil dari 2 chunk pertama address KOP (mis. "Jl. Pendidikan No.13 Kelurahan Pasar Telukdalam").
   shortAddress: string
-  // Jabatan struktural tambahan di bawah nama penandatangan (mis. "Pembina Tk. I").
-  principalTitle: string
 }
 
 // ─── Konstanta format nomor surat ───────────────────────────────────────────
@@ -157,7 +156,6 @@ function readDefaults(): FormDefaults {
     budgetYear: now.getFullYear(),
     purpose: 'Surat Pertanggungjawaban (SPJ) BOS Tahun ' + now.getFullYear() + ', Gaji PNS, GTT Provinsi Tahun ' + now.getFullYear(),
     shortAddress: '',
-    principalTitle: '',
   }
   if (typeof window === 'undefined') return fallback
   try {
@@ -210,7 +208,7 @@ function buildRekeningKoranHtml(
   const {
     letterSeq, lampiran, bankName, bankLocation,
     startMonth, endMonth, year, budgetYear, purpose,
-    shortAddress, principalTitle,
+    shortAddress,
   } = defaults
 
   const dateStr = formatLetterDate(letterDate)
@@ -219,8 +217,10 @@ function buildRekeningKoranHtml(
   const letterNumber = composeLetterNumber(letterSeq, letterDate)
 
   // Identitas pemohon — pakai Kepala Sekolah dari settings (yang menandatangani surat).
+  // principalTitle (mis. "Pembina Tk. I") otomatis sinkron dari Pengaturan sekolah.
   const principalName = settings.principalName || '________________________'
   const principalNip = settings.principalNip || ''
+  const principalTitle = settings.principalTitle || ''
   const schoolName = settings.schoolName || ''
   const jabatan = 'Kepala Sekolah'
   const unitKerja = schoolName || '-'
@@ -439,6 +439,8 @@ export function RekeningKoranDialog({
   const [accounts, setAccounts] = useState<BankAccountRow[]>([])
   const [accountsLoading, setAccountsLoading] = useState(false)
   const [accountsSaving, setAccountsSaving] = useState<Record<string, boolean>>({})
+  // Rekening yang dipilih untuk dicetak (checkbox). Default: semua terpilih saat load.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [letterDateStr, setLetterDateStr] = useState<string>('')
 
   // Load settings + saved accounts dari database saat dialog dibuka
@@ -454,7 +456,11 @@ export function RekeningKoranDialog({
     // Load daftar rekening dari database (bukan localStorage)
     setAccountsLoading(true)
     fetchAccountsApi()
-      .then((rows) => setAccounts(rows))
+      .then((rows) => {
+        setAccounts(rows)
+        // Default: semua rekening terpilih untuk dicetak
+        setSelectedIds(new Set(rows.map((r) => r.id)))
+      })
       .finally(() => setAccountsLoading(false))
   }, [open])
 
@@ -709,20 +715,40 @@ export function RekeningKoranDialog({
     }
   }
 
+  // ── Toggle rekening terpilih untuk dicetak ─────────────────────────────────
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      // Kalau semua sudah terpilih, uncheck semua. Kalau ada yang belum, pilih semua.
+      if (prev.size === accounts.length) return new Set()
+      return new Set(accounts.map((a) => a.id))
+    })
+  }, [accounts])
+
   // ── Print ────────────────────────────────────────────────────────────────
   function handlePrint() {
     if (!settings) {
       toast({ title: 'Menunggu data', description: 'Pengaturan sekolah masih dimuat. Coba lagi.', variant: 'destructive' })
       return
     }
-    if (accounts.length === 0) {
-      toast({ title: 'Belum ada rekening', description: 'Tambahkan minimal 1 rekening bank.', variant: 'destructive' })
+    // Hanya rekening yang terpilih (checkbox) yang dicetak
+    const selectedAccounts = accounts.filter((a) => selectedIds.has(a.id))
+    if (selectedAccounts.length === 0) {
+      toast({ title: 'Belum ada rekening dipilih', description: 'Centang minimal 1 rekening untuk dicetak.', variant: 'destructive' })
       return
     }
-    // Validasi: nomor rekening wajib diisi
-    const invalid = accounts.find((a) => !a.accountNumber.trim())
+    // Validasi: nomor rekening wajib diisi untuk yang terpilih
+    const invalid = selectedAccounts.find((a) => !a.accountNumber.trim())
     if (invalid) {
-      toast({ title: 'Nomor rekening kosong', description: 'Setiap rekening wajib punya Nomor Rekening.', variant: 'destructive' })
+      toast({ title: 'Nomor rekening kosong', description: 'Rekening terpilih wajib punya Nomor Rekening.', variant: 'destructive' })
       return
     }
     // Validasi: nomor urut surat wajib diisi (angka)
@@ -736,7 +762,7 @@ export function RekeningKoranDialog({
 
     try {
       const letterDate = letterDateStr ? new Date(letterDateStr + 'T00:00:00') : new Date()
-      const html = buildRekeningKoranHtml(settings, defaults, accounts, letterDate)
+      const html = buildRekeningKoranHtml(settings, defaults, selectedAccounts, letterDate)
 
       // Filename PDF: RekeningKoran_[Bank]_[Periode]_[Tahun]
       const periodeLabel = defaults.startMonth === defaults.endMonth
@@ -771,7 +797,7 @@ export function RekeningKoranDialog({
 
       toast({
         title: 'Surat permohonan dicetak',
-        description: `${accounts.length} rekening · ${periodeLabel} ${defaults.year}`,
+        description: `${selectedAccounts.length} rekening · ${periodeLabel} ${defaults.year}`,
       })
     } catch (err) {
       console.error('Print error:', err)
@@ -1030,16 +1056,26 @@ export function RekeningKoranDialog({
             </div>
           </div>
 
-          {/* ── Daftar rekening ─────────────────────────────────────────────── */}
+          {/* ── Daftar rekening (checklist untuk pilih yang dicetak) ──────────── */}
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">
-                Daftar Rekening Bank
+                Pilih Rekening untuk Dicetak
                 {accountsLoading && <Loader2 className="size-3.5 inline-block ml-2 animate-spin" />}
+                {!accountsLoading && accounts.length > 0 && (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    ({selectedIds.size}/{accounts.length} terpilih)
+                  </span>
+                )}
               </Label>
-              <Button type="button" variant="outline" size="sm" onClick={addAccount} disabled={accountsLoading}>
-                <Plus className="size-4 mr-1" /> Tambah Rekening
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button type="button" variant="ghost" size="sm" onClick={toggleSelectAll} disabled={accountsLoading || accounts.length === 0}>
+                  {selectedIds.size === accounts.length && accounts.length > 0 ? 'Hapus Semua' : 'Pilih Semua'}
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={addAccount} disabled={accountsLoading}>
+                  <Plus className="size-4 mr-1" /> Tambah
+                </Button>
+              </div>
             </div>
             {accountsLoading ? (
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground rounded-md border border-dashed p-6">
@@ -1048,72 +1084,89 @@ export function RekeningKoranDialog({
               </div>
             ) : accounts.length === 0 ? (
               <div className="text-sm text-muted-foreground rounded-md border border-dashed p-4 text-center">
-                Belum ada rekening. Klik &quot;Tambah Rekening&quot; untuk menambah.
+                Belum ada rekening tersimpan. Klik &quot;Tambah&quot; untuk menambah rekening sekolah
+                (mis. BOS Reguler, Gaji PNS) — sekali input, lalu tinggal centang saat cetak.
               </div>
             ) : (
-              <div className="rounded-md border max-h-[260px] overflow-y-auto">
+              <div className="rounded-md border max-h-[300px] overflow-y-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[40px] text-center">No</TableHead>
+                      <TableHead className="w-[40px] text-center">Pilih</TableHead>
                       <TableHead className="min-w-[140px]">Nomor Rekening</TableHead>
-                      <TableHead className="min-w-[140px]">a/n Rekening</TableHead>
-                      <TableHead className="min-w-[140px]">Rek. Koran Bank</TableHead>
+                      <TableHead className="min-w-[120px]">a/n Rekening</TableHead>
+                      <TableHead className="min-w-[120px]">Rek. Koran Bank</TableHead>
                       <TableHead className="w-[40px] text-center">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {accounts.map((acc, idx) => (
-                      <TableRow key={acc.id}>
-                        <TableCell className="text-center align-middle">{idx + 1}</TableCell>
-                        <TableCell className="align-middle">
-                          <Input
-                            placeholder="mis. 271.01.02.000940-0"
-                            value={acc.accountNumber}
-                            onChange={(e) => updateAccount(acc.id, 'accountNumber', e.target.value)}
-                            className="min-w-[140px]"
-                          />
-                        </TableCell>
-                        <TableCell className="align-middle">
-                          <Input
-                            placeholder="mis. SMAN 1 TELUKDALAM"
-                            value={acc.accountName}
-                            onChange={(e) => updateAccount(acc.id, 'accountName', e.target.value)}
-                            className="min-w-[140px]"
-                          />
-                        </TableCell>
-                        <TableCell className="align-middle">
-                          <Input
-                            placeholder="mis. BOS Reguler"
-                            value={acc.description}
-                            onChange={(e) => updateAccount(acc.id, 'description', e.target.value)}
-                            className="min-w-[140px]"
-                          />
-                        </TableCell>
-                        <TableCell className="text-center align-middle">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => removeAccount(acc.id)}
-                            title="Hapus rekening"
-                            disabled={accountsSaving[acc.id]}
-                          >
-                            {accountsSaving[acc.id]
-                              ? <Loader2 className="size-4 animate-spin" />
-                              : <Trash2 className="size-4" />}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {accounts.map((acc) => {
+                      const isSelected = selectedIds.has(acc.id)
+                      return (
+                        <TableRow key={acc.id} className={isSelected ? 'bg-primary/5' : ''}>
+                          <TableCell className="text-center align-middle">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleSelected(acc.id)}
+                              aria-label="Pilih rekening ini untuk dicetak"
+                            />
+                          </TableCell>
+                          <TableCell className="align-middle">
+                            <Input
+                              placeholder="mis. 271.01.02.000940-0"
+                              value={acc.accountNumber}
+                              onChange={(e) => updateAccount(acc.id, 'accountNumber', e.target.value)}
+                              className="min-w-[140px]"
+                            />
+                          </TableCell>
+                          <TableCell className="align-middle">
+                            <Input
+                              placeholder="mis. SMAN 1 TELUKDALAM"
+                              value={acc.accountName}
+                              onChange={(e) => updateAccount(acc.id, 'accountName', e.target.value)}
+                              className="min-w-[120px]"
+                            />
+                          </TableCell>
+                          <TableCell className="align-middle">
+                            <Input
+                              placeholder="mis. BOS Reguler"
+                              value={acc.description}
+                              onChange={(e) => updateAccount(acc.id, 'description', e.target.value)}
+                              className="min-w-[120px]"
+                            />
+                          </TableCell>
+                          <TableCell className="text-center align-middle">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => {
+                                removeAccount(acc.id)
+                                setSelectedIds((prev) => {
+                                  const next = new Set(prev)
+                                  next.delete(acc.id)
+                                  return next
+                                })
+                              }}
+                              title="Hapus rekening"
+                              disabled={accountsSaving[acc.id]}
+                            >
+                              {accountsSaving[acc.id]
+                                ? <Loader2 className="size-4 animate-spin" />
+                                : <Trash2 className="size-4" />}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Daftar rekening tersimpan otomatis di database — sinkron di semua perangkat.
-              Nama sekolah terisi otomatis di kolom &quot;a/n Rekening&quot; saat tambah rekening baru.
+              Daftar rekening tersimpan di database — sekali input, tinggal centang rekening mana yang
+              akan dicetak. Tidak perlu isi ulang nomor rekening yang sama berulang-ulang.
             </p>
           </div>
 
@@ -1131,17 +1184,24 @@ export function RekeningKoranDialog({
                 Alamat pendek di kalimat &quot;yang beralamat ...&quot;. Default otomatis dari 2 bagian pertama alamat KOP.
               </p>
             </div>
+            {/* Penandatangan (Kepala Sekolah) otomatis sinkron dari Pengaturan */}
             <div className="grid gap-1.5">
-              <Label htmlFor="rk-principal-title">Jabatan Struktural (di bawah nama)</Label>
-              <Input
-                id="rk-principal-title"
-                placeholder="mis. Pembina Tk. I"
-                value={defaults.principalTitle}
-                onChange={(e) => setDefaults((d) => ({ ...d, principalTitle: e.target.value }))}
-              />
-              <p className="text-xs text-muted-foreground">
-                Jabatan struktural tambahan di tanda tangan (opsional, kosongkan jika tidak ada).
-              </p>
+              <Label>Penandatangan (otomatis dari Pengaturan)</Label>
+              <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                {settings ? (
+                  <div className="space-y-0.5">
+                    <div><span className="text-muted-foreground">Nama:</span> <strong>{settings.principalName || '(belum diisi)'}</strong></div>
+                    <div><span className="text-muted-foreground">NIP:</span> {settings.principalNip || '-'}</div>
+                    <div><span className="text-muted-foreground">Jabatan Struktural:</span> {settings.principalTitle || '-'}</div>
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">Memuat data penandatangan...</span>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">
+                  Data penandatangan diambil otomatis dari Pengaturan &mdash; Tab Penandatangan.
+                  Ubah di sana jika perlu.
+                </p>
+              </div>
             </div>
           </div>
           <div className="grid gap-1.5">

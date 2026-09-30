@@ -56,6 +56,10 @@ model SchoolSettings {
   // Penandatangan laporan (disinkronisasi ke semua hasil cetak)
   principalName     String  @default("") // Nama Kepala Sekolah
   principalNip      String  @default("") // NIP Kepala Sekolah
+  // Jabatan struktural tambahan di bawah nama Kepala Sekolah, mis. "Pembina Tk. I".
+  // Dipakai di Surat Permohonan Rekening Koran (signature block) — otomatis sinkron
+  // dari Pengaturan, tidak perlu input manual di dialog cetak.
+  principalTitle    String  @default("") // Jabatan struktural Kepala Sekolah
   treasurerName     String  @default("") // Nama Bendahara
   treasurerNip      String  @default("") // NIP Bendahara
   goodsManagerName  String  @default("") // Nama Pengurus Barang (berbeda dari Bendahara)

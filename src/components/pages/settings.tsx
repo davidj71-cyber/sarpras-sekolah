@@ -53,6 +53,7 @@ interface SchoolSettingsData {
   // Penandatangan laporan (sinkronisasi)
   principalName: string
   principalNip: string
+  principalTitle: string // Jabatan struktural Kepala Sekolah (mis. "Pembina Tk. I")
   treasurerName: string
   treasurerNip: string
   goodsManagerName: string
@@ -85,6 +86,7 @@ const defaultSettings: SchoolSettingsData = {
   kopLines: [],
   principalName: '',
   principalNip: '',
+  principalTitle: '',
   treasurerName: '',
   treasurerNip: '',
   goodsManagerName: '',
@@ -197,6 +199,7 @@ export function SettingsPage() {
           kopLines: parseKopLines(data.kopLines, globalFontSize, globalTransform),
           principalName: data.principalName ?? '',
           principalNip: data.principalNip ?? '',
+          principalTitle: data.principalTitle ?? '',
           treasurerName: data.treasurerName ?? '',
           treasurerNip: data.treasurerNip ?? '',
           goodsManagerName: data.goodsManagerName ?? '',
@@ -861,6 +864,19 @@ export function SettingsPage() {
                   onChange={(e) => updateSettings('principalNip', e.target.value)}
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="principalTitle">Jabatan Struktural</Label>
+              <Input
+                id="principalTitle"
+                placeholder="Misal: Pembina Tk. I (tampil di bawah nama pada tanda tangan)"
+                value={settings.principalTitle}
+                onChange={(e) => updateSettings('principalTitle', e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Jabatan struktural tambahan di bawah nama Kepala Sekolah pada blok tanda tangan
+                (mis. Surat Permohonan Rekening Koran). Kosongkan jika tidak ada.
+              </p>
             </div>
           </div>
 

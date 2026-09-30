@@ -30,6 +30,9 @@ interface PrintSettings {
   // Penandatangan laporan (disinkronisasi)
   principalName: string
   principalNip: string
+  // Jabatan struktural tambahan di bawah nama Kepala Sekolah (mis. "Pembina Tk. I")
+  // Otomatis sinkron dari Pengaturan — dipakai di Surat Permohonan Rekening Koran
+  principalTitle: string
   treasurerName: string
   treasurerNip: string
   goodsManagerName: string
@@ -105,6 +108,7 @@ export async function fetchPrintSettings(): Promise<PrintSettings> {
       kopLines: data.kopLines ?? [],
       principalName: data.principalName ?? '',
       principalNip: data.principalNip ?? '',
+      principalTitle: data.principalTitle ?? '',
       treasurerName: data.treasurerName ?? '',
       treasurerNip: data.treasurerNip ?? '',
       goodsManagerName: data.goodsManagerName ?? '',
@@ -133,6 +137,7 @@ export async function fetchPrintSettings(): Promise<PrintSettings> {
       kopLines: [],
       principalName: '',
       principalNip: '',
+      principalTitle: '',
       treasurerName: '',
       treasurerNip: '',
       goodsManagerName: '',
