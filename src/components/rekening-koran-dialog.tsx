@@ -666,6 +666,28 @@ export function RekeningKoranDialog({
 
       openPrintWindow(filename, html, 'portrait')
 
+      // ── Simpan riwayat pencetakan ke PrintLog ────────────────────────────
+      // Fire-and-forget: jangan block flow cetak, jangan lempar error ke user
+      // jika logging gagal (mis. DB error / network error).
+      try {
+        const letterNumber = composeLetterNumber(defaults.letterSeq, letterDate)
+        fetch('/api/print-logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            category: 'rekening-koran',
+            periodLabel: periodeLabel
+              ? `${periodeLabel} ${defaults.year}`.trim()
+              : `${defaults.year}`,
+            letterNumber,
+            bankName: defaults.bankName,
+            title: `Rekening Koran ${bankShort} ${periodeLabel} ${defaults.year}`.replace(/\s+/g, ' ').trim(),
+            contentHtml: html,
+            orientation: 'portrait',
+          }),
+        }).catch(() => { /* silent fail — don't block print */ })
+      } catch { /* ignore */ }
+
       toast({
         title: 'Surat permohonan dicetak',
         description: `${accounts.length} rekening · ${periodeLabel} ${defaults.year}`,

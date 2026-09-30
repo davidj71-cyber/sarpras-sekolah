@@ -577,6 +577,24 @@ export function MediaPage() {
       orientation,
     )
 
+    // ── Simpan riwayat pencetakan ke PrintLog ──────────────────────────────
+    // Fire-and-forget: jangan block flow cetak. Jika logging gagal, abaikan
+    // supaya user tetap bisa melihat hasil cetak.
+    try {
+      const periodeLabel = `${monthLabel} ${year}`.replace(/\s+/g, ' ').trim()
+      fetch('/api/print-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: 'media',
+          periodLabel: periodeLabel,
+          title: `Media - ${periodeLabel}`,
+          contentHtml: bodyHtml,
+          orientation: plan.orientation,
+        }),
+      }).catch(() => { /* silent fail — don't block print */ })
+    } catch { /* ignore */ }
+
     // ── 10. Lepaskan spinner + guard SEGERA ──────────────────────────────────
     // Print window sudah terbuka → guard double-fire tidak diperlukan lagi.
     // Reset SEGERA (bukan di .finally recordPromise) supaya tombol cetak tidak

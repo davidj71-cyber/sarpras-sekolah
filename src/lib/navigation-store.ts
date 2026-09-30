@@ -11,6 +11,7 @@ export type Page =
   | 'salary'
   | 'media'
   | 'beritaAcara'
+  | 'printLogs'
 
 export type StoreSubPage = 'stores' | 'orders' | 'barangMasuk' | 'galon'
 
@@ -48,6 +49,8 @@ const RESTRICTED_PAGES: Record<Page, string[]> = {
   media: ['sarpras'],
   settings: ['sarpras', 'bendahara'],
   accounts: ['sarpras', 'bendahara'],
+  // Rekap Pencetakan: hanya admin & bendahara yang boleh (sama seperti salary/media)
+  printLogs: ['sarpras'],
   dashboard: [],
   stores: [],
   employees: [],

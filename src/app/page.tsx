@@ -8,7 +8,7 @@ import { useNavigationStore, canAccessPage } from '@/lib/navigation-store'
 import { useAppBootstrap } from '@/lib/use-app-bootstrap'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2, Wallet, Newspaper, Droplet, FileCheck } from 'lucide-react'
+import { Store, FileText, PackagePlus, DoorOpen, Package, UserCog, Building2, Wallet, Newspaper, Droplet, FileCheck, History } from 'lucide-react'
 import type { StoreSubPage, RoomSubPage } from '@/lib/navigation-store'
 import { LoginPage } from '@/components/login-page'
 import { PageLoading } from '@/components/ui/loading-skeleton'
@@ -44,6 +44,7 @@ const BuildingsPage = dynamic(() => import('@/components/pages/buildings').then(
 const AccountsPage = dynamic(() => import('@/components/pages/accounts').then(m => ({ default: m.AccountsPage })), { ssr: false, loading: loadingFallback })
 const SalaryPage = dynamic(() => import('@/components/pages/salary').then(m => ({ default: m.SalaryPage })), { ssr: false, loading: loadingFallback })
 const MediaPage = dynamic(() => import('@/components/pages/media').then(m => ({ default: m.MediaPage })), { ssr: false, loading: loadingFallback })
+const PrintLogsPage = dynamic(() => import('@/components/pages/print-logs').then(m => ({ default: m.PrintLogsPage })), { ssr: false, loading: loadingFallback })
 
 const kibItems = [
   { type: 'A', label: 'KIB A - Tanah' },
@@ -150,6 +151,7 @@ const pageTitles: Record<string, string> = {
   salary: 'Gaji',
   media: 'Media',
   beritaAcara: 'Berita Acara',
+  printLogs: 'Rekap Pencetakan',
 }
 
 export default function Home() {
@@ -226,6 +228,8 @@ export default function Home() {
         return <SalaryPage />
       case 'media':
         return <MediaPage />
+      case 'printLogs':
+        return <PrintLogsPage />
       case 'beritaAcara':
         return <BeritaAcaraPage />
       case 'kib':
@@ -256,6 +260,7 @@ export default function Home() {
               {effectivePage === 'accounts' && <UserCog className="size-4.5 text-primary shrink-0" />}
               {effectivePage === 'salary' && <Wallet className="size-4.5 text-primary shrink-0" />}
               {effectivePage === 'media' && <Newspaper className="size-4.5 text-primary shrink-0" />}
+              {effectivePage === 'printLogs' && <History className="size-4.5 text-primary shrink-0" />}
               <h1 className="text-base font-semibold tracking-tight truncate">
                 {pageTitles[effectivePage] || 'SIMAPRAS'}
               </h1>

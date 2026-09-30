@@ -584,6 +584,26 @@ export function SalaryPage() {
       orientation,
     )
 
+    // ── Simpan riwayat pencetakan ke PrintLog ──────────────────────────────
+    // Fire-and-forget: jangan block flow cetak. Jika logging gagal, abaikan
+    // supaya user tetap bisa melihat hasil cetak.
+    try {
+      const modeLabel = plan.printMode === 'signature' ? 'Tanda Tangan' : 'Bank'
+      const periodeLabel = `${monthLabel} ${year}`.replace(/\s+/g, ' ').trim()
+      fetch('/api/print-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: 'salary',
+          periodLabel: periodeLabel,
+          printMode: plan.printMode,
+          title: `Gaji ${plan.honorType} - ${modeLabel} - ${periodeLabel}`.replace(/\s+/g, ' ').trim(),
+          contentHtml: bodyHtml,
+          orientation: plan.orientation,
+        }),
+      }).catch(() => { /* silent fail — don't block print */ })
+    } catch { /* ignore */ }
+
     // ── 10. Lepaskan spinner + guard SEGERA ──────────────────────────────────
     // Print window sudah terbuka → guard double-fire tidak diperlukan lagi.
     // Reset SEGERA (bukan di .finally recordPromise) supaya tombol cetak tidak

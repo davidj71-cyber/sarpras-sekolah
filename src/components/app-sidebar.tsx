@@ -14,6 +14,7 @@ import {
   Newspaper,
   BookOpen,
   FileCheck,
+  History,
 } from 'lucide-react'
 
 import {
@@ -47,6 +48,7 @@ const navItems: {
   { page: 'rooms', label: 'Inventaris', icon: Archive },
   { page: 'salary', label: 'Gaji', icon: Wallet },
   { page: 'media', label: 'Media', icon: Newspaper },
+  { page: 'printLogs', label: 'Rekap Pencetakan', icon: History },
   { page: 'beritaAcara', label: 'Berita Acara', icon: FileCheck },
 ]
 
