@@ -418,8 +418,8 @@ export function SalaryPage() {
 
     // ── 5. Blok metadata (rata KANAN, di atas judul) ─────────────────────────
     const metaBlock = `
-      <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
-        <table style="border: none; font-size: 10pt; line-height: 1.5; width: auto;">
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 2px;">
+        <table style="border: none; font-size: 10pt; line-height: 1.3; width: auto;">
           <tbody>
             <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${salaryKode}</td></tr>
             <tr><td style="border: none; padding: 0 4px 0 0; text-align: left;">Kode Program</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">:</td><td style="border: none; padding: 0 0 0 4px; text-align: left;">${salaryKodeProgram}</td></tr>
@@ -455,7 +455,7 @@ export function SalaryPage() {
     const maxWidthMm = orientation === 'landscape' ? 275 : 188
     const titleFontSize = computeTitleFontSize(titleLine1, maxWidthMm, 20, 8)
     const titleHtml = `
-      <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: ${titleFontSize}pt; line-height: 1.4; margin: 8px 0 18px; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
+      <div style="text-align: center; font-weight: bold; text-transform: uppercase; font-size: ${titleFontSize}pt; line-height: 1.2; margin: 2px 0 6px; position: relative; z-index: 1; font-family: 'Times New Roman', serif;">
         <div id="print-title-line1" style="white-space: nowrap;">${titleLine1}</div>
         <div>${titleLine2}</div>
       </div>
@@ -474,7 +474,7 @@ export function SalaryPage() {
     // Kolom tanda tangan hanya ada di mode signature
     const signatureCellHtml = isBankMode
       ? ''
-      : '<td style="background: transparent; height: 48px; vertical-align: middle;"></td>'
+      : '<td style="background: transparent; height: 36px; vertical-align: middle;"></td>'
 
     const rows = items.map((it, idx) => {
       const jumlah = it.lessonCount
@@ -511,7 +511,7 @@ export function SalaryPage() {
     // Kolom header TANDA TANGAN hanya di mode signature
     const signatureHeaderHtml = isBankMode
       ? ''
-      : '<th style="background: transparent; width: 16%; padding: 6px 4px;">TANDA TANGAN</th>'
+      : '<th style="background: transparent; width: 16%; padding: 2px 4px;">TANDA TANGAN</th>'
 
     // Lebar kolom dioptimasi:
     //   - NAMA diperkecil (signature 28% / bank 32%) supaya kolom TANDA TANGAN lebih lebar
@@ -527,12 +527,12 @@ export function SalaryPage() {
       <table style="width: 100%; border-collapse: collapse; position: relative; z-index: 1; background: transparent;">
         <thead>
           <tr>
-            <th style="background: transparent; width: 5%; padding: 6px 4px;">NO.</th>
-            <th style="background: transparent; width: ${namaWidth}; padding: 6px 4px;">NAMA PENERIMA</th>
-            <th style="background: transparent; width: ${rekeningWidth}; padding: 6px 4px;">NO. REKENING/<br>TABUNGAN</th>
-            <th style="background: transparent; width: 9%; padding: 6px 4px;">JUMLAH</th>
-            <th style="background: transparent; width: 12%; padding: 6px 4px;">HARGA<br>SATUAN</th>
-            <th style="background: transparent; width: ${penerimaanWidth}; padding: 6px 4px;">PENERIMAAN</th>
+            <th style="background: transparent; width: 5%; padding: 2px 4px;">NO.</th>
+            <th style="background: transparent; width: ${namaWidth}; padding: 2px 4px;">NAMA PENERIMA</th>
+            <th style="background: transparent; width: ${rekeningWidth}; padding: 2px 4px;">NO. REKENING/<br>TABUNGAN</th>
+            <th style="background: transparent; width: 9%; padding: 2px 4px;">JUMLAH</th>
+            <th style="background: transparent; width: 12%; padding: 2px 4px;">HARGA<br>SATUAN</th>
+            <th style="background: transparent; width: ${penerimaanWidth}; padding: 2px 4px;">PENERIMAAN</th>
             ${signatureHeaderHtml}
           </tr>
         </thead>
@@ -550,12 +550,12 @@ export function SalaryPage() {
     const placeDate = place.trim() ? `${place.trim()}, ${today}` : today
 
     const signatureHtml = `
-      <div style="display: flex; justify-content: space-between; margin-top: 24px; font-size: 10pt; position: relative; z-index: 1;">
+      <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 10pt; position: relative; z-index: 1;">
         <div style="width: 40%; text-align: left;">
           <div>Mengetahui/</div>
           <div>Setuju Bayar:</div>
           <div>Kepala ${schoolName || 'Sekolah'},</div>
-          <div style="height: 60px;"></div>
+          <div style="height: 40px;"></div>
           <div style="text-decoration: underline; font-weight: bold;">${principalName || '&nbsp;'}</div>
           <div>${principalNip ? `NIP. ${principalNip}` : '&nbsp;'}</div>
         </div>
@@ -564,7 +564,7 @@ export function SalaryPage() {
           <div>&nbsp;</div>
           <div>Bayar lunas :</div>
           <div>Bendahara ${schoolName || 'Sekolah'}</div>
-          <div style="height: 60px;"></div>
+          <div style="height: 40px;"></div>
           <div style="text-decoration: underline; font-weight: bold;">${treasurerName || '&nbsp;'}</div>
           <div>${treasurerNip ? `NIP. ${treasurerNip}` : '&nbsp;'}</div>
         </div>
