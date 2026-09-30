@@ -153,6 +153,58 @@ export function buildKopHtml(settings: PrintSettings): string {
   const headerLines = kopLines.filter(l => l.style === 'header' && l.text.trim())
   const detailLines = kopLines.filter(l => l.style === 'detail' && l.text.trim())
 
+  // ── Fallback: kalau kopLines kosong, auto-generate dari data sekolah ──────
+  // Supaya KOP selalu tampil (minimal: nama sekolah + alamat + telepon + email)
+  // bahkan kalau user belum konfigurasi KOP Lines di Pengaturan.
+  // User bisa override dengan konfigurasi manual di Pengaturan → KOP Surat.
+  const hasHeader = headerLines.length > 0
+  const hasDetail = detailLines.length > 0
+  const fallbackHeader: KopLine[] = []
+  const fallbackDetail: KopLine[] = []
+  if (!hasHeader && settings.schoolName) {
+    fallbackHeader.push({
+      text: settings.schoolName,
+      style: 'header',
+      bold: true,
+      fontSize: 0, // inherit global fontSize
+      textTransform: 'uppercase',
+    })
+  }
+  if (!hasDetail) {
+    if (settings.address) {
+      fallbackDetail.push({
+        text: settings.address,
+        style: 'detail',
+        bold: false,
+        fontSize: 0,
+        textTransform: 'none',
+      })
+    }
+    const contactParts: string[] = []
+    if (settings.phone) contactParts.push(`Telp/HP: ${settings.phone}`)
+    if (settings.email) contactParts.push(`Pos-el: ${settings.email}`)
+    if (contactParts.length > 0) {
+      fallbackDetail.push({
+        text: contactParts.join(', '),
+        style: 'detail',
+        bold: false,
+        fontSize: 0,
+        textTransform: 'none',
+      })
+    }
+    if (settings.npsn) {
+      fallbackDetail.push({
+        text: `NPSN: ${settings.npsn}`,
+        style: 'detail',
+        bold: false,
+        fontSize: 0,
+        textTransform: 'none',
+      })
+    }
+  }
+  const allHeaderLines = headerLines.length > 0 ? headerLines : fallbackHeader
+  const allDetailLines = detailLines.length > 0 ? detailLines : fallbackDetail
+
   const cmToPx = 37.8
   const logoWidthPx = settings.logoWidth * cmToPx
   const logoHeightPx = settings.logoHeight * cmToPx
@@ -200,8 +252,8 @@ export function buildKopHtml(settings: PrintSettings): string {
     `
   }
 
-  const headerLinesHtml = headerLines.map(l => renderLine(l, true)).join('\n')
-  const detailLinesHtml = detailLines.map(l => renderLine(l, false)).join('\n')
+  const headerLinesHtml = allHeaderLines.map(l => renderLine(l, true)).join('\n')
+  const detailLinesHtml = allDetailLines.map(l => renderLine(l, false)).join('\n')
 
   return `
     <div style="display: flex; align-items: flex-start; justify-content: center; gap: 8px; margin-bottom: 2px;">

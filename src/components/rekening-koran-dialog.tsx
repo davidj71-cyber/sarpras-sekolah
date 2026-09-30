@@ -246,8 +246,8 @@ function buildRekeningKoranHtml(
   //                          "Perihal   : Permohonan Cetak Rekening Koran Bank"
   // Label diberi width tetap (90px) supaya ":" (colon) di semua baris selaras.
   const letterInfoHtml = `
-    <div style="margin-top: 14px; font-size: 12pt; line-height: 1.5; position: relative; min-height: 24px;">
-      <div style="text-align: right; margin-bottom: 8px;">${dateCity}, ${dateStr}</div>
+    <div style="margin-top: 10px; font-size: 12pt; line-height: 1.4; position: relative; min-height: 24px;">
+      <div style="text-align: right; margin-bottom: 4px;">${dateCity}, ${dateStr}</div>
       <table style="width:auto; border:none; font-size: 12pt; line-height: 1.5;">
         <tbody>
           <tr>
@@ -276,7 +276,7 @@ function buildRekeningKoranHtml(
   //   di
   //   Telukdalam
   const tujuanHtml = `
-    <div style="margin-top: 22px; font-size: 12pt; line-height: 1.5;">
+    <div style="margin-top: 14px; font-size: 12pt; line-height: 1.4;">
       Kepada Yth,<br>
       Pimpinan ${bankName || 'PT. Bank __________'}<br>
       di<br>
@@ -287,11 +287,11 @@ function buildRekeningKoranHtml(
   // Pembuka + identitas
   // Label diberi width tetap (130px) supaya ":" (colon) selaras di semua baris.
   const pembukaHtml = `
-    <div style="margin-top: 22px; font-size: 12pt; line-height: 1.5;">
+    <div style="margin-top: 14px; font-size: 12pt; line-height: 1.4;">
       Dengan hormat,<br>
       Saya yang bertanda tangan dibawah ini:
     </div>
-    <table style="width:100%; border:none; margin-top: 8px; font-size: 12pt; line-height: 1.7;">
+    <table style="width:100%; border:none; margin-top: 4px; font-size: 12pt; line-height: 1.5;">
       <tbody>
         <tr>
           <td style="border:none; padding:1px 8px 1px 0; width:130px; vertical-align:top;">Nama</td>
@@ -323,7 +323,7 @@ function buildRekeningKoranHtml(
     : `Bulan ${MONTHS_ID[startMonth]} Sampai dengan Bulan ${MONTHS_ID[endMonth]} ${year}`
 
   const maksudHtml = `
-    <div style="margin-top: 18px; font-size: 12pt; line-height: 1.5; text-align: justify; text-indent: 36px;">
+    <div style="margin-top: 12px; font-size: 12pt; line-height: 1.4; text-align: justify; text-indent: 36px;">
       Bermaksud mengajukan permohonan Cetak Rekening Koran Bank dari ${monthRange} (Tahun Anggaran ${budgetYear}) sebagai berikut :
     </div>
   `
@@ -342,7 +342,7 @@ function buildRekeningKoranHtml(
       const an = acc.accountName || '_____________________'
       const desc = acc.description || '_____________________'
       return `
-        <table style="width: 100%; border: none; margin-top: 12px; font-size: 12pt; line-height: 1.7;">
+        <table style="width: 100%; border: none; margin-top: 8px; font-size: 12pt; line-height: 1.4;">
           <tr>
             <td style="border: none; width: 56px; vertical-align: top; padding: 1px 16px 1px 36px;">${idx + 1}</td>
             <td style="border: none; vertical-align: top; padding: 0;">
@@ -374,14 +374,14 @@ function buildRekeningKoranHtml(
   // Tujuan & alamat — pakai alamat singkat (bukan alamat KOP lengkap)
   // Paragraf rata justify (kedua margin rata) dengan indentasi awal 36px.
   const tujuanAkhirHtml = `
-    <div style="margin-top: 18px; font-size: 12pt; line-height: 1.5; text-align: justify; text-indent: 36px;">
+    <div style="margin-top: 12px; font-size: 12pt; line-height: 1.4; text-align: justify; text-indent: 36px;">
       yang beralamat ${addressLine} (sesuai rekening) guna kepentingan ${purpose || '_______________________'}.
     </div>
   `
 
   // Penutup
   const penutupHtml = `
-    <div style="margin-top: 22px; font-size: 12pt; line-height: 1.5; text-align: justify; text-indent: 36px;">
+    <div style="margin-top: 14px; font-size: 12pt; line-height: 1.4; text-align: justify; text-indent: 36px;">
       Demikian surat permohonan ini saya buat dengan sebenar-benarnya. Atas perhatian dan bantuannya saya ucapkan terima kasih.
     </div>
   `
@@ -394,10 +394,10 @@ function buildRekeningKoranHtml(
   //   Pembina Tk. I                              (jabatan struktural tambahan, opsional)
   //   NIP. 19691208 200502 2 001
   const signatureHtml = `
-    <div style="margin-top: 36px; display:flex; justify-content:flex-end;">
-      <div style="text-align: left; font-size: 12pt; line-height: 1.5; min-width: 260px;">
+    <div style="margin-top: 24px; display:flex; justify-content:flex-end;">
+      <div style="text-align: left; font-size: 12pt; line-height: 1.4; min-width: 260px;">
         <div>Kepala ${schoolName || 'Sekolah'}</div>
-        <div style="height: 72px;"></div>
+        <div style="height: 56px;"></div>
         <div style="text-decoration: underline; font-weight: bold;">${principalName}</div>
         ${principalTitle.trim() ? `<div>${principalTitle.trim()}</div>` : ''}
         <div>NIP. ${principalNip || '________________________'}</div>
