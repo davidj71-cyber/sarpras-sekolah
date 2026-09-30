@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 const DEFAULT_ADMIN = {
   name: 'Administrator',
   username: 'admin',
-  password: '1234567890',
+  password: '1sampai0',
   role: 'admin',
 }
 
