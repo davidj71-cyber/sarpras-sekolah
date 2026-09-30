@@ -408,16 +408,31 @@ function buildRekeningKoranHtml(
   // Gabungkan dengan KOP
   const kopHtml = buildKopHtml(settings)
 
+  // ── Watermark logo aplikasi di tengah halaman (sebagai background) ────────
+  // Pakai logo APLIKASI (bukan KOP). Opacity rendah supaya teks tetap terbaca.
+  const appLogo = settings.appLogo || settings.favicon || settings.logo || null
+  // Rekening Koran selalu portrait
+  const watermarkW = '188mm'
+  const watermarkH = '277mm'
+  const watermarkHtml = appLogo
+    ? `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.12; z-index: 0; pointer-events: none;">
+         <img src="${appLogo}" style="width: ${watermarkW}; height: ${watermarkH}; object-fit: contain; display: block;" alt="watermark" />
+       </div>`
+    : ''
+
   return `
-    ${kopHtml}
-    ${letterInfoHtml}
-    ${tujuanHtml}
-    ${pembukaHtml}
-    ${maksudHtml}
-    ${accountItemsHtml}
-    ${tujuanAkhirHtml}
-    ${penutupHtml}
-    ${signatureHtml}
+    ${watermarkHtml}
+    <div style="position: relative; z-index: 1;">
+      ${kopHtml}
+      ${letterInfoHtml}
+      ${tujuanHtml}
+      ${pembukaHtml}
+      ${maksudHtml}
+      ${accountItemsHtml}
+      ${tujuanAkhirHtml}
+      ${penutupHtml}
+      ${signatureHtml}
+    </div>
   `
 }
 

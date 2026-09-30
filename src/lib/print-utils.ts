@@ -14,6 +14,9 @@ interface KopLine {
 interface PrintSettings {
   schoolName: string
   logo: string | null
+  // Logo APLIKASI (untuk watermark/background di hasil cetak, di login, sidebar)
+  appLogo: string | null
+  favicon: string | null
   logoWidth: number
   logoHeight: number
   fontFamily: string
@@ -93,6 +96,8 @@ export async function fetchPrintSettings(): Promise<PrintSettings> {
     const settings: PrintSettings = {
       schoolName: data.schoolName ?? '',
       logo: data.logo ?? null,
+      appLogo: data.appLogo ?? null,
+      favicon: data.favicon ?? null,
       logoWidth: data.logoWidth ?? 3,
       logoHeight: data.logoHeight ?? 3,
       fontFamily: data.fontFamily ?? 'Times New Roman',
@@ -122,6 +127,8 @@ export async function fetchPrintSettings(): Promise<PrintSettings> {
     return {
       schoolName: '',
       logo: null,
+      appLogo: null,
+      favicon: null,
       logoWidth: 3,
       logoHeight: 3,
       fontFamily: 'Times New Roman',
