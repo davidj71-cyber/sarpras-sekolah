@@ -8,8 +8,14 @@ export async function GET() {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     })
     return NextResponse.json(accounts)
-  } catch {
-    return NextResponse.json({ error: 'Gagal mengambil data rekening' }, { status: 500 })
+  } catch (error) {
+    // Return error detail supaya bisa diagnose (tabel belum ada? koneksi gagal?)
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('[bank-accounts] GET error:', msg)
+    return NextResponse.json(
+      { error: 'Gagal mengambil data rekening', detail: msg.slice(0, 300) },
+      { status: 500 }
+    )
   }
 }
 
@@ -47,7 +53,12 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json(account, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: 'Gagal membuat rekening' }, { status: 500 })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('[bank-accounts] POST error:', msg)
+    return NextResponse.json(
+      { error: 'Gagal membuat rekening', detail: msg.slice(0, 300) },
+      { status: 500 }
+    )
   }
 }
