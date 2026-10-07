@@ -42,7 +42,11 @@ const inlineManifest = {
     { src: "/api/pwa-icon/512", sizes: "512x512", type: "image/png", purpose: "any" },
     { src: "/api/pwa-icon/192?maskable=1", sizes: "192x192", type: "image/png", purpose: "maskable" },
     { src: "/api/pwa-icon/512?maskable=1", sizes: "512x512", type: "image/png", purpose: "maskable" },
-    { src: "/api/favicon", sizes: "any", type: "image/svg+xml", purpose: "any" },
+    // Favicon: jangan specify type supaya browser terima apa adanya dari
+    // Content-Type header response. Sebelumnya type "image/svg+xml" padahal
+    // /api/favicon bisa return PNG/JPG (sesuai yang user upload) → manifest
+    // error "Resource size is not correct".
+    { src: "/api/favicon", sizes: "any", purpose: "any" },
   ],
 };
 const manifestDataUri = `data:application/manifest+json,${encodeURIComponent(JSON.stringify(inlineManifest))}`;
